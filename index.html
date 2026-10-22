@@ -217,6 +217,14 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 .stage-tip{margin:0;font-size:14px;line-height:1.4;background:var(--accent-soft);border-radius:12px;padding:10px 12px}
 .pgrades{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .pgrades .btn{min-height:64px;font-size:17px}
+.who-chip{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;font:inherit;font-weight:700;font-size:14px;min-height:40px}
+.who{gap:20px;padding-top:6vh}
+.who h1{text-align:center;margin:8px 0 0;font-size:26px}
+.who-list{display:grid;gap:12px}
+.who-btn{display:flex;align-items:center;gap:16px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:18px;padding:16px 18px;font:inherit;font-size:22px;font-weight:700;min-height:80px;text-align:left;cursor:pointer}
+.who-btn .av{width:52px;height:52px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-size:24px;flex:none}
+.kidopt{display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:start;margin:14px 0;font-size:16px}
+.kidopt input{width:22px;height:22px;margin-top:3px}
 @media (prefers-reduced-motion: reduce){.prog i{transition:none}}
 </style>
 </head>
@@ -230,8 +238,8 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=5, APP_VERSION=11;
-const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual']};
+const INSTR=5, APP_VERSION=12;
+const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['recognition','listening','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -241,13 +249,24 @@ const dayKey=()=>{const d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)
 const PLAY='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>';
 
 /* ---------- storage (IndexedDB, on this device only) ---------- */
-let dbp=null;
-function openDB(){if(dbp)return dbp;dbp=new Promise((res,rej)=>{let r;try{r=indexedDB.open('kelma',2)}catch(e){rej(e);return}
+/* Profiles: the first (original) profile keeps the 'kelma' database, so existing cards are untouched.
+   Each extra profile gets its own database 'kelma-<id>'. The profile list lives in the 'kelma' database. */
+const dbs=new Map();let DBN='kelma';
+function openNamed(name){if(dbs.has(name))return dbs.get(name);const p=new Promise((res,rej)=>{let r;try{r=indexedDB.open(name,2)}catch(e){rej(e);return}
   r.onupgradeneeded=()=>{const d=r.result,has=n=>d.objectStoreNames.contains(n);
     if(!has('decks'))d.createObjectStore('decks',{keyPath:'id'});if(!has('notes'))d.createObjectStore('notes',{keyPath:'id'});if(!has('cards'))d.createObjectStore('cards',{keyPath:'id'});
     if(!has('audio'))d.createObjectStore('audio');if(!has('meta'))d.createObjectStore('meta');if(!has('revlog'))d.createObjectStore('revlog')};
-  r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});return dbp}
+  r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});dbs.set(name,p);p.catch(()=>dbs.delete(name));return p}
+const openDB=()=>openNamed(DBN);
 const reqP=r=>new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const dbName=id=>id==='main'?'kelma':'kelma-'+id;
+let PROFILES=[{id:'main',name:'Me',kid:false}], CUR='main';
+const curProfile=()=>PROFILES.find(p=>p.id===CUR)||PROFILES[0];
+const isKid=()=>!!curProfile().kid;
+async function loadProfiles(){try{const d=await openNamed('kelma');const p=await reqP(d.transaction('meta').objectStore('meta').get('profiles'));if(Array.isArray(p)&&p.length)PROFILES=p}catch(e){}}
+async function saveProfiles(){const d=await openNamed('kelma');return new Promise((res,rej)=>{const t=d.transaction(['meta'],'readwrite');t.objectStore('meta').put(PROFILES,'profiles');t.oncomplete=()=>res();t.onerror=()=>rej(t.error)})}
+async function useProfile(id){CUR=id;DBN=dbName(id);try{sessionStorage.setItem('kelma-profile',id)}catch(e){}
+  try{await openDB();await load();S.ok=true}catch(e){S.ok=false}}
 async function getAll(s){const d=await openDB();return reqP(d.transaction(s).objectStore(s).getAll())}
 async function get(s,k){const d=await openDB();return reqP(d.transaction(s).objectStore(s).get(k))}
 async function write(stores,fn){const d=await openDB();return new Promise((res,rej)=>{const t=d.transaction(stores,'readwrite');fn(t);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)})}
@@ -274,6 +293,8 @@ const saveCard=c=>write(['cards'],t=>t.objectStore('cards').put(c)).catch(()=>{s
 /* ---------- scheduling ---------- */
 const isDue=c=>(c.state==='review'||c.state==='learning')&&c.due<today0()+DAY;
 const newLeft=()=>Math.max(0,S.settings.newPerDay+(S.newDone.extra||0)-S.newDone.count);
+/* Kid profiles: a hard cap on cards answered per day (reviews + new). Overdue cards just wait for another day. */
+const capLeft=()=>Math.max(0,(S.settings.cap||15)+(S.newDone.capExtra||0)-(S.newDone.done||0));
 function nextIv(c,g){
   if(g===0)return 0;
   if(c.state==='new')return g===2?3:1;
@@ -318,14 +339,15 @@ function buildQueue(deckId){
   for(const c of eligibleNew(deckId)){if(left<=0)break;if(nseen.has(c.noteId))continue;nseen.add(c.noteId);nw.push(c);left--}
   const q=[];let i=0,j=0;
   while(i<rev.length||j<nw.length){if(i<rev.length)q.push(rev[i++]);if(i<rev.length)q.push(rev[i++]);if(j<nw.length)q.push(nw[j++])}
-  return spreadSiblings(q).map(c=>c.id);
+  const out=spreadSiblings(q).map(c=>c.id);
+  return isKid()?out.slice(0,capLeft()):out;
 }
 function counts(deckId){
   const inDeck=c=>!deckId||deckOf(c)===deckId;
   const due=S.cards.filter(c=>isDue(c)&&inDeck(c)).length;
   const avail=S.cards.filter(c=>c.state==='new'&&inDeck(c)).length;
   const ready=eligibleNew(deckId).length;
-  return {due,newToday:Math.min(ready,newLeft()),newTotal:avail,ready};
+  return {due,newToday:Math.min(ready,newLeft()),newTotal:avail,ready,today:isKid()?buildQueue(deckId).length:0};
 }
 
 /* ---------- import ---------- */
@@ -357,19 +379,22 @@ async function importFile(file){
       else missing.push(num)}
     notes.push({id,deckId:deck.deck_id,order:Number(num)||i+1,num:String(num),word:c.word,meaning:c.meaning,example:c.example||'',example_en:c.example_en||'',tag:TAGS[String(c.tag||'').toLowerCase()]?String(c.tag).toLowerCase():'',audioKey});
   }
+  const noAudio=!notes.some(n=>n.audioKey)&&!deck.cards.some(c=>c.audio);
+  const kinds=noAudio?['recognition']:TYPES;
   const existing=new Set(S.cards.map(c=>c.id));let added=0,updated=0;const newCards=[];
-  notes.forEach(n=>{let fresh=false;TYPES.forEach(t=>{const id=n.id+':'+t;if(!existing.has(id)){fresh=true;newCards.push({id,noteId:n.id,type:t,state:'new',interval:0,ease:2.5,due:0,reps:0,lapses:0})}});fresh?added++:updated++});
+  notes.forEach(n=>{let fresh=false;kinds.forEach(t=>{const id=n.id+':'+t;if(!existing.has(id)){fresh=true;newCards.push({id,noteId:n.id,type:t,state:'new',interval:0,ease:2.5,due:0,reps:0,lapses:0})}});fresh?added++:updated++});
   const prev=S.decks.find(d=>d.id===deck.deck_id);
   const drec={id:deck.deck_id,name:(prev&&prev.renamed)?prev.name:(deck.deck_name||deck.deck_id),importedAt:prev?prev.importedAt:Date.now()};
   if(prev&&prev.renamed)drec.renamed=true;
+  if(noAudio)drec.noAudio=true;
   const ver=Number(deck.instructions_version)||0;
-  try{await write(['decks','notes','cards','audio','meta'],t=>{t.objectStore('decks').put(drec);t.objectStore('meta').put(ver,'instrVer');notes.forEach(n=>t.objectStore('notes').put(n));newCards.forEach(c=>t.objectStore('cards').put(c));audio.forEach(([k,b])=>t.objectStore('audio').put(b,k))})}
+  try{await write(['decks','notes','cards','audio','meta'],t=>{t.objectStore('decks').put(drec);if(!noAudio)t.objectStore('meta').put(ver,'instrVer');notes.forEach(n=>t.objectStore('notes').put(n));newCards.forEach(c=>t.objectStore('cards').put(c));audio.forEach(([k,b])=>t.objectStore('audio').put(b,k))})}
   catch(e){status={err:true,msg:'Could not save the deck on this device. Your phone may be out of storage.'};render();return}
-  if(ver<INSTR&&S.instrAck>=INSTR){try{await write(['meta'],t=>t.objectStore('meta').put(-1,'instrAck'))}catch(e){}}
+  if(!noAudio&&ver<INSTR&&S.instrAck>=INSTR){try{await write(['meta'],t=>t.objectStore('meta').put(-1,'instrAck'))}catch(e){}}
   await load();
-  let msg=`Imported “${drec.name}”: ${added} new word${added===1?'':'s'} (${added*3} cards)`+(updated?`, ${updated} already here and updated, progress kept`:'')+'.';
+  let msg=`Imported “${drec.name}”: ${added} new word${added===1?'':'s'}`+(noAudio?'':` (${added*3} cards)`)+(updated?`, ${updated} already here and updated, progress kept`:'')+'.';
   if(clash)msg+=' You already had a different deck with the same ID, so this was added as a new deck.';
-  if(missing.length)msg+=` No audio found for #${missing.join(', #')}.`;
+  if(missing.length&&!noAudio)msg+=` No audio found for #${missing.join(', #')}.`;
   status={msg};render();
 }
 async function restore(zip,bk){
@@ -388,7 +413,8 @@ async function backup(){
   let revlog=[];try{revlog=await getAll('revlog')}catch(e){}
   zip.file('backup.json',JSON.stringify({format:'kelma-backup-1',exportedAt:new Date().toISOString(),decks:S.decks,notes,cards:S.cards,settings:S.settings,log:S.log,revlog}));
   const blob=await zip.generateAsync({type:'blob'});
-  S.pending={blob,name:'kelma-backup-'+dayKey()+'.zip',kind:'backup'};
+  const who=PROFILES.length>1?curProfile().name.replace(/[^\p{L}\p{N}]+/gu,'-').slice(0,20)+'-':'';
+  S.pending={blob,name:'kelma-backup-'+who+dayKey()+'.zip',kind:'backup'};
   status={msg:'Backup ready ('+Math.max(1,Math.round(blob.size/1024))+' KB). Tap Save file, then choose Save to Files.'};render();
 }
 async function shareDeck(id){
@@ -448,6 +474,8 @@ function stageOf(cs){
   return 'started';
 }
 const STAGES={started:['🌱','started','You’ve seen at least one of its 3 cards in review.'],growing:['🌿','growing','All 3 cards (👁️ see, 👂 hear, 🗣️ say) reviewed, and your last answer on each was right.'],well:['🌳','known well','All 3 cards remembered over gaps of 3 weeks or more.']};
+const KSTAGES={started:['🌱','started','You’ve seen it once.'],growing:['🌿','I know it','You got it right last time.'],well:['🌳','known well','You still remembered it after 3 weeks or more.']};
+const stageSet=()=>isKid()?KSTAGES:STAGES;
 function cardsByNote(){const by=new Map();S.cards.forEach(c=>{if(!by.has(c.noteId))by.set(c.noteId,[]);by.get(c.noteId).push(c)});return by}
 function wordStats(){
   const r={started:0,growing:0,well:0};
@@ -456,7 +484,9 @@ function wordStats(){
 }
 function progressPanel(){
   const {n,rest}=streakInfo(), t0=today0(), mon=mondayOf(t0), tk=iso(t0);
-  const e=S.log[tk]||{n:0}, met=dayMet(tk), pct=Math.min(100,Math.round(100*e.n/GOAL));
+  const kid=isKid(), ST=stageSet(), kd=S.newDone.done||0, kq=kid?buildQueue(null).length:0;
+  const G=kid?Math.max(1,kd+kq):GOAL;
+  const e=kid?{n:kd}:(S.log[tk]||{n:0}), met=kid?(kq===0&&kd>0):dayMet(tk), pct=Math.min(100,Math.round(100*e.n/G));
   const ws=wordStats();
   const days=['M','T','W','T','F','S','S'].map((l,i)=>{const d=addDays(mon,i),k=iso(d);
     const cls=dayMet(k)?'met':rest.has(k)?'rest':'';const tod=d===t0?' now':'';
@@ -464,9 +494,9 @@ function progressPanel(){
   return `<section class="prog-panel" aria-label="Your progress">
     <div class="streak${n?'':' zero'}"><span class="flame" aria-hidden="true">🔥</span><div><b>${n}</b><span>${n===1?'day in a row':'days in a row'}${n?'':' · study today to start'}</span></div></div>
     <div class="week" aria-label="This week">${days}</div>
-    <div class="goal${met?' met':''}"><div class="lbl">${met?'<b>✓ Done for today</b>':'<b>🎯 Today</b>'}<span>${Math.min(e.n,GOAL)} / ${GOAL} cards</span></div><div class="track"><i style="width:${met?100:pct}%"></i></div></div>
-    <div class="stages">${['started','growing','well'].map(k=>`<button class="stage${stageTip===k?' on':''}" data-act="stageTip" data-k="${k}" aria-expanded="${stageTip===k}"><span class="em" aria-hidden="true">${STAGES[k][0]}</span><b>${ws[k]}</b><span>${STAGES[k][1]}</span></button>`).join('')}</div>
-    ${stageTip?`<p class="stage-tip" role="status">${STAGES[stageTip][0]} <b>${STAGES[stageTip][1][0].toUpperCase()+STAGES[stageTip][1].slice(1)}:</b> ${STAGES[stageTip][2]}</p>`:''}
+    <div class="goal${met?' met':''}"><div class="lbl">${met?'<b>✓ Done for today</b>':'<b>🎯 Today</b>'}<span>${Math.min(e.n,G)} / ${G} cards</span></div><div class="track"><i style="width:${met?100:pct}%"></i></div></div>
+    <div class="stages">${['started','growing','well'].map(k=>`<button class="stage${stageTip===k?' on':''}" data-act="stageTip" data-k="${k}" aria-expanded="${stageTip===k}"><span class="em" aria-hidden="true">${ST[k][0]}</span><b>${ws[k]}</b><span>${ST[k][1]}</span></button>`).join('')}</div>
+    ${stageTip?`<p class="stage-tip" role="status">${ST[stageTip][0]} <b>${ST[stageTip][1][0].toUpperCase()+ST[stageTip][1].slice(1)}:</b> ${ST[stageTip][2]}</p>`:''}
   </section>`;
 }
 
@@ -480,7 +510,7 @@ const sortedDecks=()=>[...S.decks].sort((a,b)=>b.importedAt-a.importedAt);
 
 /* ---------- views ---------- */
 function alertBanner(){
-  if((S.instrVer===null||S.instrVer<INSTR)&&S.instrAck<INSTR)return `<button class="outdated" data-act="update"><span>${S.instrAck===-1?'⚠️ This deck used old instructions. Please update again.':'⚠️ New Claude instructions. Tap to update (1 min).'}</span>›</button>`;
+  if(!isKid()&&(S.instrVer===null||S.instrVer<INSTR)&&S.instrAck<INSTR)return `<button class="outdated" data-act="update"><span>${S.instrAck===-1?'⚠️ This deck used old instructions. Please update again.':'⚠️ New Claude instructions. Tap to update (1 min).'}</span>›</button>`;
   const oldest=Math.min(...S.decks.map(d=>d.importedAt||Date.now()));
   const since=S.lastBackup?daysSince(S.lastBackup):daysSince(oldest);
   if(since>=7)return `<button class="outdated" data-act="settings"><span>💾 ${S.lastBackup?`Last backup ${plural(since,'day')} ago.`:'No backup yet.'} Back up now.</span>›</button>`;
@@ -489,10 +519,17 @@ function alertBanner(){
 function statusBox(){return status?`<div class="status${status.err?' err':''}" role="status">${esc(status.msg)}</div>`:''}
 function home(){
   const c=counts(), words=S.notes.size, total=c.due+c.newToday;
-  let h=`<header class="top"><div class="mark"><span class="ar" lang="ar">كلمة</span><span class="lat">Kelma</span></div><div style="display:flex;gap:4px"><a class="ghost" href="guide.html" style="text-decoration:none">Guide</a><button class="ghost" data-act="settings" aria-label="Settings">⚙️</button></div></header>`;
+  const kid=isKid(), multi=PROFILES.length>1;
+  let h=`<header class="top"><div class="mark"><span class="ar" lang="ar">كلمة</span><span class="lat">Kelma</span></div><div style="display:flex;gap:4px;align-items:center">${multi?`<button class="who-chip" data-act="who" aria-label="Switch profile">${esc(curProfile().name)} ⇄</button>`:''}${kid?'':`<a class="ghost" href="guide.html" style="text-decoration:none">Guide</a>`}<button class="ghost" data-act="settings" aria-label="Settings">⚙️</button></div></header>`;
   if(!S.ok)h+=`<div class="status err">This view can’t store cards. Open this page in Safari or the Claude app instead.</div>`;
   if(!STANDALONE)h+=`<div class="hint"><b>Install it first.</b> In Safari tap Share, then Add to Home Screen. Open Kelma from the new icon and import your decks there. The icon and the Safari tab keep separate cards.</div>`;
   h+=statusBox();
+  if(!words&&kid){
+    h+=`<section class="empty"><h2>No words yet</h2><p>Your words will show up here once they’re added.</p>
+      <label class="btn primary" for="file">＋ Import deck file</label>
+      <p class="fine">New device? <button class="linkbtn" data-act="settings">Restore a backup</button></p></section>`;
+    return h;
+  }
   if(!words){
     h+=`<section class="empty"><h2>No cards yet</h2>
       <ol><li>Finish a session with your language helper.</li><li>Your Claude project builds a deck file (.zip) from the list and voice notes.</li><li>Save it to Files, then import it here.</li></ol>
@@ -502,13 +539,18 @@ function home(){
   }
   h+=alertBanner();
   h+=progressPanel();
-  h+=`<section class="today" aria-label="Review">
+  if(kid){const more=c.due>0||c.ready>0;
+    h+=`<section class="today" aria-label="Today">
+    ${c.today?`<div class="line"><span>📅 Today: <b>${c.today}</b> card${c.today===1?'':'s'} · about ${Math.max(1,Math.round(c.today/2.5))} min</span></div><button class="btn primary" data-act="study">▶️ Start</button>`:`<button class="btn primary" disabled>🎉 Done for today</button>${more?`<button class="btn focus" data-act="bonus">⭐ Bonus: 5 more cards</button>`:''}`}
+    </section>`;
+  }else h+=`<section class="today" aria-label="Review">
     <div class="line"><span>🔁 <b>${c.due}</b> to review</span><span>✨ <b>${c.newToday}</b> new</span></div>
     ${total?`<button class="btn primary" data-act="study">▶️ Start review</button>`:c.ready?`<button class="btn primary" data-act="learnMore">✓ Reviews done · ＋ Learn ${Math.min(10,c.ready)} more</button>`:`<button class="btn primary" disabled>✓ All reviews done</button>`}
     <button class="btn focus" data-act="pick">🎯 Focus practice</button></section>`;
   const latest=sortedDecks()[0];
   if(latest){const n=deckNotes(latest.id).length;
     h+=`<section class="latest"><button class="latest-info" data-act="deck" data-id="${esc(latest.id)}"><span class="ic" aria-hidden="true">${esc(deckIcon(latest.id))}</span><span><span class="kick">📝 Newest deck</span><span class="name">${esc(latest.name)}</span><span class="meta">${plural(n,'word')}</span></span></button><button class="btn small primary" data-act="practiceDeck" data-id="${esc(latest.id)}">🎯 Practice</button></section>`}
+  if(kid){h+=`<nav class="homenav"><button class="btn" data-act="pick">🎯<span>Practice</span></button><button class="btn" data-act="decks">📚<span>Decks (${S.decks.length})</span></button><button class="btn" data-act="settings">⚙️<span>Settings</span></button></nav>`;return h}
   h+=`<nav class="homenav"><button class="btn" data-act="decks">📚<span>Decks (${S.decks.length})</span></button><label class="btn" for="file">📥<span>Import</span></label><button class="btn" data-act="settings">⚙️<span>Settings</span></button></nav>`;
   return h;
 }
@@ -517,7 +559,7 @@ function decksPage(){
   ds.forEach(d=>{const t=new Date(d.importedAt||Date.now()),k=t.getFullYear()*12+t.getMonth();if(!groups.has(k))groups.set(k,{label:MONTHS[t.getMonth()]+' '+t.getFullYear(),list:[]});groups.get(k).list.push(d)});
   const cur=now.getFullYear()*12+now.getMonth();
   const row=d=>{const n=deckNotes(d.id),k=counts(d.id);const sx=(d.name+' '+n.map(x=>x.word+' '+x.meaning).join(' ')).toLowerCase();
-    return `<button class="deckrow" data-act="deck" data-id="${esc(d.id)}" data-s="${esc(sx)}"><span class="ic" aria-hidden="true">${esc(deckIcon(d.id))}</span><span><span class="name">${esc(d.name)}</span><br><span class="meta">${plural(n.length,'word')} · ${k.due} due</span></span><span class="go" aria-hidden="true">›</span></button>`};
+    return `<button class="deckrow" data-act="deck" data-id="${esc(d.id)}" data-s="${esc(sx)}"><span class="ic" aria-hidden="true">${esc(deckIcon(d.id))}</span><span><span class="name">${esc(d.name)}</span><br><span class="meta">${plural(n.length,'word')}${isKid()?'':` · ${k.due} due`}</span></span><span class="go" aria-hidden="true">›</span></button>`};
   let h=`<div class="page"><div class="top" style="display:flex;justify-content:space-between;align-items:center"><button class="ghost" data-act="home">‹ Home</button><label class="btn small" for="file">＋ Import deck</label></div>
     <div class="dhead"><span class="ic" aria-hidden="true">📚</span><div><h1>Decks</h1><p>${plural(ds.length,'deck')} · ${plural(S.notes.size,'word')}</p></div></div>${statusBox()}`;
   if(ds.length>15)h+=`<input class="search" id="deck-search" type="search" placeholder="🔍 Search decks and words" autocomplete="off">`;
@@ -526,7 +568,13 @@ function decksPage(){
   h+=`<p class="fine" id="no-match" hidden>No decks or words match.</p></div>`;
   return h;
 }
+function profilesSec(){
+  const multi=PROFILES.length>1,p=curProfile();
+  return `<section class="sec"><h2>👥 Profiles</h2>`+(multi?`<p class="fine">This profile: <b>${esc(p.name)}</b>${p.kid?' · 🧒 kid mode':''}</p>`:`<p class="fine">Sharing this device? Give each person a profile with their own decks and progress.</p>`)+
+    `<div class="row">${multi?`<button class="btn" data-act="who">⇄ Switch</button><button class="btn" data-act="editProfile">✏️ Edit this profile</button>`:''}<button class="btn" data-act="addProfile">＋ Add a profile</button></div></section>`;
+}
 function settingsPage(){
+  if(isKid())return kidSettingsPage();
   const lb=S.lastBackup?(daysSince(S.lastBackup)===0?'today':plural(daysSince(S.lastBackup),'day')+' ago'):'never';
   return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
     <div class="dhead"><span class="ic" aria-hidden="true">⚙️</span><div><h1>Settings</h1></div></div>${statusBox()}
@@ -535,8 +583,43 @@ function settingsPage(){
       <p class="fine">Each word comes back three ways: 👁️ see it, 👂 hear it, 🗣️ say it.</p></section>
     <section class="sec"><h2>💾 Backup</h2><p class="fine">Last backup: <b>${lb}</b></p><div class="row">`+(S.pending&&S.pending.kind==='backup'?`<button class="btn primary" data-act="saveBackup">Save file</button>`:`<button class="btn" data-act="backup">Save backup</button>`)+`<label class="btn" for="file">Restore backup</label></div>
       <p class="fine">Cards and progress live on this phone only. Save a backup once a week and keep it in Files or iCloud Drive.</p></section>
+    ${profilesSec()}
     <section class="sec"><h2>🤖 Claude</h2><div class="row"><button class="btn" data-act="update">📋 Copy Claude instructions</button><a class="btn" href="guide.html" style="text-decoration:none">📖 Guide</a></div></section>
     <p class="fine">Kelma v${APP_VERSION} · Claude instructions v${INSTR}</p></div>`;
+}
+function backupSec(){
+  const lb=S.lastBackup?(daysSince(S.lastBackup)===0?'today':plural(daysSince(S.lastBackup),'day')+' ago'):'never';
+  return `<section class="sec"><h2>💾 Backup</h2><p class="fine">Last backup: <b>${lb}</b></p><div class="row">`+(S.pending&&S.pending.kind==='backup'?`<button class="btn primary" data-act="saveBackup">Save file</button>`:`<button class="btn" data-act="backup">Save backup</button>`)+`<label class="btn" for="file">Restore backup</label></div>
+      <p class="fine">Backs up <b>${esc(curProfile().name)}</b> only. Cards and progress live on this device. Save a backup once a week.</p></section>`;
+}
+function kidSettingsPage(){
+  return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">⚙️</span><div><h1>Settings</h1><p>${esc(curProfile().name)} · 🧒 kid mode</p></div></div>${statusBox()}
+    <section class="sec"><div class="setting"><span>📅 Cards per day</span><div class="stepper">
+      <button class="btn small" data-act="capMinus" aria-label="Fewer">−</button><output>${S.settings.cap||15}</output><button class="btn small" data-act="capPlus" aria-label="More">+</button></div></div>
+      <div class="setting"><span>✨ New words per day</span><div class="stepper">
+      <button class="btn small" data-act="kNewMinus" aria-label="Fewer">−</button><output>${S.settings.newPerDay}</output><button class="btn small" data-act="kNewPlus" aria-label="More">+</button></div></div>
+      <p class="fine">Reviews and new words both count toward cards per day. Anything left over waits for another day.</p></section>
+    ${backupSec()}
+    ${profilesSec()}
+    <p class="fine">Kelma v${APP_VERSION}</p></div>`;
+}
+function whoPage(){
+  return `<div class="page who"><div class="mark" style="justify-content:center;display:flex;flex-direction:column;align-items:center"><span class="ar" lang="ar">كلمة</span><span class="lat">Kelma</span></div>
+    <h1>Who’s studying?</h1>
+    <div class="who-list">${PROFILES.map(p=>`<button class="who-btn" data-act="pickProfile" data-id="${esc(p.id)}"><span class="av" aria-hidden="true">${esc([...p.name][0]||'?')}</span><span>${esc(p.name)}</span></button>`).join('')}</div></div>`;
+}
+let editing=null;
+function profileFormPage(){
+  const p=editing&&editing.id?PROFILES.find(x=>x.id===editing.id):null;
+  const kid=editing?editing.kid:true;
+  return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="settings">‹ Settings</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">👤</span><div><h1>${p?'Edit profile':'Add a profile'}</h1></div></div>${statusBox()}
+    <section class="sec"><label class="fine" for="pf-name">Name</label><input class="search" id="pf-name" maxlength="24" value="${esc(p?p.name:'')}" autocomplete="off">
+    <label class="kidopt"><input type="checkbox" id="pf-kid" ${kid?'checked':''}><span><b>🧒 Kid mode</b><br><span class="fine">Short daily sessions with a fixed number of cards. Hides review counts.</span></span></label>
+    ${!p&&PROFILES.length===1?`<label class="fine" for="pf-me">Your name (for the switch screen)</label><input class="search" id="pf-me" maxlength="24" value="${esc(PROFILES[0].name==='Me'?'':PROFILES[0].name)}" autocomplete="off">`:''}
+    <button class="btn primary focus" data-act="saveProfile">${p?'Save':'＋ Add profile'}</button>
+    ${p&&p.id!=='main'?`<button class="dangerlink" data-act="removeProfile">🗑️ Remove this profile</button>`:''}</section></div>`;
 }
 function deckPage(){
   const d=S.decks.find(x=>x.id===deckId);if(!d){view='home';return home()}
@@ -599,8 +682,8 @@ function updatePage(){
     <details><summary class="fine">Copy not working?</summary><textarea readonly id="instr-box">${esc(S.instrText||'Loading… check your connection.')}</textarea></details></div>`;
 }
 function cardHtml(c,n,shown){
-  const url=sess.urls.get(n.id);
-  const play=(big)=>url?`<button class="play${big?' big':''}" data-act="play" aria-label="Play audio">${PLAY}</button>`:`<span class="noaudio">No audio</span>`;
+  const url=sess.urls.get(n.id), silent=!!(S.decks.find(d=>d.id===n.deckId)||{}).noAudio;
+  const play=(big)=>url?`<button class="play${big?' big':''}" data-act="play" aria-label="Play audio">${PLAY}</button>`:silent?'':`<span class="noaudio">No audio</span>`;
   const word=`<p class="word" lang="ar" dir="rtl">${esc(n.word)}</p>`;
   const ex=n.example?`<p class="ex" lang="ar" dir="rtl">${exHtml(n.example)}</p>`:'';
   const mean=`<p class="mean">${esc(n.meaning)}</p>`;
@@ -628,6 +711,8 @@ function done(){
   if(sess.mode==='practice'){
     return `<div class="done"><span class="big" aria-hidden="true">🎯</span><h3>Practice round done</h3><p>${sess.answered} card${sess.answered===1?'':'s'} drilled.</p>${streakLine}<div class="row"><button class="btn primary" data-act="practiceAgain">↺ Practice again</button><button class="btn" data-act="exit">Back home</button></div></div>`;
   }
+  if(isKid()){const ws=wordStats(),known=ws.growing+ws.well,fin=capLeft()===0;
+    return `<div class="done"><span class="big" aria-hidden="true">🎉</span><h3>${fin?'Done for today!':'Nice work'}</h3><p>${sess.answered} card${sess.answered===1?'':'s'} done.</p><p>🌿 You know <b>${known}</b> word${known===1?'':'s'}.</p>${n?`<p>🔥 ${n} ${n===1?'day':'days'} in a row</p>`:''}<div class="row"><button class="btn primary" data-act="exit">Back home</button></div></div>`}
   const tom=S.cards.filter(c=>(c.state==='review'||c.state==='learning')&&c.due<today0()+2*DAY&&c.due>=today0()+DAY).length;
   return `<div class="done"><span class="big" aria-hidden="true">${met?'🔥':'✅'}</span><h3>Done for now</h3><p>You answered ${sess.answered} card${sess.answered===1?'':'s'}.</p>${streakLine}<p class="fine">${tom} card${tom===1?' is':'s are'} due tomorrow.</p><div class="row">${counts().ready?`<button class="btn primary" data-act="learnMore">＋ Learn ${Math.min(10,counts().ready)} more</button>`:''}<button class="btn${counts().ready?'':' primary'}" data-act="exit">Back home</button></div></div>`;
 }
@@ -639,6 +724,8 @@ function render(){
   else if(view==='update')app.innerHTML=updatePage();
   else if(view==='decks')app.innerHTML=decksPage();
   else if(view==='settings')app.innerHTML=settingsPage();
+  else if(view==='who')app.innerHTML=whoPage();
+  else if(view==='profile')app.innerHTML=profileFormPage();
   else app.innerHTML=home();
 }
 function go(v){view=v;status=null;renaming=false;if(S.pending&&S.pending.kind==='deck')S.pending=null;render();window.scrollTo(0,0)}
@@ -668,6 +755,7 @@ function grade(g){
   }else{
     const iv=nextIv(c,g);if(g===2&&c.state==='review')c.ease=+(c.ease+0.15).toFixed(2);
     c.state='review';c.interval=iv;c.due=today0()+iv*DAY;c.reps++;sess.answered++;
+    S.newDone.done=(S.newDone.done||0)+1;saveMeta();
   }
   saveCard(c);logRev(c,g,'review');sess.shown=false;render();autoplay();
 }
@@ -675,6 +763,34 @@ function pgrade(g){
   const id=sess.queue.shift();if(!id)return;logAnswer();{const c=S.cards.find(x=>x.id===id);if(c)logRev(c,g,'practice')}
   if(g===0)sess.queue.splice(Math.min(4,sess.queue.length),0,id);else sess.answered++;
   sess.shown=false;render();autoplay();
+}
+function exitQuiet(){if(sess)sess.urls.forEach(u=>URL.revokeObjectURL(u));sess=null;player.pause()}
+async function switchTo(id){if(!PROFILES.some(p=>p.id===id))return;await useProfile(id);stageTip='';go('home')}
+async function saveProfile(){
+  const nm=(document.getElementById('pf-name')||{}).value, kid=!!(document.getElementById('pf-kid')||{}).checked, me=document.getElementById('pf-me');
+  const name=String(nm||'').trim().slice(0,24);
+  if(!name){status={err:true,msg:'Type a name first.'};render();return}
+  if(editing&&editing.id){
+    const p=PROFILES.find(x=>x.id===editing.id);if(!p)return;const was=!!p.kid;p.name=name;p.kid=kid;
+    if(kid&&!was&&!S.settings.cap){S.settings.cap=15;S.settings.newPerDay=Math.min(S.settings.newPerDay,5);saveMeta()}
+    try{await saveProfiles()}catch(e){}
+    go('settings');status={msg:'✓ Saved.'};render();return}
+  if(me&&me.value.trim())PROFILES[0].name=me.value.trim().slice(0,24);
+  let id;do{id='p'+Math.random().toString(36).slice(2,8)}while(PROFILES.some(p=>p.id===id));
+  PROFILES.push({id,name,kid});
+  try{await saveProfiles();
+    const d=await openNamed(dbName(id));
+    await new Promise((res,rej)=>{const t=d.transaction(['meta'],'readwrite');t.objectStore('meta').put(kid?{newPerDay:5,cap:15}:{newPerDay:15},'settings');t.objectStore('meta').put(INSTR,'instrAck');t.oncomplete=()=>res();t.onerror=()=>rej(t.error)});
+  }catch(e){PROFILES=PROFILES.filter(p=>p.id!==id);status={err:true,msg:'Could not add the profile on this device.'};render();return}
+  editing=null;go('who');
+}
+async function removeProfile(){
+  const p=PROFILES.find(x=>x.id===(editing&&editing.id));if(!p||p.id==='main')return;
+  const typed=window.prompt('This deletes '+p.name+'’s decks and progress on this device. Type DELETE to confirm.');
+  if(!typed||typed.trim().toUpperCase()!=='DELETE')return;
+  PROFILES=PROFILES.filter(x=>x.id!==p.id);try{await saveProfiles()}catch(e){}
+  try{(await openNamed(dbName(p.id))).close()}catch(e){}dbs.delete(dbName(p.id));try{indexedDB.deleteDatabase(dbName(p.id))}catch(e){}
+  editing=null;await useProfile(PROFILES.length>1?PROFILES[0].id:'main');go(PROFILES.length>1?'who':'home');
 }
 function exit(){if(sess)sess.urls.forEach(u=>URL.revokeObjectURL(u));sess=null;player.pause();go('home')}
 
@@ -710,6 +826,15 @@ app.addEventListener('click',e=>{
   else if(a==='delete'){const inp=document.getElementById('del-confirm');if(inp&&inp.value.trim().toUpperCase()==='DELETE')deleteDeck(id)}
   else if(a==='newMinus'||a==='newPlus'){S.settings.newPerDay=Math.min(60,Math.max(0,S.settings.newPerDay+(a==='newPlus'?5:-5)));saveMeta();render()}
   else if(a==='backup')backup();
+  else if(a==='bonus'){S.newDone.capExtra=(S.newDone.capExtra||0)+5;S.newDone.extra=(S.newDone.extra||0)+5;saveMeta();startSession()}
+  else if(a==='capMinus'||a==='capPlus'){S.settings.cap=Math.min(40,Math.max(5,(S.settings.cap||15)+(a==='capPlus'?5:-5)));saveMeta();render()}
+  else if(a==='kNewMinus'||a==='kNewPlus'){S.settings.newPerDay=Math.min(15,Math.max(1,S.settings.newPerDay+(a==='kNewPlus'?1:-1)));saveMeta();render()}
+  else if(a==='who'){if(sess)exitQuiet();go('who')}
+  else if(a==='pickProfile')switchTo(id);
+  else if(a==='addProfile'){editing={kid:true};go('profile')}
+  else if(a==='editProfile'){editing={id:CUR,kid:!!curProfile().kid};go('profile')}
+  else if(a==='saveProfile')saveProfile();
+  else if(a==='removeProfile')removeProfile();
   else if(a==='saveBackup')saveBackup();
 });
 app.addEventListener('input',e=>{
@@ -753,7 +878,11 @@ async function deleteDeck(id){
 
 /* ---------- boot ---------- */
 (async()=>{
-  try{await openDB();await load();try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}}catch(e){S.ok=false}
+  try{await openDB();await loadProfiles();
+    let last=null;try{last=sessionStorage.getItem('kelma-profile')}catch(e){}
+    if(PROFILES.length>1){if(last&&PROFILES.some(p=>p.id===last))await useProfile(last);else{await useProfile(PROFILES[0].id);view='who'}}
+    else await load();
+    try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}}catch(e){S.ok=false}
   render();loadInstr();
   if('serviceWorker' in navigator&&location.protocol==='https:'){try{navigator.serviceWorker.register('sw.js')}catch(e){}}
 })();

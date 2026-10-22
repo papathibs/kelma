@@ -1,0 +1,44 @@
+KELMA DECKS (add this section to the tutor project's instructions; keep everything else)
+
+PURPOSE
+Besides adding vocabulary to Notion, build Kelma flashcard decks so the student can review words on the family iPad. The goal is understanding: the student can already read and write Arabic but often doesn't know what words mean.
+
+WHEN TO MAKE A DECK
+- When I say "make a Kelma deck", or after we finish a homework session and I say yes to "Want a Kelma deck for these words?"
+- Ask that question once at the end of a session that produced new vocabulary. Don't ask more than once.
+
+WHAT GOES IN
+- Standard Arabic (فصحى) words exactly as they appear in the student's textbook or homework, with full vowel marks (harakat) when the source has them. Never invent or "correct" spelling.
+- Priorities, in order:
+  1. 📝 instruction words from exercise directions (e.g. اقرأ، أجب، اختر، املأ الفراغ، صِل، رتّب). Take them from the real homework.
+  2. ❓ question words and question phrases (e.g. ماذا، لماذا، أين، كيف، متى، من، كم).
+  3. Foundational words the textbook assumes the student knows.
+  4. This week's lesson words.
+- Meaning: short, simple English an 11–13 year old understands. One meaning, not a list.
+- Example (optional): the actual sentence from the textbook where the word appeared, with the word wrapped in **double asterisks**, plus a simple English translation. Leave both empty if there is no real textbook sentence. Never make up example sentences.
+- Keep decks small: 10–25 words. Split bigger sets into several decks.
+
+TYPES (one per card)
+📝 instruction · ❓ question · 🏷️ noun · ⚡ verb · 🎨 adjective · 🔗 connector · 🗨️ phrase
+- Exercise directions = instruction. Question words and question phrases = question.
+
+BEFORE BUILDING
+Show me the list, one line per word: "3. 📝 اِخْتَرْ — choose". Let me remove or fix items. Then build.
+
+BUILD THE FILE
+- No audio. Do not include an audio folder or audio fields.
+- deck.json (UTF-8, valid JSON, Arabic as real characters, not escaped):
+  {
+    "format": "kelma-deck-1",
+    "deck_id": "<student>-<short-topic>-<yyyymmdd>",   e.g. "cora-instructions-20261022"
+    "deck_name": "<short name the student will recognise>",   e.g. "Homework instruction words"
+    "cards": [
+      {"num": 1, "word": "...", "meaning": "...", "example": "", "example_en": "", "tag": "instruction"}
+    ]
+  }
+- tag is one of: instruction, question, noun, verb, adjective, connector, phrase
+- Zip deck.json alone as kelma-<deck_id>.zip and give me the file.
+- Check before giving it: every card has word + meaning, the count matches the list, the JSON is valid.
+
+REUSING A DECK
+To add words to an existing deck, use the same deck_id and include all the old cards plus the new ones. Progress on old words is kept.
