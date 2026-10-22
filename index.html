@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kelma</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kelma">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#EDF1EF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D1311" media="(prefers-color-scheme: dark)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Reem+Kufi:wght@600&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+/* Layout: one narrow column, phone-first. Home = today's numbers + decks; Study = one card filling the screen, grade buttons pinned at the bottom. */
+:root{
+  --bg:#EDF1EF; --surface:#FAFCFB; --ink:#13201B; --muted:#58695F; --line:#D3DDD8;
+  --accent:#0A6B55; --accent-ink:#FFFFFF; --accent-soft:#DCEBE5;
+  --target:#C22E24; --again:#AE3B2B; --easy:#2C5CA3;
+  --f-ui:"Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-ar:"Noto Naskh Arabic", "Geeza Pro", "Arabic Typesetting", serif;
+  --f-mark:"Reem Kufi", "Noto Naskh Arabic", serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D1311; --surface:#151E1B; --ink:#E3EBE7; --muted:#93A59D; --line:#283631;
+  --accent:#3CBF99; --accent-ink:#05231A; --accent-soft:#17342B;
+  --target:#FF7062; --again:#F07B67; --easy:#80A7EC; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1311; --surface:#151E1B; --ink:#E3EBE7; --muted:#93A59D; --line:#283631;
+  --accent:#3CBF99; --accent-ink:#05231A; --accent-soft:#17342B;
+  --target:#FF7062; --again:#F07B67; --easy:#80A7EC; color-scheme:dark}
+html,body{height:100%}
+body{margin:0}
+.hint{font-size:14px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);color:var(--muted)}
+.hint b{color:var(--ink)}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:520px;margin:0 auto;padding-block:18px 32px;display:flex;flex-direction:column;gap:22px;min-height:100%;box-sizing:border-box}
+button,label.btn{font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:focus-visible,label.btn:focus-within{outline:3px solid var(--accent);outline-offset:2px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;padding:12px 16px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:700;min-height:48px;box-sizing:border-box}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn[disabled]{opacity:.45;cursor:default}
+.ghost{background:none;border:none;color:var(--muted);font-weight:700;padding:8px;min-height:40px}
+header.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.mark{display:flex;align-items:baseline;gap:10px}
+.mark .ar{font-family:var(--f-mark);font-size:30px;color:var(--accent);line-height:1}
+.mark .lat{font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:13px;color:var(--muted)}
+.today{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:16px}
+.nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.num b{display:block;font-size:34px;line-height:1.1;font-variant-numeric:tabular-nums}
+.num span{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.num.due b{color:var(--accent)}
+.today .btn.primary{width:100%;font-size:18px;min-height:56px}
+h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0}
+.sec{display:flex;flex-direction:column;gap:10px}
+.sechead{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.decks{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.deck{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:14px 2px;border-bottom:1px solid var(--line);align-items:center}
+.deck .name{font-weight:700;min-width:0;overflow-wrap:anywhere}
+.deck .meta{grid-column:1;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.deck .acts{grid-row:1/3;grid-column:2;display:flex;gap:4px;align-items:center}
+.deck .confirm{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:14px}
+.btn.small{min-height:40px;padding:8px 12px;font-size:14px;border-radius:10px}
+.btn.danger{color:var(--again);border-color:var(--again)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>.btn{flex:1 1 140px}
+.status{font-size:15px;padding:12px 14px;border-radius:12px;background:var(--accent-soft);color:var(--ink)}
+.status.err{background:transparent;border:1px solid var(--again);color:var(--again)}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:12px}
+.empty ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.setting{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 2px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper output{min-width:2.5ch;text-align:center;font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
+.fine{font-size:14px;color:var(--muted);margin:0;max-width:65ch}
+input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+
+/* study */
+.study{display:flex;flex-direction:column;gap:14px;flex:1}
+.bar{display:flex;align-items:center;gap:10px}
+.prog{flex:1;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.prog i{display:block;height:100%;background:var(--accent);width:0;transition:width .25s}
+.left{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums;min-width:4ch;text-align:right}
+.card{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px 18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;min-height:300px}
+.chip{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.word{font-family:var(--f-ar);font-size:clamp(40px,12vw,58px);line-height:1.5;font-weight:600;margin:0;overflow-wrap:anywhere}
+.ex{font-family:var(--f-ar);font-size:24px;line-height:1.8;margin:0;max-width:30ch}
+.ex mark.t{background:none;color:var(--target);font-weight:700}
+.mean{font-size:26px;font-weight:700;margin:0;line-height:1.3}
+.exen{font-size:16px;color:var(--muted);margin:0;max-width:36ch}
+.ans{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;padding-top:16px;border-top:1px solid var(--line)}
+.play{width:56px;height:56px;border-radius:50%;border:1px solid var(--line);background:var(--accent-soft);color:var(--accent);display:inline-flex;align-items:center;justify-content:center}
+.play.big{width:96px;height:96px}
+.play svg{width:40%;height:40%}
+.noaudio{font-size:13px;color:var(--muted)}
+.grades{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.grades .btn{flex-direction:column;gap:0;min-height:64px;line-height:1.2}
+.grades .btn small{font-weight:400;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.g0{color:var(--again)} .g1{color:var(--accent)} .g2{color:var(--easy)}
+.reveal{width:100%;min-height:64px;font-size:18px}
+.done{display:flex;flex-direction:column;gap:14px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:22px}
+.done h3{margin:0;font-size:24px}
+.done p{margin:0}
+
+/* v2: progress panel, deck tiles, deck page, practice */
+:root{--fire:#D9531E;--grow:#3E8E3A;--gold:#C9962B}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--fire:#FF8A4C;--grow:#7CCB6F;--gold:#E6B655}}
+:root[data-theme="dark"]{--fire:#FF8A4C;--grow:#7CCB6F;--gold:#E6B655}
+.prog-panel{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:16px}
+.streak{display:flex;align-items:center;gap:14px}
+.streak .flame{font-size:44px;line-height:1}
+.streak b{display:block;font-size:34px;line-height:1;font-variant-numeric:tabular-nums}
+.streak span{font-size:14px;color:var(--muted)}
+.streak.zero .flame{filter:grayscale(1);opacity:.5}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.week .d{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;color:var(--muted);font-weight:700}
+.week .dot{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:14px}
+.week .met .dot{background:var(--fire);border-color:var(--fire);color:#fff}
+.week .rest .dot{border-style:dashed;border-color:var(--muted)}
+.week .now .dot{border-color:var(--fire)}
+.week .now{color:var(--ink)}
+.goal{display:flex;flex-direction:column;gap:6px}
+.goal .lbl{display:flex;justify-content:space-between;font-size:15px;font-weight:700}
+.goal .lbl span{color:var(--muted);font-weight:400;font-variant-numeric:tabular-nums}
+.goal .track{height:10px;border-radius:5px;background:var(--line);overflow:hidden}
+.goal .track i{display:block;height:100%;background:var(--fire);border-radius:5px}
+.goal.met .lbl b{color:var(--grow)}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;align-items:center;gap:10px}
+.tile .em{font-size:28px;line-height:1}
+.tile b{display:block;font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums}
+.tile span{font-size:13px;color:var(--muted);line-height:1.2;display:block}
+.today .line{display:flex;gap:16px;font-size:15px;color:var(--muted);flex-wrap:wrap}
+.today .line b{color:var(--ink);font-variant-numeric:tabular-nums}
+.btn.focus{width:100%;min-height:52px;font-size:17px}
+.decklist{display:flex;flex-direction:column;gap:8px}
+.deckrow{display:grid;grid-template-columns:48px 1fr auto;align-items:center;gap:12px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;color:var(--ink);width:100%}
+.deckrow .ic,.dhead .ic{width:48px;height:48px;border-radius:12px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-family:var(--f-ar);font-size:24px;font-weight:700;line-height:1}
+.deckrow .name{font-weight:700;overflow-wrap:anywhere;min-width:0}
+.deckrow .meta{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.deckrow .go{color:var(--muted);font-size:22px}
+.page{display:flex;flex-direction:column;gap:18px}
+.dhead{display:flex;align-items:center;gap:14px}
+.dhead .ic{width:60px;height:60px;font-size:30px}
+.dhead h1{margin:0;font-size:22px;line-height:1.25;overflow-wrap:anywhere}
+.dhead p{margin:2px 0 0;color:var(--muted);font-size:14px}
+.words{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.words div{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:10px 2px;border-bottom:1px solid var(--line)}
+.words .ar{font-family:var(--f-ar);font-size:20px;direction:rtl}
+.words .en{color:var(--muted);font-size:14px;text-align:left}
+.words .kw{font-size:14px}
+.dangerlink{align-self:center;background:none;border:none;color:var(--again);font-weight:700;padding:12px;min-height:44px}
+.warn{border:2px solid var(--again);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:12px;background:var(--surface)}
+.warn h1{margin:0;font-size:22px}
+.warn ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.warn label{font-weight:700;font-size:15px}
+.warn input{font:inherit;font-size:20px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);letter-spacing:.1em;text-transform:uppercase;width:100%}
+.btn.solid-danger{background:var(--again);border-color:var(--again);color:#fff}
+.pick{display:flex;flex-direction:column;gap:8px}
+.pick label{display:grid;grid-template-columns:28px 48px 1fr;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;cursor:pointer}
+.pick input{width:22px;height:22px;accent-color:var(--accent)}
+.pick .ic{width:48px;height:48px;border-radius:12px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-family:var(--f-ar);font-size:24px;font-weight:700}
+.pick .name{font-weight:700;overflow-wrap:anywhere}
+.pick .meta{font-size:13px;color:var(--muted)}
+.mode{font-size:13px;font-weight:700;color:var(--fire);white-space:nowrap}
+.done .big{font-size:48px;line-height:1}
+.outdated{display:flex;gap:10px;align-items:center;text-decoration:none;font-size:15px;font-weight:700;padding:12px 14px;border-radius:12px;border:2px solid var(--gold);color:var(--ink);background:var(--surface)}
+.outdated span{flex:1;text-align:left}
+.outdated{width:100%;font:inherit;font-weight:700;font-size:15px;cursor:pointer}
+.upd .num{flex:none;width:30px;height:30px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:700}
+.upd .st{display:flex;gap:12px;align-items:center}
+.upd textarea{width:100%;min-height:120px;font:12px/1.4 ui-monospace,Menlo,monospace;border:1px solid var(--line);border-radius:10px;padding:8px;background:var(--bg);color:var(--ink)}
+.upd .ok{font-weight:700;color:var(--accent);font-size:15px}
+.rename{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0}
+.rename input{font:inherit;font-size:20px;font-weight:700;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
+.edit{background:none;border:none;color:var(--muted);font-size:18px;padding:6px;min-height:40px;min-width:40px}
+.dhead>div{flex:1;min-width:0}
+.tagchip{font-size:13px;font-weight:700;background:var(--accent-soft);color:var(--ink);border-radius:999px;padding:3px 10px}
+.types{display:flex;flex-wrap:wrap;gap:8px}
+.types button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 12px;font-weight:700;font-size:15px;min-height:40px;color:var(--ink)}
+.types button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.pick label.all{grid-template-columns:28px 1fr}
+.subhead{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:6px 0 0}
+.latest{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px 12px}
+.latest-info{flex:1;min-width:0;display:flex;align-items:center;gap:12px;background:none;border:none;text-align:left;padding:0;color:var(--ink)}
+.latest-info .ic{flex:none;width:48px;height:48px;border-radius:12px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-family:var(--f-ar);font-size:24px;font-weight:700}
+.latest-info>span:last-child{display:flex;flex-direction:column;min-width:0}
+.latest .kick{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.latest .name{font-weight:700;overflow-wrap:anywhere}
+.latest .meta{font-size:13px;color:var(--muted)}
+.homenav{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.homenav .btn{flex-direction:column;gap:2px;min-height:64px;font-size:20px;padding:8px 4px}
+.homenav .btn span{font-size:13px}
+.month{border-top:1px solid var(--line);padding-top:8px}
+.month summary{display:flex;justify-content:space-between;align-items:center;font-weight:700;padding:8px 2px;cursor:pointer;list-style:none}
+.month summary::-webkit-details-marker{display:none}
+.month summary::before{content:'›';display:inline-block;margin-right:8px;transition:transform .15s;color:var(--muted)}
+.month[open] summary::before{transform:rotate(90deg)}
+.month summary span:first-child{flex:1}
+.month .meta{font-size:13px;color:var(--muted);font-weight:400}
+.month .decklist{padding-bottom:10px}
+.search{font:inherit;font-size:16px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);width:100%}
+.linkbtn{background:none;border:none;padding:0;color:var(--accent);font:inherit;font-weight:700;text-decoration:underline;cursor:pointer}
+.stages{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stage{display:flex;flex-direction:column;align-items:center;gap:2px;border:1px solid var(--line);border-radius:14px;padding:10px 4px;background:var(--surface);color:var(--ink);font:inherit;cursor:pointer}
+.stage .em{font-size:26px;line-height:1.1}
+.stage b{font-size:22px;line-height:1.1;font-variant-numeric:tabular-nums}
+.stage span:last-child{font-size:13px;color:var(--muted)}
+.stage.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.stage-tip{margin:0;font-size:14px;line-height:1.4;background:var(--accent-soft);border-radius:12px;padding:10px 12px}
+.pgrades{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pgrades .btn{min-height:64px;font-size:17px}
+@media (prefers-reduced-motion: reduce){.prog i{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="wrap" id="app"></div>
+<input type="file" id="file" accept=".zip,application/zip">
+<audio id="player" preload="auto"></audio>
+
+<script src="jszip.min.js"></script>
+<script>
+(function(){
+const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
+const INSTR=5, APP_VERSION=11;
+const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual']};
+const DAY=86400000, TYPES=['recognition','listening','production'];
+const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const exHtml=s=>esc(s).replace(/\*\*(.+?)\*\*/g,'<mark class="t">$1</mark>').replace(/&lt;b&gt;(.+?)&lt;\/b&gt;/gi,'<mark class="t">$1</mark>');
+const today0=()=>{const d=new Date();d.setHours(0,0,0,0);return d.getTime()};
+const dayKey=()=>{const d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()};
+const PLAY='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>';
+
+/* ---------- storage (IndexedDB, on this device only) ---------- */
+let dbp=null;
+function openDB(){if(dbp)return dbp;dbp=new Promise((res,rej)=>{let r;try{r=indexedDB.open('kelma',2)}catch(e){rej(e);return}
+  r.onupgradeneeded=()=>{const d=r.result,has=n=>d.objectStoreNames.contains(n);
+    if(!has('decks'))d.createObjectStore('decks',{keyPath:'id'});if(!has('notes'))d.createObjectStore('notes',{keyPath:'id'});if(!has('cards'))d.createObjectStore('cards',{keyPath:'id'});
+    if(!has('audio'))d.createObjectStore('audio');if(!has('meta'))d.createObjectStore('meta');if(!has('revlog'))d.createObjectStore('revlog')};
+  r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});return dbp}
+const reqP=r=>new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+async function getAll(s){const d=await openDB();return reqP(d.transaction(s).objectStore(s).getAll())}
+async function get(s,k){const d=await openDB();return reqP(d.transaction(s).objectStore(s).get(k))}
+async function write(stores,fn){const d=await openDB();return new Promise((res,rej)=>{const t=d.transaction(stores,'readwrite');fn(t);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)})}
+
+const S={decks:[],notes:new Map(),cards:[],settings:{newPerDay:15},newDone:{day:'',count:0},ok:true,pending:null,log:{},instrVer:null,instrAck:0,instrText:'',lastBackup:0};
+let stageTip='', status=null, view='home', sess=null, deckId=null, pickSel=null, pickAll=false, pickTypes=new Set(), renaming=false;
+
+async function load(){
+  S.decks=await getAll('decks');
+  S.notes=new Map((await getAll('notes')).map(n=>[n.id,n]));
+  S.cards=await getAll('cards');
+  S.settings=(await get('meta','settings'))||{newPerDay:15};
+  S.newDone=(await get('meta','newDone'))||{day:'',count:0};
+  S.log=(await get('meta','log'))||{};
+  const iv=await get('meta','instrVer');S.instrVer=(typeof iv==='number')?iv:null;
+  S.lastBackup=(await get('meta','lastBackup'))||0;
+  const ia=await get('meta','instrAck');S.instrAck=(typeof ia==='number')?ia:0;
+  if(S.newDone.day!==dayKey())S.newDone={day:dayKey(),count:0};
+}
+const saveMeta=()=>write(['meta'],t=>{const m=t.objectStore('meta');m.put(S.settings,'settings');m.put(S.newDone,'newDone')}).catch(()=>{});
+const logRev=(c,g,mode)=>{const t=Date.now();write(['revlog'],x=>x.objectStore('revlog').put({t,card:c.id,g,mode,ivl:c.interval,state:c.state},t+'|'+c.id)).catch(()=>{})};
+const saveCard=c=>write(['cards'],t=>t.objectStore('cards').put(c)).catch(()=>{status={err:true,msg:'Could not save your progress on this device.'}});
+
+/* ---------- scheduling ---------- */
+const isDue=c=>(c.state==='review'||c.state==='learning')&&c.due<today0()+DAY;
+const newLeft=()=>Math.max(0,S.settings.newPerDay+(S.newDone.extra||0)-S.newDone.count);
+function nextIv(c,g){
+  if(g===0)return 0;
+  if(c.state==='new')return g===2?3:1;
+  if(c.state==='learning')return g===2?Math.max(2,c.interval+1):Math.max(1,c.interval);
+  return g===2?Math.max(c.interval+2,Math.round(c.interval*c.ease*1.3)):Math.max(c.interval+1,Math.round(c.interval*c.ease));
+}
+const fmtIv=d=>d===0?'Again soon':d<30?d+(d===1?' day':' days'):d<365?Math.round(d/30)+' mo':(d/365).toFixed(1)+' yr';
+function deckOf(c){return S.notes.get(c.noteId)?.deckId}
+/* New cards: a word's next card (see → hear → say) unlocks the day after its previous card was first answered.
+   Follow-up cards of words already started come before brand-new words; newest deck first. */
+function eligibleNew(deckId){
+  const order=new Map([...S.decks].sort((a,b)=>b.importedAt-a.importedAt).map((d,i)=>[d.id,i]));
+  const by=new Map();S.cards.forEach(c=>{if(!by.has(c.noteId))by.set(c.noteId,[]);by.get(c.noteId).push(c)});
+  const t0=today0(),follow=[],fresh=[];
+  by.forEach((cs,nid)=>{
+    const n=S.notes.get(nid);if(!n||(deckId&&n.deckId!==deckId))return;
+    cs.sort((a,b)=>TYPES.indexOf(a.type)-TYPES.indexOf(b.type));
+    const k=cs.findIndex(c=>c.state==='new');if(k<0)return;
+    if(k===0){fresh.push([cs[0],n]);return}
+    const prev=cs[k-1];if(prev.firstSeen&&prev.firstSeen>=t0)return;
+    follow.push([cs[k],n]);
+  });
+  const srt=(a,b)=>((order.get(a[1].deckId)??0)-(order.get(b[1].deckId)??0))||(a[1].order-b[1].order);
+  return [...follow.sort(srt),...fresh.sort(srt)].map(x=>x[0]);
+}
+/* Keep two cards of the same word at least 5 cards apart; if that's impossible (tiny queue), push the later one to the end. */
+function spreadSiblings(q){
+  const out=[],rest=q.slice(),GAP=5;
+  while(rest.length){
+    const recent=new Set(out.slice(-GAP).map(c=>c.noteId));
+    let k=rest.findIndex(c=>!recent.has(c.noteId));if(k<0)k=0;
+    out.push(rest.splice(k,1)[0]);
+  }
+  return out;
+}
+function buildQueue(deckId){
+  const order=new Map([...S.decks].sort((a,b)=>b.importedAt-a.importedAt).map((d,i)=>[d.id,i]));
+  const inDeck=c=>!deckId||deckOf(c)===deckId;
+  const seen=new Set(), rev=[], nw=[];
+  S.cards.filter(c=>isDue(c)&&inDeck(c)).sort((a,b)=>a.due-b.due).forEach(c=>{if(!seen.has(c.noteId)){seen.add(c.noteId);rev.push(c)}});
+  let left=newLeft();const nseen=new Set();
+  for(const c of eligibleNew(deckId)){if(left<=0)break;if(nseen.has(c.noteId))continue;nseen.add(c.noteId);nw.push(c);left--}
+  const q=[];let i=0,j=0;
+  while(i<rev.length||j<nw.length){if(i<rev.length)q.push(rev[i++]);if(i<rev.length)q.push(rev[i++]);if(j<nw.length)q.push(nw[j++])}
+  return spreadSiblings(q).map(c=>c.id);
+}
+function counts(deckId){
+  const inDeck=c=>!deckId||deckOf(c)===deckId;
+  const due=S.cards.filter(c=>isDue(c)&&inDeck(c)).length;
+  const avail=S.cards.filter(c=>c.state==='new'&&inDeck(c)).length;
+  const ready=eligibleNew(deckId).length;
+  return {due,newToday:Math.min(ready,newLeft()),newTotal:avail,ready};
+}
+
+/* ---------- import ---------- */
+async function importFile(file){
+  if(!window.JSZip){status={err:true,msg:'The zip reader did not load. Check your connection and reopen the page.'};render();return}
+  status={msg:'Reading '+file.name+'…'};render();
+  let zip;try{zip=await JSZip.loadAsync(file)}catch(e){status={err:true,msg:'That file is not a readable .zip. Pick the deck file your Claude project made.'};render();return}
+  const find=n=>Object.values(zip.files).find(f=>!f.dir&&f.name.split('/').pop()===n&&!f.name.startsWith('__MACOSX'));
+  const bk=find('backup.json');
+  if(bk)return restore(zip,bk);
+  const dj=find('deck.json');
+  if(!dj){status={err:true,msg:'This zip has no deck.json inside. Ask your project to rebuild it in the Kelma format.'};render();return}
+  let deck;try{deck=JSON.parse(await dj.async('string'))}catch(e){status={err:true,msg:'deck.json is not valid JSON. Ask your project to rebuild the file.'};render();return}
+  if(!deck.deck_id||!Array.isArray(deck.cards)||!deck.cards.length){status={err:true,msg:'deck.json needs a deck_id and a list of cards.'};render();return}
+  const base=dj.name.includes('/')?dj.name.slice(0,dj.name.lastIndexOf('/')+1):'';
+  let clash=false;
+  {const prevD=S.decks.find(d=>d.id===deck.deck_id);
+   if(prevD){const old=new Set(deckNotes(prevD.id).map(n=>n.word)),inc=deck.cards.map(c=>c.word).filter(Boolean);
+     const same=inc.filter(w=>old.has(w)).length;
+     if(old.size&&inc.length&&same/Math.min(old.size,inc.length)<0.5){clash=true;let nid;do{nid=deck.deck_id+'-'+Math.random().toString(36).slice(2,6)}while(S.decks.some(d=>d.id===nid));deck.deck_id=nid}}}
+  const notes=[],audio=[],missing=[];
+  for(const [i,c] of deck.cards.entries()){
+    if(!c.word||!c.meaning)continue;
+    const num=c.num??i+1, id=deck.deck_id+'#'+num;
+    let audioKey=null;
+    if(c.audio){const f=zip.file(base+c.audio)||zip.file(c.audio);
+      if(f){const buf=await f.async('arraybuffer');const ext=(c.audio.split('.').pop()||'').toLowerCase();
+        audio.push([id,new Blob([buf],{type:ext==='m4a'?'audio/mp4':ext==='wav'?'audio/wav':ext==='ogg'?'audio/ogg':'audio/mpeg'})]);audioKey=id}
+      else missing.push(num)}
+    notes.push({id,deckId:deck.deck_id,order:Number(num)||i+1,num:String(num),word:c.word,meaning:c.meaning,example:c.example||'',example_en:c.example_en||'',tag:TAGS[String(c.tag||'').toLowerCase()]?String(c.tag).toLowerCase():'',audioKey});
+  }
+  const existing=new Set(S.cards.map(c=>c.id));let added=0,updated=0;const newCards=[];
+  notes.forEach(n=>{let fresh=false;TYPES.forEach(t=>{const id=n.id+':'+t;if(!existing.has(id)){fresh=true;newCards.push({id,noteId:n.id,type:t,state:'new',interval:0,ease:2.5,due:0,reps:0,lapses:0})}});fresh?added++:updated++});
+  const prev=S.decks.find(d=>d.id===deck.deck_id);
+  const drec={id:deck.deck_id,name:(prev&&prev.renamed)?prev.name:(deck.deck_name||deck.deck_id),importedAt:prev?prev.importedAt:Date.now()};
+  if(prev&&prev.renamed)drec.renamed=true;
+  const ver=Number(deck.instructions_version)||0;
+  try{await write(['decks','notes','cards','audio','meta'],t=>{t.objectStore('decks').put(drec);t.objectStore('meta').put(ver,'instrVer');notes.forEach(n=>t.objectStore('notes').put(n));newCards.forEach(c=>t.objectStore('cards').put(c));audio.forEach(([k,b])=>t.objectStore('audio').put(b,k))})}
+  catch(e){status={err:true,msg:'Could not save the deck on this device. Your phone may be out of storage.'};render();return}
+  if(ver<INSTR&&S.instrAck>=INSTR){try{await write(['meta'],t=>t.objectStore('meta').put(-1,'instrAck'))}catch(e){}}
+  await load();
+  let msg=`Imported “${drec.name}”: ${added} new word${added===1?'':'s'} (${added*3} cards)`+(updated?`, ${updated} already here and updated, progress kept`:'')+'.';
+  if(clash)msg+=' You already had a different deck with the same ID, so this was added as a new deck.';
+  if(missing.length)msg+=` No audio found for #${missing.join(', #')}.`;
+  status={msg};render();
+}
+async function restore(zip,bk){
+  let data;try{data=JSON.parse(await bk.async('string'))}catch(e){status={err:true,msg:'backup.json is damaged.'};render();return}
+  const audio=[];
+  for(const n of data.notes||[]){if(!n.audioPath)continue;const f=zip.file(n.audioPath);if(f){const buf=await f.async('arraybuffer');audio.push([n.audioKey,new Blob([buf],{type:n.audioType||'audio/mpeg'})])}}
+  try{await write(['decks','notes','cards','audio','meta','revlog'],t=>{(data.revlog||[]).forEach(r=>{if(r&&r.t&&r.card)t.objectStore('revlog').put(r,r.t+'|'+r.card)});(data.decks||[]).forEach(d=>t.objectStore('decks').put(d));(data.notes||[]).forEach(n=>{const c={...n};delete c.audioPath;delete c.audioType;t.objectStore('notes').put(c)});(data.cards||[]).forEach(c=>t.objectStore('cards').put(c));audio.forEach(([k,b])=>t.objectStore('audio').put(b,k));if(data.settings)t.objectStore('meta').put(data.settings,'settings');if(data.log){const m={...S.log};Object.entries(data.log).forEach(([k,v])=>{const c=m[k];m[k]={n:Math.max(c?c.n:0,v.n||0),cleared:!!((c&&c.cleared)||v.cleared)}});t.objectStore('meta').put(m,'log')}})}
+  catch(e){status={err:true,msg:'Could not restore the backup on this device.'};render();return}
+  await load();status={msg:`Restored backup: ${(data.notes||[]).length} words with their review history.`};render();
+}
+async function backup(){
+  if(!window.JSZip)return;
+  status={msg:'Building backup…'};render();
+  const zip=new JSZip(),notes=[];
+  for(const n of S.notes.values()){const o={...n};if(n.audioKey){const b=await get('audio',n.audioKey);if(b){o.audioPath='audio/'+encodeURIComponent(n.audioKey).replace(/%/g,'_')+'.bin';o.audioType=b.type;zip.file(o.audioPath,b)}}notes.push(o)}
+  let revlog=[];try{revlog=await getAll('revlog')}catch(e){}
+  zip.file('backup.json',JSON.stringify({format:'kelma-backup-1',exportedAt:new Date().toISOString(),decks:S.decks,notes,cards:S.cards,settings:S.settings,log:S.log,revlog}));
+  const blob=await zip.generateAsync({type:'blob'});
+  S.pending={blob,name:'kelma-backup-'+dayKey()+'.zip',kind:'backup'};
+  status={msg:'Backup ready ('+Math.max(1,Math.round(blob.size/1024))+' KB). Tap Save file, then choose Save to Files.'};render();
+}
+async function shareDeck(id){
+  if(!window.JSZip)return;const d=S.decks.find(x=>x.id===id);if(!d)return;
+  status={msg:'Getting the deck ready…'};render();
+  const zip=new JSZip(),cards=[];const extOf=t=>/mp4|m4a|aac/.test(t)?'m4a':/wav/.test(t)?'wav':/ogg/.test(t)?'ogg':'mp3';
+  for(const n of deckNotes(id)){const c={num:Number(n.num)||n.order,word:n.word,meaning:n.meaning,example:n.example||'',example_en:n.example_en||'',tag:n.tag||''};
+    if(n.audioKey){const b=await get('audio',n.audioKey);if(b){c.audio='audio/'+String(c.num).padStart(2,'0')+'.'+extOf(b.type||'');zip.file(c.audio,b)}}
+    cards.push(c)}
+  zip.file('deck.json',JSON.stringify({format:'kelma-deck-1',instructions_version:INSTR,deck_id:d.id,deck_name:d.name,cards},null,1));
+  const blob=await zip.generateAsync({type:'blob'});
+  const safe=d.name.replace(/[^\p{L}\p{N}]+/gu,'-').replace(/^-|-$/g,'').slice(0,40)||'deck';
+  S.pending={blob,name:'kelma-'+safe+'.zip',kind:'deck',deckId:id};
+  status={msg:'✓ Ready ('+Math.max(1,Math.round(blob.size/1024))+' KB). Tap Send file.'};render();
+}
+function saveBackup(){
+  const p=S.pending;if(!p)return;
+  const file=new File([p.blob],p.name,{type:'application/zip'});
+  const done=()=>{const k=p.kind;S.pending=null;if(k==='backup'){S.lastBackup=Date.now();write(['meta'],t=>t.objectStore('meta').put(S.lastBackup,'lastBackup')).catch(()=>{})}status={msg:k==='deck'?'✓ Sent. They tap Import deck in Kelma to add it.':'Backup handed off. Keep it in Files or iCloud Drive. To restore, tap Restore backup and pick it.'};render()};
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    navigator.share({files:[file],title:p.name}).then(done).catch(e=>{if(e&&e.name==='AbortError')return;download(p);done()});return}
+  download(p);done();
+}
+function download(p){const a=document.createElement('a');a.href=URL.createObjectURL(p.blob);a.download=p.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},5000)}
+
+/* ---------- study log + progress ---------- */
+const GOAL=10;
+const iso=d=>{const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
+const addDays=(t,n)=>{const d=new Date(t);d.setDate(d.getDate()+n);d.setHours(0,0,0,0);return d.getTime()};
+const mondayOf=t=>{const d=new Date(t);d.setHours(0,0,0,0);const wd=(d.getDay()+6)%7;return addDays(d.getTime(),-wd)};
+const dayMet=k=>{const e=S.log[k];return !!e&&(e.n>=GOAL||e.cleared)};
+function logAnswer(){const k=iso(Date.now());const e=S.log[k]||{n:0,cleared:false};e.n++;S.log[k]=e;saveLog()}
+function logCleared(){const k=iso(Date.now());const e=S.log[k]||{n:0,cleared:false};if(e.n>0&&!e.cleared){e.cleared=true;S.log[k]=e;saveLog()}}
+const saveLog=()=>write(['meta'],t=>t.objectStore('meta').put(S.log,'log')).catch(()=>{});
+/* Streak: count studied days going back from today. One missed day per Mon–Sun week is forgiven; a second miss in the same week ends the streak. Today never counts as missed. */
+function streakInfo(){
+  const keys=Object.keys(S.log).filter(dayMet).sort();
+  const t0=today0(), rest=new Set();
+  if(!keys.length)return {n:0,rest};
+  const first=Date.parse(keys[0]+'T00:00:00');
+  let n=0,d=t0;const used=new Set();
+  for(let i=0;i<3000&&d>=first;i++,d=addDays(d,-1)){
+    const k=iso(d);
+    if(dayMet(k)){n++;continue}
+    if(d===t0)continue;
+    const wk=mondayOf(d);
+    if(used.has(wk))break;
+    used.add(wk);rest.add(k);
+  }
+  return {n,rest};
+}
+/* Stages per word/phrase: started = any card reviewed; growing = all cards reviewed and last answer right; well = all cards on 3+ week gaps. */
+function stageOf(cs){
+  if(!cs||!cs.length||cs.every(c=>c.state==='new'))return '';
+  if(cs.every(c=>c.state==='review'&&c.interval>=21))return 'well';
+  if(cs.every(c=>c.state==='review'))return 'growing';
+  return 'started';
+}
+const STAGES={started:['🌱','started','You’ve seen at least one of its 3 cards in review.'],growing:['🌿','growing','All 3 cards (👁️ see, 👂 hear, 🗣️ say) reviewed, and your last answer on each was right.'],well:['🌳','known well','All 3 cards remembered over gaps of 3 weeks or more.']};
+function cardsByNote(){const by=new Map();S.cards.forEach(c=>{if(!by.has(c.noteId))by.set(c.noteId,[]);by.get(c.noteId).push(c)});return by}
+function wordStats(){
+  const r={started:0,growing:0,well:0};
+  cardsByNote().forEach(cs=>{const st=stageOf(cs);if(st)r[st]++});
+  return r;
+}
+function progressPanel(){
+  const {n,rest}=streakInfo(), t0=today0(), mon=mondayOf(t0), tk=iso(t0);
+  const e=S.log[tk]||{n:0}, met=dayMet(tk), pct=Math.min(100,Math.round(100*e.n/GOAL));
+  const ws=wordStats();
+  const days=['M','T','W','T','F','S','S'].map((l,i)=>{const d=addDays(mon,i),k=iso(d);
+    const cls=dayMet(k)?'met':rest.has(k)?'rest':'';const tod=d===t0?' now':'';
+    return `<div class="d ${cls}${tod}"><span class="dot">${dayMet(k)?'✓':rest.has(k)?'·':''}</span>${l}</div>`}).join('');
+  return `<section class="prog-panel" aria-label="Your progress">
+    <div class="streak${n?'':' zero'}"><span class="flame" aria-hidden="true">🔥</span><div><b>${n}</b><span>${n===1?'day in a row':'days in a row'}${n?'':' · study today to start'}</span></div></div>
+    <div class="week" aria-label="This week">${days}</div>
+    <div class="goal${met?' met':''}"><div class="lbl">${met?'<b>✓ Done for today</b>':'<b>🎯 Today</b>'}<span>${Math.min(e.n,GOAL)} / ${GOAL} cards</span></div><div class="track"><i style="width:${met?100:pct}%"></i></div></div>
+    <div class="stages">${['started','growing','well'].map(k=>`<button class="stage${stageTip===k?' on':''}" data-act="stageTip" data-k="${k}" aria-expanded="${stageTip===k}"><span class="em" aria-hidden="true">${STAGES[k][0]}</span><b>${ws[k]}</b><span>${STAGES[k][1]}</span></button>`).join('')}</div>
+    ${stageTip?`<p class="stage-tip" role="status">${STAGES[stageTip][0]} <b>${STAGES[stageTip][1][0].toUpperCase()+STAGES[stageTip][1].slice(1)}:</b> ${STAGES[stageTip][2]}</p>`:''}
+  </section>`;
+}
+
+/* ---------- deck helpers ---------- */
+const deckNotes=id=>[...S.notes.values()].filter(n=>n.deckId===id).sort((a,b)=>a.order-b.order);
+const deckIcon=id=>{const n=deckNotes(id)[0];const ch=n?[...String(n.word).replace(/[^؀-ۿ]/g,'')][0]:'';return ch||'📚'};
+const plural=(n,w)=>n+' '+w+(n===1?'':'s');
+const daysSince=t=>Math.floor((today0()-new Date(t).setHours(0,0,0,0))/DAY);
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const sortedDecks=()=>[...S.decks].sort((a,b)=>b.importedAt-a.importedAt);
+
+/* ---------- views ---------- */
+function alertBanner(){
+  if((S.instrVer===null||S.instrVer<INSTR)&&S.instrAck<INSTR)return `<button class="outdated" data-act="update"><span>${S.instrAck===-1?'⚠️ This deck used old instructions. Please update again.':'⚠️ New Claude instructions. Tap to update (1 min).'}</span>›</button>`;
+  const oldest=Math.min(...S.decks.map(d=>d.importedAt||Date.now()));
+  const since=S.lastBackup?daysSince(S.lastBackup):daysSince(oldest);
+  if(since>=7)return `<button class="outdated" data-act="settings"><span>💾 ${S.lastBackup?`Last backup ${plural(since,'day')} ago.`:'No backup yet.'} Back up now.</span>›</button>`;
+  return '';
+}
+function statusBox(){return status?`<div class="status${status.err?' err':''}" role="status">${esc(status.msg)}</div>`:''}
+function home(){
+  const c=counts(), words=S.notes.size, total=c.due+c.newToday;
+  let h=`<header class="top"><div class="mark"><span class="ar" lang="ar">كلمة</span><span class="lat">Kelma</span></div><div style="display:flex;gap:4px"><a class="ghost" href="guide.html" style="text-decoration:none">Guide</a><button class="ghost" data-act="settings" aria-label="Settings">⚙️</button></div></header>`;
+  if(!S.ok)h+=`<div class="status err">This view can’t store cards. Open this page in Safari or the Claude app instead.</div>`;
+  if(!STANDALONE)h+=`<div class="hint"><b>Install it first.</b> In Safari tap Share, then Add to Home Screen. Open Kelma from the new icon and import your decks there. The icon and the Safari tab keep separate cards.</div>`;
+  h+=statusBox();
+  if(!words){
+    h+=`<section class="empty"><h2>No cards yet</h2>
+      <ol><li>Finish a session with your language helper.</li><li>Your Claude project builds a deck file (.zip) from the list and voice notes.</li><li>Save it to Files, then import it here.</li></ol>
+      <label class="btn primary" for="file">＋ Import deck file</label>
+      <p class="fine">New phone? <button class="linkbtn" data-act="settings">Restore a backup</button></p></section>`;
+    return h;
+  }
+  h+=alertBanner();
+  h+=progressPanel();
+  h+=`<section class="today" aria-label="Review">
+    <div class="line"><span>🔁 <b>${c.due}</b> to review</span><span>✨ <b>${c.newToday}</b> new</span></div>
+    ${total?`<button class="btn primary" data-act="study">▶️ Start review</button>`:c.ready?`<button class="btn primary" data-act="learnMore">✓ Reviews done · ＋ Learn ${Math.min(10,c.ready)} more</button>`:`<button class="btn primary" disabled>✓ All reviews done</button>`}
+    <button class="btn focus" data-act="pick">🎯 Focus practice</button></section>`;
+  const latest=sortedDecks()[0];
+  if(latest){const n=deckNotes(latest.id).length;
+    h+=`<section class="latest"><button class="latest-info" data-act="deck" data-id="${esc(latest.id)}"><span class="ic" aria-hidden="true">${esc(deckIcon(latest.id))}</span><span><span class="kick">📝 Newest deck</span><span class="name">${esc(latest.name)}</span><span class="meta">${plural(n,'word')}</span></span></button><button class="btn small primary" data-act="practiceDeck" data-id="${esc(latest.id)}">🎯 Practice</button></section>`}
+  h+=`<nav class="homenav"><button class="btn" data-act="decks">📚<span>Decks (${S.decks.length})</span></button><label class="btn" for="file">📥<span>Import</span></label><button class="btn" data-act="settings">⚙️<span>Settings</span></button></nav>`;
+  return h;
+}
+function decksPage(){
+  const ds=sortedDecks(), groups=new Map(), now=new Date();
+  ds.forEach(d=>{const t=new Date(d.importedAt||Date.now()),k=t.getFullYear()*12+t.getMonth();if(!groups.has(k))groups.set(k,{label:MONTHS[t.getMonth()]+' '+t.getFullYear(),list:[]});groups.get(k).list.push(d)});
+  const cur=now.getFullYear()*12+now.getMonth();
+  const row=d=>{const n=deckNotes(d.id),k=counts(d.id);const sx=(d.name+' '+n.map(x=>x.word+' '+x.meaning).join(' ')).toLowerCase();
+    return `<button class="deckrow" data-act="deck" data-id="${esc(d.id)}" data-s="${esc(sx)}"><span class="ic" aria-hidden="true">${esc(deckIcon(d.id))}</span><span><span class="name">${esc(d.name)}</span><br><span class="meta">${plural(n.length,'word')} · ${k.due} due</span></span><span class="go" aria-hidden="true">›</span></button>`};
+  let h=`<div class="page"><div class="top" style="display:flex;justify-content:space-between;align-items:center"><button class="ghost" data-act="home">‹ Home</button><label class="btn small" for="file">＋ Import deck</label></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">📚</span><div><h1>Decks</h1><p>${plural(ds.length,'deck')} · ${plural(S.notes.size,'word')}</p></div></div>${statusBox()}`;
+  if(ds.length>15)h+=`<input class="search" id="deck-search" type="search" placeholder="🔍 Search decks and words" autocomplete="off">`;
+  let i=0;
+  groups.forEach((g,k)=>{h+=`<details class="month" ${k===cur||i===0?'open':''}><summary><span>${g.label}</span><span class="meta">${plural(g.list.length,'deck')}</span></summary><div class="decklist">${g.list.map(row).join('')}</div></details>`;i++});
+  h+=`<p class="fine" id="no-match" hidden>No decks or words match.</p></div>`;
+  return h;
+}
+function settingsPage(){
+  const lb=S.lastBackup?(daysSince(S.lastBackup)===0?'today':plural(daysSince(S.lastBackup),'day')+' ago'):'never';
+  return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">⚙️</span><div><h1>Settings</h1></div></div>${statusBox()}
+    <section class="sec"><div class="setting"><span>✨ New words per day</span><div class="stepper">
+      <button class="btn small" data-act="newMinus" aria-label="Fewer">−</button><output>${S.settings.newPerDay}</output><button class="btn small" data-act="newPlus" aria-label="More">+</button></div></div>
+      <p class="fine">Each word comes back three ways: 👁️ see it, 👂 hear it, 🗣️ say it.</p></section>
+    <section class="sec"><h2>💾 Backup</h2><p class="fine">Last backup: <b>${lb}</b></p><div class="row">`+(S.pending&&S.pending.kind==='backup'?`<button class="btn primary" data-act="saveBackup">Save file</button>`:`<button class="btn" data-act="backup">Save backup</button>`)+`<label class="btn" for="file">Restore backup</label></div>
+      <p class="fine">Cards and progress live on this phone only. Save a backup once a week and keep it in Files or iCloud Drive.</p></section>
+    <section class="sec"><h2>🤖 Claude</h2><div class="row"><button class="btn" data-act="update">📋 Copy Claude instructions</button><a class="btn" href="guide.html" style="text-decoration:none">📖 Guide</a></div></section>
+    <p class="fine">Kelma v${APP_VERSION} · Claude instructions v${INSTR}</p></div>`;
+}
+function deckPage(){
+  const d=S.decks.find(x=>x.id===deckId);if(!d){view='home';return home()}
+  const ns=deckNotes(d.id), byNote=cardsByNote();
+  const mark=n=>{const st=stageOf(byNote.get(n.id));return st?STAGES[st][0]:''};
+  let h=`<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="decks">‹ Decks</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">${esc(deckIcon(d.id))}</span>${renaming?`<div class="rename"><label for="deck-name" class="fine">Deck name</label><input id="deck-name" maxlength="60" value="${esc(d.name)}"><div class="row"><button class="btn primary small" data-act="saveName" data-id="${esc(d.id)}">Save</button><button class="btn small" data-act="cancelName">Cancel</button></div></div>`:`<div><h1>${esc(d.name)}</h1><p>${plural(ns.length,'word')}</p></div><button class="edit" data-act="rename" aria-label="Rename deck">✏️</button>`}</div>
+    <button class="btn primary focus" data-act="practiceDeck" data-id="${esc(d.id)}">🎯 Practice this deck</button>
+    ${status?`<div class="status${status.err?' err':''}" role="status">${esc(status.msg)}</div>`:''}
+    ${S.pending&&S.pending.kind==='deck'&&S.pending.deckId===d.id?`<button class="btn primary focus" data-act="saveBackup">📤 Send file</button>`:`<button class="btn focus" data-act="shareDeck" data-id="${esc(d.id)}">📤 Share deck</button>`}
+    <p class="fine">Shares the words and audio, not your progress.</p>
+    <div class="words">`+ns.map(n=>`<div><span class="en">${TAGS[n.tag]?TAGS[n.tag][0]+' ':''}${esc(n.meaning)}</span><span class="ar" lang="ar"><span class="kw">${mark(n)}</span> ${esc(n.word)}</span></div>`).join('')+`</div>
+    <p class="fine">🌱 started · 🌿 growing · 🌳 known well</p>
+    <button class="dangerlink" data-act="askDelete">🗑️ Delete this deck</button></div>`;
+  return h;
+}
+function deletePage(){
+  const d=S.decks.find(x=>x.id===deckId);if(!d){view='home';return home()}
+  const n=deckNotes(d.id).length;
+  return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="deck" data-id="${esc(d.id)}">‹ Back</button></div>
+    <div class="warn"><h1>⚠️ Delete “${esc(d.name)}”?</h1>
+      <p>This can’t be undone. You will lose:</p>
+      <ul><li>${n} words and their audio</li><li>All your progress on these words</li></ul>
+      <p>Importing the deck file again brings the words back, but they start over as new.</p>
+      <p><b>Save a backup first</b> if you might want them later.</p>
+      <div class="row">${S.pending&&S.pending.kind==='backup'?`<button class="btn primary" data-act="saveBackup">Save file</button>`:`<button class="btn" data-act="backup">💾 Save backup</button>`}</div>
+      ${status?`<div class="status${status.err?' err':''}" role="status">${esc(status.msg)}</div>`:''}
+      <label for="del-confirm">Type DELETE to confirm</label>
+      <input id="del-confirm" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      <button class="btn solid-danger" id="del-go" data-act="delete" data-id="${esc(d.id)}" disabled>Delete deck</button>
+      <button class="btn" data-act="deck" data-id="${esc(d.id)}">Keep it</button></div></div>`;
+}
+function pickCount(){
+  const ids=pickAll?new Set(S.decks.map(d=>d.id)):(pickSel||new Set());
+  return S.cards.filter(c=>{const n=S.notes.get(c.noteId);return n&&ids.has(n.deckId)&&(!pickTypes.size||pickTypes.has(n.tag))}).length;
+}
+function pickPage(){
+  const ds=sortedDecks();
+  if(!pickSel)pickSel=new Set(ds.slice(0,1).map(d=>d.id));
+  const used=Object.keys(TAGS).filter(k=>[...S.notes.values()].some(n=>n.tag===k));
+  const n=pickCount();
+  return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">🎯</span><div><h1>Focus practice</h1><p>Doesn’t change your reviews.</p></div></div>
+    <p class="subhead">Decks</p>
+    <div class="pick"><label class="all"><input type="checkbox" data-pickall ${pickAll?'checked':''}><span class="name">📚 All decks</span></label>`+
+    (pickAll?'':ds.map(d=>`<label><input type="checkbox" data-pick="${esc(d.id)}" ${pickSel.has(d.id)?'checked':''}><span class="ic" aria-hidden="true">${esc(deckIcon(d.id))}</span><span><span class="name">${esc(d.name)}</span><br><span class="meta">${plural(deckNotes(d.id).length,'word')}</span></span></label>`).join(''))+`</div>`+
+    (used.length?`<p class="subhead">Only these types <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></p><div class="types">`+used.map(k=>`<button data-act="ptype" data-t="${k}" aria-pressed="${pickTypes.has(k)}">${TAGS[k][0]} ${TAGS[k][1]}</button>`).join('')+`</div>`:'')+
+    `<button class="btn primary focus" data-act="practiceSel" ${n?'':'disabled'}>${n?`🎯 Start practice · ${plural(n,'card')}`:(pickAll||(pickSel&&pickSel.size))?'No cards match these types':'Pick a deck above'}</button></div>`;
+}
+function updatePage(){
+  return `<div class="page upd"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">📋</span><div><h1>Update your Claude instructions</h1><p>1 minute</p></div></div>
+    <div class="today">
+      <div class="st"><span class="num">1</span><button class="btn primary" data-act="copyInstr" style="flex:1">📋 Copy</button></div>
+      <span class="ok" id="copy-ok" role="status"></span>
+      <div class="st"><span class="num">2</span><span>In Claude: <b>Darija Cards</b> → <b>Instructions</b></span></div>
+      <div class="st"><span class="num">3</span><span>Delete the old text, paste, save</span></div>
+    </div>
+    <button class="btn primary focus" data-act="instrDone">✓ I’ve done it</button>
+    <details><summary class="fine">Copy not working?</summary><textarea readonly id="instr-box">${esc(S.instrText||'Loading… check your connection.')}</textarea></details></div>`;
+}
+function cardHtml(c,n,shown){
+  const url=sess.urls.get(n.id);
+  const play=(big)=>url?`<button class="play${big?' big':''}" data-act="play" aria-label="Play audio">${PLAY}</button>`:`<span class="noaudio">No audio</span>`;
+  const word=`<p class="word" lang="ar" dir="rtl">${esc(n.word)}</p>`;
+  const ex=n.example?`<p class="ex" lang="ar" dir="rtl">${exHtml(n.example)}</p>`:'';
+  const mean=`<p class="mean">${esc(n.meaning)}</p>`;
+  const exen=n.example_en?`<p class="exen">${exHtml(n.example_en)}</p>`:'';
+  const tg=TAGS[n.tag]?`<span class="tagchip">${TAGS[n.tag][0]} ${TAGS[n.tag][1]}</span>`:'';
+  let f='',b='';
+  if(c.type==='recognition'){f=`<span class="chip">👁️ See it · what does it mean?</span>${word}${ex}${play()}`;b=mean+exen}
+  else if(c.type==='listening'){f=`<span class="chip">👂 Hear it · what did you hear?</span>${play(true)}`;b=word+ex+mean+exen}
+  else{f=`<span class="chip">🗣️ Say it · in Darija</span>${mean}`;b=word+ex+play()+exen}
+  return `<div class="card" data-act="${shown?'':'reveal'}">${tg}${f}${shown?`<div class="ans">${b}</div>`:''}</div>`;
+}
+function study(){
+  const id=sess.queue[0], c=S.cards.find(x=>x.id===id), n=c&&S.notes.get(c.noteId);
+  const doneN=sess.answered, pct=Math.round(100*doneN/Math.max(1,doneN+sess.queue.length));
+  let h=`<div class="study"><div class="bar"><button class="ghost" data-act="exit">← Home</button>${sess.mode==='practice'?'<span class="mode">🎯 Practice</span>':''}<div class="prog" aria-hidden="true"><i style="width:${pct}%"></i></div><span class="left">${sess.queue.length} left</span></div>`;
+  h+=cardHtml(c,n,sess.shown);
+  if(!sess.shown)h+=`<button class="btn primary reveal" data-act="reveal">Show answer</button>`;
+  else if(sess.mode==='practice')h+=`<div class="pgrades"><button class="btn" data-act="pgrade" data-g="0"><span class="g0">↺ Again</span></button><button class="btn" data-act="pgrade" data-g="1"><span class="g1">✓ Got it</span></button></div>`;
+  else h+=`<div class="grades"><button class="btn" data-act="grade" data-g="0"><span class="g0">Again</span><small>${fmtIv(0)}</small></button><button class="btn" data-act="grade" data-g="1"><span class="g1">Good</span><small>${fmtIv(nextIv(c,1))}</small></button><button class="btn" data-act="grade" data-g="2"><span class="g2">Easy</span><small>${fmtIv(nextIv(c,2))}</small></button></div>`;
+  return h+`</div>`;
+}
+function done(){
+  const met=dayMet(iso(Date.now())), {n}=streakInfo();
+  const streakLine=met?`<p>🔥 ${n} ${n===1?'day':'days'} in a row</p>`:`<p class="fine">🎯 ${Math.max(0,GOAL-((S.log[iso(Date.now())]||{n:0}).n))} more cards to count today toward your streak.</p>`;
+  if(sess.mode==='practice'){
+    return `<div class="done"><span class="big" aria-hidden="true">🎯</span><h3>Practice round done</h3><p>${sess.answered} card${sess.answered===1?'':'s'} drilled.</p>${streakLine}<div class="row"><button class="btn primary" data-act="practiceAgain">↺ Practice again</button><button class="btn" data-act="exit">Back home</button></div></div>`;
+  }
+  const tom=S.cards.filter(c=>(c.state==='review'||c.state==='learning')&&c.due<today0()+2*DAY&&c.due>=today0()+DAY).length;
+  return `<div class="done"><span class="big" aria-hidden="true">${met?'🔥':'✅'}</span><h3>Done for now</h3><p>You answered ${sess.answered} card${sess.answered===1?'':'s'}.</p>${streakLine}<p class="fine">${tom} card${tom===1?' is':'s are'} due tomorrow.</p><div class="row">${counts().ready?`<button class="btn primary" data-act="learnMore">＋ Learn ${Math.min(10,counts().ready)} more</button>`:''}<button class="btn${counts().ready?'':' primary'}" data-act="exit">Back home</button></div></div>`;
+}
+function render(){
+  if(view==='study'){if(!sess.queue.length&&sess.mode==='review')logCleared();app.innerHTML=sess.queue.length?study():done()}
+  else if(view==='deck')app.innerHTML=deckPage();
+  else if(view==='delete')app.innerHTML=deletePage();
+  else if(view==='pick')app.innerHTML=pickPage();
+  else if(view==='update')app.innerHTML=updatePage();
+  else if(view==='decks')app.innerHTML=decksPage();
+  else if(view==='settings')app.innerHTML=settingsPage();
+  else app.innerHTML=home();
+}
+function go(v){view=v;status=null;renaming=false;if(S.pending&&S.pending.kind==='deck')S.pending=null;render();window.scrollTo(0,0)}
+
+/* ---------- session ---------- */
+function playCurrent(){const c=S.cards.find(x=>x.id===sess.queue[0]);const u=c&&sess.urls.get(c.noteId);if(u){player.src=u;player.play().catch(()=>{})}}
+function autoplay(){const c=S.cards.find(x=>x.id===sess.queue[0]);if(!c)return;if((!sess.shown&&c.type!=='production')||(sess.shown&&c.type==='production'))playCurrent()}
+async function begin(q,mode,deckIds,types){
+  if(!q.length)return;
+  const urls=new Map();
+  for(const id of q){const c=S.cards.find(x=>x.id===id),n=S.notes.get(c.noteId);if(n&&n.audioKey&&!urls.has(n.id)){try{const b=await get('audio',n.audioKey);if(b)urls.set(n.id,URL.createObjectURL(b))}catch(e){}}}
+  sess={queue:q,urls,shown:false,answered:0,mode,deckIds,types};status=null;view='study';render();autoplay();
+}
+const startSession=()=>begin(buildQueue(null),'review');
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function practiceQueue(ids,types){const set=new Set(ids),ts=new Set(types||[]);return shuffle(S.cards.filter(c=>{const n=S.notes.get(c.noteId);return n&&set.has(n.deckId)&&(!ts.size||ts.has(n.tag))}).map(c=>c.id))}
+function startPractice(ids,types){if(sess)sess.urls.forEach(u=>URL.revokeObjectURL(u));begin(practiceQueue(ids,types),'practice',ids,types)}
+function grade(g){
+  const c=S.cards.find(x=>x.id===sess.queue[0]);if(!c)return;
+  if(c.state==='new'){S.newDone.count++;saveMeta();c.firstSeen=Date.now()}
+  sess.queue.shift();logAnswer();
+  if(g===0){
+    if(c.state==='review'){c.lapses++;c.ease=Math.max(1.3,+(c.ease-0.2).toFixed(2));c.interval=Math.max(1,Math.round(c.interval*0.3))}
+    else if(c.state==='new')c.interval=0;
+    c.state='learning';c.due=today0();
+    sess.queue.splice(Math.min(3,sess.queue.length),0,c.id);
+  }else{
+    const iv=nextIv(c,g);if(g===2&&c.state==='review')c.ease=+(c.ease+0.15).toFixed(2);
+    c.state='review';c.interval=iv;c.due=today0()+iv*DAY;c.reps++;sess.answered++;
+  }
+  saveCard(c);logRev(c,g,'review');sess.shown=false;render();autoplay();
+}
+function pgrade(g){
+  const id=sess.queue.shift();if(!id)return;logAnswer();{const c=S.cards.find(x=>x.id===id);if(c)logRev(c,g,'practice')}
+  if(g===0)sess.queue.splice(Math.min(4,sess.queue.length),0,id);else sess.answered++;
+  sess.shown=false;render();autoplay();
+}
+function exit(){if(sess)sess.urls.forEach(u=>URL.revokeObjectURL(u));sess=null;player.pause();go('home')}
+
+/* ---------- events ---------- */
+app.addEventListener('click',e=>{
+  const el=e.target.closest('[data-act]');if(!el||el.disabled)return;const a=el.dataset.act,id=el.dataset.id;
+  if(a==='study')startSession();
+  else if(a==='learnMore'){S.newDone.extra=(S.newDone.extra||0)+10;saveMeta();if(sess)sess.urls.forEach(u=>URL.revokeObjectURL(u));startSession()}
+  else if(a==='pick'){pickSel=null;pickAll=false;pickTypes=new Set();go('pick')}
+  else if(a==='practiceSel'){const ids=pickAll?S.decks.map(d=>d.id):[...(pickSel||[])];if(ids.length&&pickCount())startPractice(ids,[...pickTypes])}
+  else if(a==='ptype'){const t=el.dataset.t;pickTypes.has(t)?pickTypes.delete(t):pickTypes.add(t);render()}
+  else if(a==='practiceDeck')startPractice([id]);
+  else if(a==='practiceAgain')startPractice(sess.deckIds||[],sess.types||[]);
+  else if(a==='deck'){deckId=id;go('deck')}
+  else if(a==='home')go('home');
+  else if(a==='reveal'){if(!sess.shown){sess.shown=true;render();autoplay()}}
+  else if(a==='play'){e.stopPropagation();playCurrent()}
+  else if(a==='grade')grade(+el.dataset.g);
+  else if(a==='pgrade')pgrade(+el.dataset.g);
+  else if(a==='exit')exit();
+  else if(a==='askDelete')go('delete');
+  else if(a==='decks')go('decks');
+  else if(a==='stageTip'){stageTip=stageTip===el.dataset.k?'':el.dataset.k;render()}
+  else if(a==='settings')go('settings');
+  else if(a==='update'){loadInstr();go('update')}
+  else if(a==='copyInstr'){const out=document.getElementById('copy-ok');const ok=()=>{out.textContent='✓ Copied. Now paste it in Claude.'};const fail=()=>{out.textContent='Copy didn’t work. Use the box below.';const d=app.querySelector('details');if(d)d.open=true};
+    if(S.instrText&&navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(S.instrText).then(ok,fail);else fail()}
+  else if(a==='instrDone')instrDone();
+  else if(a==='rename'){renaming=true;render();const i=document.getElementById('deck-name');if(i){i.focus();i.select()}}
+  else if(a==='cancelName'){renaming=false;render()}
+  else if(a==='saveName')saveName(id);
+  else if(a==='shareDeck')shareDeck(id);
+  else if(a==='delete'){const inp=document.getElementById('del-confirm');if(inp&&inp.value.trim().toUpperCase()==='DELETE')deleteDeck(id)}
+  else if(a==='newMinus'||a==='newPlus'){S.settings.newPerDay=Math.min(60,Math.max(0,S.settings.newPerDay+(a==='newPlus'?5:-5)));saveMeta();render()}
+  else if(a==='backup')backup();
+  else if(a==='saveBackup')saveBackup();
+});
+app.addEventListener('input',e=>{
+  if(e.target.id==='deck-search'){const q=e.target.value.trim().toLowerCase();let any=false;
+    app.querySelectorAll('details.month').forEach(dt=>{let shown=0;dt.querySelectorAll('.deckrow').forEach(r=>{const ok=!q||r.dataset.s.includes(q);r.hidden=!ok;if(ok)shown++});dt.hidden=!shown;if(q&&shown)dt.open=true;if(shown)any=true});
+    const nm=document.getElementById('no-match');if(nm)nm.hidden=any;return}
+  if(e.target.id==='del-confirm'){const b=document.getElementById('del-go');if(b)b.disabled=e.target.value.trim().toUpperCase()!=='DELETE'}
+});
+app.addEventListener('change',e=>{
+  const ds=e.target.dataset||{};
+  if('pickall' in ds){pickAll=e.target.checked;render();return}
+  if(!ds.pick)return;
+  if(!pickSel)pickSel=new Set();e.target.checked?pickSel.add(ds.pick):pickSel.delete(ds.pick);render();
+});
+document.addEventListener('keydown',e=>{
+  if(view!=='study'||!sess||!sess.queue.length)return;
+  if(e.key===' '||e.key==='Enter'){if(!sess.shown){e.preventDefault();sess.shown=true;render();autoplay()}}
+  else if(sess.shown&&sess.mode==='review'&&['1','2','3'].includes(e.key))grade(+e.key-1);
+  else if(sess.shown&&sess.mode==='practice'&&['1','2'].includes(e.key))pgrade(+e.key-1);
+  else if(e.key==='r')playCurrent();
+});
+fileIn.addEventListener('change',()=>{const f=fileIn.files[0];fileIn.value='';if(f){if(view!=='home')view='home';importFile(f)}});
+async function loadInstr(){if(S.instrText)return;try{const r=await fetch('instructions.txt',{cache:'no-cache'});if(r.ok){S.instrText=await r.text();const b=document.getElementById('instr-box');if(b)b.value=S.instrText}}catch(e){}}
+async function instrDone(){
+  try{await write(['meta'],t=>t.objectStore('meta').put(INSTR,'instrAck'))}catch(e){}
+  S.instrAck=INSTR;go('home');status={msg:'✓ Done. Your next deck will use the new instructions.'};render();
+}
+async function saveName(id){
+  const i=document.getElementById('deck-name'),v=i?i.value.trim().slice(0,60):'';const d=S.decks.find(x=>x.id===id);
+  if(!d||!v){renaming=false;render();return}
+  const rec={...d,name:v,renamed:true};
+  try{await write(['decks'],t=>t.objectStore('decks').put(rec))}catch(e){}
+  await load();renaming=false;render();
+}
+async function deleteDeck(id){
+  const noteIds=deckNotes(id).map(n=>n.id),set=new Set(noteIds);
+  const cardIds=S.cards.filter(c=>set.has(c.noteId)).map(c=>c.id);
+  try{await write(['decks','notes','cards','audio'],t=>{t.objectStore('decks').delete(id);noteIds.forEach(n=>{t.objectStore('notes').delete(n);t.objectStore('audio').delete(n)});cardIds.forEach(c=>t.objectStore('cards').delete(c))})}catch(e){}
+  await load();view='home';status={msg:'Deck deleted.'};render();window.scrollTo(0,0);
+}
+
+/* ---------- boot ---------- */
+(async()=>{
+  try{await openDB();await load();try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}}catch(e){S.ok=false}
+  render();loadInstr();
+  if('serviceWorker' in navigator&&location.protocol==='https:'){try{navigator.serviceWorker.register('sw.js')}catch(e){}}
+})();
+})();
+</script>
+
+</body>
+</html>

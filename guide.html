@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kelma Guide</title>
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#EDF1EF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D1311" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600&family=Reem+Kufi:wght@600&display=swap">
+<style>
+/* Layout: one screen = one step. Home = four parts by how often you do them + the examples page. Pictures first, one short line each. */
+*,*::before,*::after{box-sizing:border-box}
+:root{
+  --bg:#EDF1EF; --surface:#FAFCFB; --ink:#13201B; --muted:#58695F; --line:#D3DDD8;
+  --accent:#0A6B55; --accent-ink:#FFFFFF; --accent-soft:#DCEBE5;
+  --p1:#0A6B55; --p2:#B5741A; --p3:#D9531E; --p4:#2C5CA3; --p5:#6B4FA0;
+  --good:#2E7D32; --bad:#C0392B; --warn:#B7791F;
+  --again:#AE3B2B; --easy:#2C5CA3; --ui:#E4EAE7;
+  --wa-bg:#EFE7DC; --wa-bubble:#FFFFFF; --wa-me:#D9FDD3; --wa-meta:#8A8F8C; --wa-wave:#9AA3A0; --wa-dot:#3B8FE8;
+  --f-ui:"Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-ar:"Noto Naskh Arabic", "Geeza Pro", serif;
+  --f-mark:"Reem Kufi", serif;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0D1311; --surface:#151E1B; --ink:#E3EBE7; --muted:#93A59D; --line:#283631;
+  --accent:#3CBF99; --accent-ink:#05231A; --accent-soft:#17342B;
+  --p1:#3CBF99; --p2:#E2A54C; --p3:#FF8A4C; --p4:#80A7EC; --p5:#B79BEA;
+  --good:#6FCF74; --bad:#FF7A6B; --warn:#E6B655;
+  --again:#F07B67; --easy:#80A7EC; --ui:#22302B;
+  --wa-bg:#0B141A; --wa-bubble:#202C33; --wa-me:#005C4B; --wa-meta:#8696A0; --wa-wave:#8696A0; --wa-dot:#53BDEB; color-scheme:dark}}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:18px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+[hidden]{display:none!important}
+a{color:var(--accent)}
+.wrap{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;padding-block:16px 24px}
+button{font:inherit;cursor:pointer;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.screen{display:flex;flex-direction:column;gap:18px;flex:1}
+
+/* home */
+.mark{display:flex;align-items:baseline;gap:10px}
+.mark .ar{font-family:var(--f-mark);font-size:30px;color:var(--accent);line-height:1}
+.mark .lat{font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:13px;color:var(--muted)}
+h1{font-size:28px;line-height:1.2;margin:0;text-wrap:balance}
+.parts{display:flex;flex-direction:column}
+.part{display:grid;grid-template-columns:56px 1fr auto;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 16px;text-decoration:none;color:var(--ink)}
+.part .n{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;font-size:28px;background:color-mix(in srgb,var(--c) 16%,transparent)}
+.part b{display:block;font-size:20px;line-height:1.2}
+.part span.w{font-size:15px;color:var(--muted)}
+.part .go{font-size:24px;color:var(--c)}
+.link{width:2px;height:14px;background:var(--line);margin-left:43px}
+.part.alt{border-style:dashed}
+.new{display:flex;gap:10px;align-items:center;background:var(--accent-soft);border-radius:14px;padding:12px 14px;font-size:16px;text-decoration:none;color:var(--ink)}
+.new b{color:var(--accent)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:12px 18px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:700;text-decoration:none;font-size:17px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.row .btn{flex:1 1 150px}
+
+/* step */
+.top{display:flex;align-items:center;gap:10px}
+.home{color:var(--muted);font-weight:700;padding:8px 4px;min-height:44px;text-decoration:none;display:inline-flex;align-items:center}
+.dots{display:flex;gap:6px;margin-left:auto}
+.dots i{width:10px;height:10px;border-radius:50%;background:var(--line)}
+.dots i.on{background:var(--c)}
+.dots i.done{background:var(--c);opacity:.4}
+.kicker{font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--c)}
+.head{display:flex;align-items:center;gap:14px}
+.big{flex:none;width:60px;height:60px;border-radius:50%;background:var(--c);color:var(--surface);display:grid;place-items:center;font-size:30px;font-weight:700}
+.big.em{background:color-mix(in srgb,var(--c) 16%,transparent);font-size:30px}
+.head h2{margin:0;font-size:26px;line-height:1.2;text-wrap:balance}
+.body{display:flex;flex-direction:column;gap:14px}
+.body p{margin:0}
+.note{font-size:16px;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.tapline{display:flex;align-items:center;gap:12px}
+.tapline .k{flex:none;width:28px;height:28px;border-radius:50%;border:2px solid var(--c);color:var(--c);font-weight:700;font-size:15px;display:grid;place-items:center}
+.ui{display:inline-flex;align-items:center;gap:6px;background:var(--ui);border-radius:10px;padding:5px 11px;font-weight:700;font-size:16px;white-space:nowrap}
+.ui svg{width:18px;height:18px}
+.arrow{color:var(--muted);font-weight:700}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--ui);border-radius:12px;padding:4px;gap:4px}
+.seg button{border:none;background:none;border-radius:9px;min-height:40px;font-weight:700;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.path{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.toggle{display:inline-block;width:46px;height:28px;border-radius:14px;background:var(--accent);position:relative;flex:none}
+.toggle::after{content:"";position:absolute;right:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff}
+.bubble-me{align-self:flex-end;background:var(--accent);color:var(--accent-ink);border-radius:18px 18px 4px 18px;padding:10px 16px;font-weight:700}
+.file{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:14px;padding:12px}
+.file svg{width:34px;height:34px;color:var(--c);flex:none}
+.file b{display:block;font-size:15px;overflow-wrap:anywhere}
+.file span{font-size:13px;color:var(--muted)}
+.grades{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.grades div{border:1px solid var(--line);border-radius:12px;padding:10px 4px;font-size:14px;color:var(--muted)}
+.grades b{display:block;font-size:17px}
+.kinds{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;font-size:14px;color:var(--muted)}
+.kinds div{border:1px solid var(--line);border-radius:12px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.kinds .e{font-size:26px}
+.kinds b{font-size:15px;color:var(--ink)}
+.picks{display:flex;flex-direction:column;gap:8px}
+.picks div{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-weight:700;font-size:16px}
+.picks .box{width:22px;height:22px;border-radius:6px;border:2px solid var(--line);display:grid;place-items:center;font-size:14px;color:#fff}
+.picks .box.on{background:var(--accent);border-color:var(--accent)}
+.copied{font-size:15px;color:var(--accent);font-weight:700}
+textarea.instr{width:100%;min-height:140px;font:13px/1.4 ui-monospace,Menlo,monospace;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--bg);color:var(--ink)}
+.nav{margin-top:auto;display:grid;grid-template-columns:1fr 2fr;gap:10px;position:sticky;bottom:0;padding-block:12px calc(8px + env(safe-area-inset-bottom,0px));background:var(--bg)}
+.nav .btn.primary{background:var(--c);border-color:var(--c);color:var(--surface)}
+details{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+details+details{margin-top:10px}
+summary{font-weight:700;cursor:pointer}
+details p{margin:10px 0 0}
+
+/* WhatsApp mock */
+.wa{background:var(--wa-bg);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.wa .b{align-self:flex-start;max-width:85%;background:var(--wa-bubble);border-radius:4px 14px 14px 14px;padding:7px 10px 5px;box-shadow:0 1px 1px rgba(0,0,0,.08);display:flex;flex-direction:column}
+.wa .b .t{font-size:17px;line-height:1.3}
+.wa .b .t.ar{font-family:var(--f-ar);font-size:20px;direction:rtl;text-align:right}
+.wa .b .m{font-size:11px;color:var(--wa-meta);align-self:flex-end}
+.wa .b.v{flex-direction:row;align-items:center;gap:8px;min-width:200px}
+.wa .b.v .pl{width:0;height:0;border-left:12px solid var(--wa-meta);border-top:8px solid transparent;border-bottom:8px solid transparent}
+.wa .b.v .wv{flex:1;display:flex;align-items:center;gap:2px;height:22px}
+.wa .b.v .wv i{display:block;width:3px;border-radius:2px;background:var(--wa-wave)}
+.wa .b.v .wv i:first-child{width:9px;height:9px!important;border-radius:50%;background:var(--wa-dot)}
+.wa .b.v .d{font-size:12px;color:var(--wa-meta)}
+.wa .gap{height:6px}
+.wa .tag{align-self:flex-start;font-size:12px;font-weight:700;color:var(--wa-meta);padding-left:4px}
+.wa .b.x{outline:3px solid var(--bad);outline-offset:1px}
+.wa .b.hl{outline:3px solid var(--good);outline-offset:1px}
+.wa .b.photo{width:150px;height:96px;padding:6px;align-items:stretch}
+.wa .b.photo .img{flex:1;border-radius:8px;background:repeating-linear-gradient(-6deg,transparent 0 13px,var(--wa-wave) 13px 14px),var(--surface);opacity:.75}
+.legend{display:flex;gap:14px;font-size:14px;color:var(--muted);flex-wrap:wrap}
+.legend b{color:var(--ink)}
+
+/* good / bad pairs */
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.side{display:flex;flex-direction:column;gap:8px}
+.verdict{display:flex;align-items:center;gap:6px;font-weight:700;font-size:15px}
+.verdict.good{color:var(--good)} .verdict.bad{color:var(--bad)} .verdict.warn{color:var(--warn)}
+.pair .wa{padding:8px;min-height:100%}
+.pair .wa .b.v{min-width:0;width:100%}
+.pair .wa .b.v .wv i:nth-child(n+11){display:none}
+.pair .wa .b.v .wv{overflow:hidden;min-width:0}
+.pair .wa .b .m:empty{display:none}
+.pair .wa .b .t{font-size:14px}
+.pair .wa .b .t.ar{font-size:16px}
+.ex-title{font-size:18px;font-weight:700;margin:0}
+.ex{display:flex;flex-direction:column;gap:8px;padding-block:6px}
+.ex+.ex{border-top:1px solid var(--line);padding-top:16px}
+.flow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:15px;font-weight:700}
+.flow .chip{background:var(--ui);border-radius:10px;padding:6px 10px}
+@media (prefers-reduced-motion: no-preference){.screen{animation:in .18s ease-out}@keyframes in{from{opacity:.4;transform:translateY(6px)}to{opacity:1;transform:none}}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+
+<textarea id="instr-src" hidden></textarea>
+
+<script>
+(function(){
+const KELMA='https://papathibs.github.io/kelma/';
+const IOS_APP='https://apps.apple.com/us/app/claude-by-anthropic/id6473753684';
+const ANDROID_APP='https://play.google.com/store/apps/details?id=com.anthropic.claude';
+const UPDATED='Oct 21, v5';
+const I={
+ share:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>',
+ plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/></svg>',
+ dots:'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>',
+ zip:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M10 7h2M10 10h2M10 13h2v3h-2z"/></svg>'
+};
+let platform='ios';
+try{const p=localStorage.getItem('kelma-guide-platform');if(p==='android'||p==='ios')platform=p;else if(/android/i.test(navigator.userAgent))platform='android'}catch(e){if(/android/i.test(navigator.userAgent))platform='android'}
+const tap=(k,html)=>`<div class="tapline"><span class="k">${k}</span><div>${html}</div></div>`;
+const seg=()=>`<div class="seg" role="group" aria-label="Your phone"><button data-plat="ios" aria-pressed="${platform==='ios'}">iPhone</button><button data-plat="android" aria-pressed="${platform==='android'}">Android</button></div>`;
+/* WhatsApp bubbles */
+const WAVE=[0,8,14,6,18,10,20,12,7,16,9,5,13,8,11,6,4];
+const tb=(t,time,cls='')=>`<div class="b ${cls}"><span class="t${/[؀-ۿ]/.test(t)?' ar':''}">${t}</span><span class="m">${time}</span></div>`;
+const vb=(dur,cls='')=>`<div class="b v ${cls}"><span class="pl"></span><span class="wv">${WAVE.map(h=>`<i style="height:${h||9}px"></i>`).join('')}</span><span class="d">${dur}</span></div>`;
+const tag=t=>`<span class="tag">${t}</span>`;
+const verdict=(k,t)=>`<span class="verdict ${k}">${k==='good'?'✅':k==='bad'?'❌':'⚠️'} ${t}</span>`;
+
+const PARTS=[
+ {id:'setup',icon:'🛠️',name:'Set up',when:'Once · 15 min',c:'var(--p1)',steps:[
+  {t:'Install Kelma',b:()=>`<div class="card">${seg()}${platform==='ios'?
+     tap(1,`Open <a href="${KELMA}" target="_blank" rel="noopener"><b>Kelma</b></a> in <b>Safari</b>`)+tap(2,`Tap <span class="ui">${I.share}Share</span>`)+tap(3,`Tap <span class="ui">${I.plus}Add to Home Screen</span>`)+tap(4,`Tap <span class="ui">Add</span>`):
+     tap(1,`Open <a href="${KELMA}" target="_blank" rel="noopener"><b>Kelma</b></a> in <b>Chrome</b>`)+tap(2,`Tap <span class="ui">${I.dots}</span>`)+tap(3,`Tap <span class="ui">Install app</span>`)}</div>
+    <p class="note">📱 Always open Kelma from the icon.</p>`},
+  {t:'Get Claude',b:()=>`<div class="card">${seg()}<a class="btn primary" href="${platform==='ios'?IOS_APP:ANDROID_APP}" target="_blank" rel="noopener">${platform==='ios'?'Get Claude · App Store':'Get Claude · Google Play'}</a>${tap(1,`Open it and make a free account`)}</div>`},
+  {t:'Turn on files',b:()=>`<div class="card">${tap(1,`Tap your name or initials`)}${tap(2,`<div class="path"><span class="ui">Settings</span><span class="arrow">›</span><span class="ui">Capabilities</span></div>`)}${tap(3,`<div class="path">Code execution and file creation <span class="toggle" aria-label="on"></span></div>`)}</div>`},
+  {t:'Make your project',b:()=>`<div class="card">${tap(1,`<span class="ui">Projects</span> <span class="arrow">›</span> new project`)}${tap(2,`Name it <b>Darija Cards</b>`)}${tap(3,`Copy the instructions`)}
+    <button class="btn primary" data-act="copy">📋 Copy instructions</button><span class="copied" id="copied" role="status"></span>
+    ${tap(4,`Paste into the project's <b>Instructions</b>`)}</div>
+    <p class="note">🆕 Updated ${UPDATED}. Already set up? Copy and paste again.</p>
+    <details><summary>Copy button not working?</summary><textarea class="instr" readonly>${document.getElementById('instr-src').value.replace(/</g,'&lt;')}</textarea></details>`}
+ ]},
+ {id:'lesson',icon:'📝',name:'After each lesson',when:'10 min',c:'var(--p2)',steps:[
+  {t:'In your lesson chat',b:()=>`<p>Your helper sends each word like this:</p>
+    <div class="wa">${tb('السكوت علامة الرضا','11:07')}${tb('Silence is a sign of satisfaction','11:08')}${vb('0:03')}<div class="gap"></div>${tb('بزاف','11:09')}${tb('a lot','11:09')}${vb('0:02')}</div>
+    <div class="flow"><span class="chip">Darija</span><span class="arrow">→</span><span class="chip">English</span><span class="arrow">→</span><span class="chip">🎤</span><span class="arrow">· repeat</span></div>
+    <a class="btn" href="#examples">👀 Good and bad examples</a>`},
+  {t:'Copy into Claude',b:()=>`<div class="card">${tap(1,`In WhatsApp, hold a message and select all of today's words and voice notes`)}${tap(2,`Tap <span class="ui">Copy</span>`)}${tap(3,`Open <b>Darija Cards</b> in Claude, start a new chat, and paste`)}</div>`},
+  {t:'Check the list',b:()=>`<div class="card"><p class="note">Claude shows your words with a type: ⚡ verb, 💬 proverb… Fix anything wrong.</p><div class="bubble-me">looks good</div></div>`},
+  {t:'Save the file',b:()=>`<div class="file">${I.zip}<div><b>kelma-2026-10-21-lesson.zip</b><span>Your deck file</span></div></div>
+    <div class="card">${tap(1,`Tap the file`)}${tap(2,`<span class="ui">${I.share}Share</span>`)}${tap(3,`<span class="ui">Save to Files</span>`)}</div>`},
+  {t:'Import',b:()=>`<div class="card">${tap(1,`Open Kelma`)}${tap(2,`<span class="ui">＋ Import deck</span>`)}${tap(3,`Pick your file`)}</div><p>✨ New words ready.</p>`}
+ ]},
+ {id:'daily',icon:'☀️',name:'Every day',when:'5–15 min',c:'var(--p3)',steps:[
+  {t:'Review',b:()=>`<div class="card">${tap(1,`<span class="ui">▶️ Start review</span>`)}${tap(2,`Think, then <span class="ui">Show answer</span>`)}${tap(3,`How did it go?`)}
+    <div class="grades"><div><b style="color:var(--again)">Again</b>missed</div><div><b style="color:var(--accent)">Good</b>got it</div><div><b style="color:var(--easy)">Easy</b>instant</div></div></div>
+    <div class="kinds"><div><span class="e">👁️</span><b>See it</b></div><div><span class="e">👂</span><b>Hear it</b></div><div><span class="e">🗣️</span><b>Say it</b></div></div>
+    <p class="note">🔥 10 cards a day keeps your streak.</p>`},
+  {t:'Focus practice',b:()=>`<p>Want extra time on a new lesson?</p>
+    <div class="card">${tap(1,`<span class="ui">🎯 Focus practice</span>`)}${tap(2,`Tick the decks`)}
+    <div class="picks"><div><span class="box on">✓</span>Lesson Oct 21</div><div><span class="box on">✓</span>Lesson Oct 14</div><div><span class="box"></span>John 3</div></div>
+    ${tap('+','Optional: pick types')}<div class="path"><span class="ui">💬 Proverb</span><span class="ui">⚡ Verb</span></div>
+    ${tap(3,`<span class="ui">🎯 Start practice</span>`)}</div>
+    <p class="note">Optional. Doesn't change your reviews.</p>`}
+ ]},
+ {id:'weekly',icon:'📅',name:'Every week',when:'1 min',c:'var(--p4)',steps:[
+  {t:'Back up',b:()=>`<p>💾 Your cards live only on your phone.</p>
+    <div class="card">${tap(1,`In Kelma, <span class="ui">⚙️ Settings</span> <span class="arrow">›</span> <span class="ui">Save backup</span>`)}${tap(2,`<span class="ui">Save file</span>`)}${tap(3,`<span class="ui">Save to Files</span>`)}</div>
+    <p class="note">Lost your cards? <b>⚙️ Settings › Restore backup</b> and pick the file.</p>`}
+ ]}
+];
+const EX=[
+ {t:'One voice note per word',g:()=>tb('بزاف','')+tb('a lot','')+vb('0:02'),b:()=>tb('بزاف','')+tb('دار','')+tb('زوين','')+vb('1:12','x'),bl:'One long recording'},
+ {t:'Delete bad takes',g:()=>tb('بزاف','')+tb('a lot','')+vb('0:02'),b:()=>tb('بزاف','')+tb('a lot','')+vb('0:02','x')+vb('0:02','x'),bl:'Two voice notes'},
+ {t:'Darija and English',g:()=>tb('دار','')+tb('house','')+vb('0:02'),b:()=>tb('دار','')+vb('0:02')+tag('no English'),bl:'English missing',k:'warn'},
+ {t:'Type it in WhatsApp',g:()=>tb('دار','')+tb('house','')+vb('0:02'),b:()=>`<div class="b photo"><span class="img"></span></div>`+vb('0:02'),bl:'Photo of handwriting',k:'warn'}
+];
+const HELP=[
+ ['Add types to an old deck','Send the old deck file (.zip) to a new chat in Darija Cards. Check the types, then import the new file. Progress is kept.'],
+ ['Claude asks which voice note to keep','You probably recorded twice. Tell it which one, e.g. "the second one."'],
+ ['Audio is on the wrong word','Tell Claude, e.g. "voice note 3 goes with word 4." Ask for the file again.'],
+ ["Claude can't make files",'Set up, step 3: turn on files. Start a new chat.'],
+ ['Kelma says no deck.json','Make the file inside your Darija Cards project.'],
+ ['My cards are gone','Open Kelma from the home screen icon. Still gone? Restore backup.'],
+ ['No sound','Tap ▶. Phones sometimes block the first sound.'],
+ ['Imported the same file twice','No problem. Progress is kept.']
+];
+
+const app=document.getElementById('app');
+function home(){
+  let h=`<div class="screen"><div class="mark"><span class="ar" lang="ar">كلمة</span><span class="lat">Kelma guide</span></div>
+  <h1>Darija flashcards, step by step</h1><div class="parts">`;
+  PARTS.forEach((p,i)=>{h+=(i?'<div class="link" aria-hidden="true"></div>':'')+`<a class="part" href="#${p.id}-1" style="--c:${p.c}"><span class="n" aria-hidden="true">${p.icon}</span><div><b>${p.name}</b><span class="w">${p.when}</span></div><span class="go" aria-hidden="true">›</span></a>`});
+  h+=`</div><a class="part alt" href="#examples" style="--c:var(--p5)"><span class="n" aria-hidden="true">👀</span><div><b>What to give Claude</b><span class="w">Good and bad examples</span></div><span class="go" aria-hidden="true">›</span></a>
+  <a class="new" href="#setup-4">🆕 <span><b>New instructions (${UPDATED}).</b> Already set up? Kelma will remind you. Or copy them here.</span></a>
+  <div class="row"><a class="btn primary" href="${KELMA}" target="_blank" rel="noopener">Open Kelma</a><a class="btn" href="#help">🛟 Help</a></div></div>`;
+  return h;
+}
+function step(pi,si){
+  const p=PARTS[pi],s=p.steps[si],last=si===p.steps.length-1,next=PARTS[pi+1];
+  const dots=p.steps.length>1?p.steps.map((_,i)=>`<i class="${i===si?'on':i<si?'done':''}"></i>`).join(''):'';
+  const nextHref=last?(next?`#${next.id}-1`:'#'):`#${p.id}-${si+2}`;
+  const nextLabel=last?(next?`Next: ${next.name} ›`:'Done ✓'):'Next ›';
+  return `<div class="screen" style="--c:${p.c}">
+   <div class="top"><a class="home" href="#">‹ Guide</a><div class="dots" aria-label="Step ${si+1} of ${p.steps.length}">${dots}</div></div>
+   <span class="kicker">${p.icon} ${p.name}${p.steps.length>1?` · ${si+1} of ${p.steps.length}`:''}</span>
+   <div class="head"><span class="big">${si+1}</span><h2>${s.t}</h2></div>
+   <div class="body">${s.b()}</div>
+   <div class="nav"><a class="btn" href="${si?`#${p.id}-${si}`:'#'}">‹ Back</a><a class="btn primary" href="${nextHref}">${nextLabel}</a></div></div>`;
+}
+function examples(){
+  let h=`<div class="screen" style="--c:var(--p5)"><div class="top"><a class="home" href="#">‹ Guide</a></div>
+   <div class="head"><span class="big em">👀</span><h2>What to give Claude</h2></div>
+   <div class="wa">${tag('Your helper')}${tb('دار','11:07')}${tb('house','11:07')}${vb('0:02','hl')}<div class="gap"></div>${tb('بزاف','11:08')}${tb('a lot','11:08')}${vb('0:03','hl')}</div>
+   <div class="legend"><span><b>1</b> Darija</span><span><b>2</b> English</span><span><b>3</b> 🎤 one voice note</span></div>`;
+  EX.forEach(e=>{h+=`<div class="ex"><p class="ex-title">${e.t}</p><div class="pair"><div class="side">${verdict('good','Like this')}<div class="wa">${e.g()}</div></div><div class="side">${verdict(e.k||'bad',e.bl)}<div class="wa">${e.b()}</div></div></div></div>`});
+  h+=`<p class="note">No WhatsApp? A photo of your list, or a pasted text, also works.</p>
+   <div class="nav"><a class="btn" href="#">‹ Guide</a><a class="btn primary" href="#lesson-1">📝 After each lesson ›</a></div></div>`;
+  return h;
+}
+function help(){
+  return `<div class="screen"><div class="top"><a class="home" href="#">‹ Guide</a></div><h1>🛟 Help</h1><div>`+
+   HELP.map(([q,a])=>`<details><summary>${q}</summary><p>${a}</p></details>`).join('')+`</div></div>`;
+}
+function route(){
+  const h=location.hash.slice(1);
+  if(h==='help')app.innerHTML=help();
+  else if(h==='examples')app.innerHTML=examples();
+  else{const m=h.match(/^(\w+)-(\d+)$/),pi=m?PARTS.findIndex(p=>p.id===m[1]):-1;
+    if(pi>=0){const si=Math.min(PARTS[pi].steps.length,Math.max(1,+m[2]))-1;app.innerHTML=step(pi,si)}else app.innerHTML=home()}
+  window.scrollTo(0,0);
+}
+app.addEventListener('click',e=>{
+  const pb=e.target.closest('[data-plat]');
+  if(pb){platform=pb.dataset.plat;try{localStorage.setItem('kelma-guide-platform',platform)}catch(_){}route();return}
+  if(e.target.closest('[data-act="copy"]')){
+    const txt=document.getElementById('instr-src').value,out=document.getElementById('copied');
+    const ok=()=>{out.textContent='✓ Copied. Now paste it into the project.'};
+    const fail=()=>{out.textContent='Copy didn\'t work. Use the box below.';const d=app.querySelector('details');if(d)d.open=true};
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(ok,fail);else fail();
+  }
+});
+window.addEventListener('hashchange',route);
+route();
+fetch('instructions.txt',{cache:'no-cache'}).then(r=>r.ok?r.text():'').then(t=>{if(t){document.getElementById('instr-src').value=t;if(location.hash==='#setup-4')route()}}).catch(()=>{});
+})();
+</script>
+</body>
+</html>
