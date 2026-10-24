@@ -15,7 +15,7 @@
 :root{
   --bg:#EDF1EF; --surface:#FAFCFB; --ink:#13201B; --muted:#58695F; --line:#D3DDD8;
   --accent:#0A6B55; --accent-ink:#FFFFFF; --accent-soft:#DCEBE5;
-  --p1:#0A6B55; --p2:#B5741A; --p3:#D9531E; --p4:#2C5CA3; --p5:#6B4FA0;
+  --p1:#0A6B55; --p2:#B5741A; --p3:#D9531E; --p4:#2C5CA3; --p5:#6B4FA0; --p6:#8A5A2B;
   --good:#2E7D32; --bad:#C0392B; --warn:#B7791F;
   --again:#AE3B2B; --easy:#2C5CA3; --ui:#E4EAE7;
   --wa-bg:#EFE7DC; --wa-bubble:#FFFFFF; --wa-me:#D9FDD3; --wa-meta:#8A8F8C; --wa-wave:#9AA3A0; --wa-dot:#3B8FE8;
@@ -27,7 +27,7 @@
 @media (prefers-color-scheme: dark){:root{
   --bg:#0D1311; --surface:#151E1B; --ink:#E3EBE7; --muted:#93A59D; --line:#283631;
   --accent:#3CBF99; --accent-ink:#05231A; --accent-soft:#17342B;
-  --p1:#3CBF99; --p2:#E2A54C; --p3:#FF8A4C; --p4:#80A7EC; --p5:#B79BEA;
+  --p1:#3CBF99; --p2:#E2A54C; --p3:#FF8A4C; --p4:#80A7EC; --p5:#B79BEA; --p6:#D9A06B;
   --good:#6FCF74; --bad:#FF7A6B; --warn:#E6B655;
   --again:#F07B67; --easy:#80A7EC; --ui:#22302B;
   --wa-bg:#0B141A; --wa-bubble:#202C33; --wa-me:#005C4B; --wa-meta:#8696A0; --wa-wave:#8696A0; --wa-dot:#53BDEB; color-scheme:dark}}
@@ -100,6 +100,7 @@ h1{font-size:28px;line-height:1.2;margin:0;text-wrap:balance}
 .kinds div{border:1px solid var(--line);border-radius:12px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:2px}
 .kinds .e{font-size:26px}
 .kinds b{font-size:15px;color:var(--ink)}
+.kinds div{font-size:13px}
 .picks{display:flex;flex-direction:column;gap:8px}
 .picks div{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-weight:700;font-size:16px}
 .picks .box{width:22px;height:22px;border-radius:6px;border:2px solid var(--line);display:grid;place-items:center;font-size:14px;color:#fff}
@@ -206,13 +207,19 @@ const PARTS=[
   {t:'Check the list',b:()=>`<div class="card"><p class="note">Claude shows your words with a type: ⚡ verb, 💬 proverb… Fix anything wrong.</p><div class="bubble-me">looks good</div></div>`},
   {t:'Save the file',b:()=>`<div class="file">${I.zip}<div><b>kelma-2026-10-21-lesson.zip</b><span>Your deck file</span></div></div>
     <div class="card">${tap(1,`Tap the file`)}${tap(2,`<span class="ui">${I.share}Share</span>`)}${tap(3,`<span class="ui">Save to Files</span>`)}</div>`},
-  {t:'Import',b:()=>`<div class="card">${tap(1,`Open Kelma`)}${tap(2,`<span class="ui">＋ Import deck</span>`)}${tap(3,`Pick your file`)}</div><p>✨ New words ready.</p>`}
+  {t:'Import',b:()=>`<div class="card">${tap(1,`Open Kelma`)}${tap(2,`<span class="ui">📥 Import</span> at the bottom`)}${tap(3,`Pick your file`)}</div><p>✨ New words show up in your next review.</p>`}
  ]},
  {id:'daily',icon:'☀️',name:'Every day',when:'5–15 min',c:'var(--p3)',steps:[
   {t:'Review',b:()=>`<div class="card">${tap(1,`<span class="ui">▶️ Start review</span>`)}${tap(2,`Think, then <span class="ui">Show answer</span>`)}${tap(3,`How did it go?`)}
     <div class="grades"><div><b style="color:var(--again)">Again</b>missed</div><div><b style="color:var(--accent)">Good</b>got it</div><div><b style="color:var(--easy)">Easy</b>instant</div></div></div>
-    <div class="kinds"><div><span class="e">👁️</span><b>See it</b></div><div><span class="e">👂</span><b>Hear it</b></div><div><span class="e">🗣️</span><b>Say it</b></div></div>
-    <p class="note">🔥 10 cards a day keeps your streak.</p>`},
+    <div class="kinds"><div><span class="e">👁️</span><b>See it</b>day 1</div><div><span class="e">👂</span><b>Hear it</b>day 2</div><div><span class="e">🗣️</span><b>Say it</b>day 3</div></div>
+    <p class="note">Each word comes back three ways, one a day.</p>
+    <p class="note">Want more? When reviews are done, tap <b>＋ Learn more</b>.</p>`},
+  {t:'Your progress',b:()=>`<div class="card">
+    ${tap('🔥',`<b>Streak:</b> 10 cards a day. One day off a week is OK.`)}
+    ${tap('🌱',`<b>Started</b> → 🌿 <b>Growing</b> → 🌳 <b>Known well</b>. Tap a tile in Kelma to see what it means.`)}
+    ${tap('🏅',`<b>Badges</b> for streaks and words you know.`)}</div>
+    <p class="note">Practice and reviews both count toward your streak.</p>`},
   {t:'Focus practice',b:()=>`<p>Want extra time on a new lesson?</p>
     <div class="card">${tap(1,`<span class="ui">🎯 Focus practice</span>`)}${tap(2,`Tick the decks`)}
     <div class="picks"><div><span class="box on">✓</span>Lesson Oct 21</div><div><span class="box on">✓</span>Lesson Oct 14</div><div><span class="box"></span>John 3</div></div>
@@ -223,7 +230,19 @@ const PARTS=[
  {id:'weekly',icon:'📅',name:'Every week',when:'1 min',c:'var(--p4)',steps:[
   {t:'Back up',b:()=>`<p>💾 Your cards live only on your phone.</p>
     <div class="card">${tap(1,`In Kelma, <span class="ui">⚙️ Settings</span> <span class="arrow">›</span> <span class="ui">Save backup</span>`)}${tap(2,`<span class="ui">Save file</span>`)}${tap(3,`<span class="ui">Save to Files</span>`)}</div>
-    <p class="note">Lost your cards? <b>⚙️ Settings › Restore backup</b> and pick the file.</p>`}
+    <p class="note">Lost your cards? <b>⚙️ Settings › Restore backup</b> and pick the file.</p>`},
+  {t:'Share your week',b:()=>`<div class="card">${tap(1,`On the home screen, tap <span class="ui">📸 Share my week</span>`)}${tap(2,`<span class="ui">📤 Share picture</span>`)}${tap(3,`Post it in your learners’ WhatsApp group`)}</div>
+    <p class="note">Optional. It shows your streak and progress, not your words.</p>`}
+ ]},
+ {id:'organize',icon:'🗂️',name:'Organize & share',when:'Anytime',c:'var(--p6)',steps:[
+  {t:'Fix a card',b:()=>`<div class="card">${tap(1,`<span class="ui">📚 Decks</span> <span class="arrow">›</span> open a deck`)}${tap(2,`Tap the word`)}${tap(3,`Edit, then <span class="ui">✓ Save changes</span>`)}</div>
+    <div class="kinds"><div><span class="e">✏️</span><b>Edit</b>text or type</div><div><span class="e">🎤</span><b>Audio</b>replace it</div><div><span class="e">🙈</span><b>Hide</b>skip it</div></div>
+    <p class="note">Your progress is kept.</p>`},
+  {t:'Combine decks',b:()=>`<p>Many small decks? Make one.</p>
+    <div class="card">${tap(1,`Open a deck`)}${tap(2,`<span class="ui">🔗 Combine with other decks</span>`)}${tap(3,`Name it, tick the others, tap <span class="ui">Combine</span>`)}</div>
+    <p class="note">Your progress is kept.</p>`},
+  {t:'Share a deck',b:()=>`<div class="card">${tap(1,`Open a deck`)}${tap(2,`<span class="ui">📤 Share deck</span>, then <span class="ui">Send file</span>`)}${tap(3,`Pick WhatsApp`)}</div>
+    <p class="note">They tap <b>📥 Import</b> in Kelma. Your progress isn’t shared.</p>`}
  ]}
 ];
 const EX=[
@@ -233,6 +252,10 @@ const EX=[
  {t:'Type it in WhatsApp',g:()=>tb('دار','')+tb('house','')+vb('0:02'),b:()=>`<div class="b photo"><span class="img"></span></div>`+vb('0:02'),bl:'Photo of handwriting',k:'warn'}
 ];
 const HELP=[
+ ['A card is wrong','Organize & share, step 1: open the deck, tap the word, fix it, save. Progress is kept.'],
+ ['My words stay at 🌱','That’s normal. Each word needs 3 days: 👁️ day 1, 👂 day 2, 🗣️ day 3. Then it’s 🌿.'],
+ ['New words stopped coming','You have over 100 reviews waiting. Kelma pauses new words until you catch up.'],
+ ['Too many decks','Combine them: open a deck, tap 🔗 Combine with other decks.'],
  ['Add types to an old deck','Send the old deck file (.zip) to a new chat in Darija Cards. Check the types, then import the new file. Progress is kept.'],
  ['Claude asks which voice note to keep','You probably recorded twice. Tell it which one, e.g. "the second one."'],
  ['Audio is on the wrong word','Tell Claude, e.g. "voice note 3 goes with word 4." Ask for the file again.'],
