@@ -238,6 +238,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 .celebrate{position:fixed;inset:0;display:grid;place-items:center;z-index:50;background:rgba(0,0,0,.18);padding:20px}
 .cel-card{position:relative;background:var(--surface);color:var(--ink);border-radius:20px;padding:22px 24px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;max-width:320px;box-shadow:0 10px 30px rgba(0,0,0,.25);animation:pop .35s ease-out}
 .cel-em{font-size:52px;line-height:1}
+.cel-ok{margin-top:8px;min-width:140px}
 .cel-burst{position:absolute;left:50%;top:40%;width:0;height:0}
 .cel-burst i{position:absolute;font-style:normal;font-size:22px;animation:fly .9s ease-out forwards;opacity:0}
 @keyframes fly{0%{transform:translate(-50%,-50%) scale(.4);opacity:1}100%{transform:translate(calc(var(--x) - 50%),calc(var(--y) - 50%)) scale(1);opacity:0}}
@@ -290,7 +291,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=6, APP_VERSION=19;
+const INSTR=6, APP_VERSION=20;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['recognition','listening','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -535,7 +536,7 @@ function checkBadges(){
   TRACKS.forEach(t=>{const v=t.val(m);t.steps.forEach(n=>{const id=t.k+'-'+n;if(!got[id]&&v>=n){got[id]=iso(Date.now());fresh.push({em:t.em,name:`${n.toLocaleString()} ${t.unit}`})}})});
   STOPS.slice(1).forEach(st=>{const id='stop-'+st.at;if(!got[id]&&m.grow>=st.at){got[id]=iso(Date.now());fresh.push({em:'🗺️',name:'New stop: '+st.em+' '+st.name})}});
   if(fresh.length){S.badges=got;write(['meta'],t=>t.objectStore('meta').put(got,'badges')).catch(()=>{});
-    const top=fresh.slice(-2),more=fresh.length-top.length;setTimeout(()=>celebrate('🏅',top.map(b=>b.em+' '+b.name).join(' · ')+(more?` · +${more} more`:''),quoteFor('badge')),celebrating?2700:0)}
+    const top=fresh.slice(-2),more=fresh.length-top.length;celebrate('🏅',top.map(b=>b.em+' '+b.name).join(' · ')+(more?` · +${more} more`:''),quoteFor('badge'))}
 }
 function snapToday(){if(isKid()||!S.cards)return;const ws=wordStats(),k=iso(Date.now());const o=S.snaps||{};const prev=o[k];
   if(prev&&prev.s===ws.started&&prev.g===ws.growing&&prev.w===ws.well)return;o[k]={s:ws.started,g:ws.growing,w:ws.well};S.snaps=o;write(['meta'],t=>t.objectStore('meta').put(o,'snaps')).catch(()=>{})}
@@ -554,13 +555,18 @@ function quoteFor(where){
   return pool[Math.floor(Math.random()*pool.length)];
 }
 const quoteHtml=q=>q?`<figure class="quote"><blockquote>“${esc(q.text)}”</blockquote>${q.who?`<figcaption>— ${esc(q.who)}</figcaption>`:''}</figure>`:'';
-let celebrating=false;
-function celebrate(em,msg,q){
-  celebrating=true;const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const box=document.createElement('div');box.className='celebrate';box.setAttribute('role','status');
+/* Pop-ups wait for OK. They pause the card's audio and line up one after another. */
+let celebrating=false;const celQ=[];
+function celebrate(em,msg,q){celQ.push([em,msg,q]);if(!celebrating)showCel()}
+function showCel(){
+  const nx=celQ.shift();if(!nx){celebrating=false;if(view==='study'&&sess&&sess.queue.length)autoplay();return}
+  const [em,msg,q]=nx;celebrating=true;try{player.pause()}catch(e){}
+  const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const box=document.createElement('div');box.className='celebrate';box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');
   let burst='';if(!reduce){const E=['🎉','✨','🔥','⭐','🌿'];for(let i=0;i<18;i++){const a=(i/18)*Math.PI*2,r=90+Math.random()*70;burst+=`<i style="--x:${Math.round(Math.cos(a)*r)}px;--y:${Math.round(Math.sin(a)*r)}px;animation-delay:${Math.random()*0.15}s">${E[i%E.length]}</i>`}}
-  box.innerHTML=`<div class="cel-card"><div class="cel-burst" aria-hidden="true">${burst}</div><span class="cel-em" aria-hidden="true">${em}</span><b>${esc(msg)}</b>${quoteHtml(q)}</div>`;
-  const close=()=>{box.remove();celebrating=false};box.addEventListener('click',close);document.body.appendChild(box);setTimeout(close,q?5000:2600);
+  box.innerHTML=`<div class="cel-card"><div class="cel-burst" aria-hidden="true">${burst}</div><span class="cel-em" aria-hidden="true">${em}</span><b>${esc(msg)}</b>${quoteHtml(q)}<button class="btn primary cel-ok">OK</button></div>`;
+  const ok=box.querySelector('.cel-ok');ok.addEventListener('click',e=>{e.stopPropagation();box.remove();showCel()});
+  document.body.appendChild(box);ok.focus();
 }
 function logCleared(){const k=iso(Date.now());const e=S.log[k]||{n:0,cleared:false};if(e.n>0&&!e.cleared){e.cleared=true;S.log[k]=e;saveLog()}}
 const saveLog=()=>write(['meta'],t=>t.objectStore('meta').put(S.log,'log')).catch(()=>{});
@@ -1081,8 +1087,8 @@ function render(){
 function go(v){view=v;status=null;renaming=false;if(S.pending&&S.pending.kind==='deck')S.pending=null;render();window.scrollTo(0,0)}
 
 /* ---------- session ---------- */
-function playCurrent(){const c=S.cards.find(x=>x.id===sess.queue[0]);const u=c&&sess.urls.get(c.noteId);if(u){player.src=u;player.play().catch(()=>{})}}
-function autoplay(){const c=S.cards.find(x=>x.id===sess.queue[0]);if(!c)return;if((!sess.shown&&c.type!=='production')||(sess.shown&&c.type==='production'))playCurrent()}
+function playCurrent(){if(celebrating)return;const c=S.cards.find(x=>x.id===sess.queue[0]);const u=c&&sess.urls.get(c.noteId);if(u){player.src=u;player.play().catch(()=>{})}}
+function autoplay(){if(celebrating)return;const c=S.cards.find(x=>x.id===sess.queue[0]);if(!c)return;if((!sess.shown&&c.type!=='production')||(sess.shown&&c.type==='production'))playCurrent()}
 async function begin(q,mode,deckIds,types){
   if(!q.length)return;
   const urls=new Map();
