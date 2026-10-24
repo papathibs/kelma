@@ -247,7 +247,8 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 .nextup{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:14px}
 .badges .track,.progpage .track,.sec .track{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
 .badges .track i,.sec .track i{display:block;height:100%;background:var(--accent);border-radius:4px}
-.hlinks{display:flex;gap:14px;flex-wrap:wrap}
+.hlinks{margin-top:4px}
+.journeybtn{width:100%;margin-top:12px}
 .chart{width:100%;height:auto;display:block}
 .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
@@ -291,7 +292,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=6, APP_VERSION=20;
+const INSTR=6, APP_VERSION=21;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['recognition','listening','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -628,7 +629,7 @@ function badgeRow(){
   return `<div class="badges">
     ${nx?`<div class="nextup"><span>Next: <b>${nx.t.em} ${nx.n.toLocaleString()} ${esc(nx.t.unit)}</b></span><span class="fine">${nx.v.toLocaleString()} / ${nx.n.toLocaleString()}</span></div><div class="track"><i style="width:${Math.round(nx.pct*100)}%"></i></div>`:''}
     ${earned.length?`<div class="brow">${earned.map(b=>`<span class="badge" title="${esc(b.name)}">${b.em}<small>${esc(b.short)}</small></span>`).join('')}</div>`:''}
-    <div class="hlinks"><button class="linkbtn" data-act="progress">📈 Progress</button><button class="linkbtn" data-act="milestones">🏅 Milestones</button><button class="linkbtn" data-act="week">📸 Share my week</button></div></div>`;
+    <div class="homenav hlinks"><button class="btn" data-act="progress">📈<span>Progress</span></button><button class="btn" data-act="milestones">🏅<span>Milestones</span></button><button class="btn" data-act="week">📸<span>Share week</span></button></div></div>`;
 }
 /* ---------- deck helpers ---------- */
 const deckNotes=id=>[...S.notes.values()].filter(n=>n.deckId===id).sort((a,b)=>a.order-b.order);
@@ -855,7 +856,7 @@ function milestonesPage(){
   const stops=STOPS.slice(1).map(st=>{const on=!!got['stop-'+st.at];if(on)total++;return `<span class="badge${on?'':' next'}" title="${esc(st.name)}">${st.em}<small>${esc(st.name.split(' ')[0])}</small></span>`}).join('');
   return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
     <div class="dhead"><span class="ic" aria-hidden="true">🏅</span><div><h1>Milestones</h1><p>${plural(total,'milestone')} reached</p></div></div>
-    ${tracks}<section class="sec"><h2>🗺️ Journey stops</h2><div class="brow">${stops}</div><button class="linkbtn" data-act="progress">See your journey ›</button></section></div>`;
+    ${tracks}<section class="sec"><h2>🗺️ Journey stops</h2><div class="brow">${stops}</div><button class="btn journeybtn" data-act="progress">🗺️ See your journey</button></section></div>`;
 }
 function weekPage(){
   return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
