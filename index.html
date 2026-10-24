@@ -243,6 +243,29 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 @keyframes fly{0%{transform:translate(-50%,-50%) scale(.4);opacity:1}100%{transform:translate(calc(var(--x) - 50%),calc(var(--y) - 50%)) scale(1);opacity:0}}
 @keyframes pop{0%{transform:scale(.7);opacity:0}100%{transform:scale(1);opacity:1}}
 @media (prefers-reduced-motion: reduce){.cel-card{animation:none}}
+.nextup{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:14px}
+.badges .track,.prog .track,.sec .track{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.badges .track i,.sec .track i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.hlinks{display:flex;gap:14px;flex-wrap:wrap}
+.chart{width:100%;height:auto;display:block}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.journey{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0}
+.journey li{display:grid;grid-template-columns:44px 1fr;gap:10px;padding:8px 0;position:relative;opacity:.55}
+.journey li.done,.journey li.here{opacity:1}
+.journey li:not(:last-child)::after{content:"";position:absolute;left:21px;top:46px;bottom:-6px;width:2px;background:var(--line)}
+.journey li.done::after{background:var(--accent)}
+.journey .dot{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:22px;background:var(--surface);border:2px solid var(--line)}
+.journey li.done .dot{border-color:var(--accent)}
+.journey li.here .dot{border-color:var(--fire);box-shadow:0 0 0 4px color-mix(in srgb,var(--fire) 20%,transparent)}
+.journey p{margin:2px 0 0;font-size:14px;color:var(--muted)}
+.here-tag{font-size:11px;font-weight:700;color:#fff;background:var(--fire);border-radius:999px;padding:2px 8px;white-space:nowrap}
+.small{font-size:12px}
+.mrow{display:flex;justify-content:space-between;gap:10px;padding:8px 2px;border-bottom:1px solid var(--line);font-size:14px;flex-wrap:wrap}
+.mrow span{color:var(--muted)}
+.quote{margin:4px 0 0;padding:10px 12px;border-left:3px solid var(--gold);background:color-mix(in srgb,var(--gold) 10%,transparent);border-radius:0 10px 10px 0;font-size:14px;text-align:left}
+.quote blockquote{margin:0;font-style:italic}
+.quote figcaption{margin-top:4px;color:var(--muted);font-size:12px}
 .pgrades{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .pgrades .btn{min-height:64px;font-size:17px}
 .who-chip{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;font:inherit;font-weight:700;font-size:14px;min-height:40px}
@@ -266,7 +289,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=6, APP_VERSION=16;
+const INSTR=6, APP_VERSION=17;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['recognition','listening','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -313,6 +336,7 @@ async function load(){
   const iv=await get('meta','instrVer');S.instrVer=(typeof iv==='number')?iv:null;
   S.lastBackup=(await get('meta','lastBackup'))||0;
   S.badges=(await get('meta','badges'))||{};
+  S.snaps=(await get('meta','snaps'))||{};
   const ia=await get('meta','instrAck');S.instrAck=(typeof ia==='number')?ia:0;
   if(S.newDone.day!==dayKey())S.newDone={day:dayKey(),count:0};
 }
@@ -483,27 +507,53 @@ const mondayOf=t=>{const d=new Date(t);d.setHours(0,0,0,0);const wd=(d.getDay()+
 const dayMet=k=>{const e=S.log[k];return !!e&&(e.n>=GOAL||e.cleared)};
 function logAnswer(){const k=iso(Date.now());const before=dayMet(k);const e=S.log[k]||{n:0,cleared:false};e.n++;S.log[k]=e;saveLog();
   if(!isKid()&&!before&&dayMet(k)){const {n}=streakInfo();celebrate('🔥',`Goal reached! ${n} ${n===1?'day':'days'} in a row`)}}
-const BADGES=[
-  {id:'grow10',em:'🌿',name:'10 words growing',test:(st,ws)=>ws.growing+ws.well>=10},
-  {id:'streak7',em:'🔥',name:'7 days in a row',test:st=>st>=7},
-  {id:'streak30',em:'🔥',name:'30 days in a row',test:st=>st>=30},
-  {id:'well100',em:'🌳',name:'100 words known well',test:(st,ws)=>ws.well>=100},
-  {id:'streak100',em:'🔥',name:'100 days in a row',test:st=>st>=100},
-  {id:'well500',em:'🌳',name:'500 words known well',test:(st,ws)=>ws.well>=500}];
+/* Milestones: five tracks plus journey stops. Old badge ids kept so earned badges carry over. */
+const TRACKS=[
+  {k:'streak',em:'🔥',title:'Days in a row',unit:'days in a row',steps:[3,7,14,30,60,100,180,365],val:m=>m.streak},
+  {k:'days',em:'📅',title:'Days studied',unit:'days studied',steps:[10,25,50,100,200,365],val:m=>m.days},
+  {k:'grow',em:'🌿',title:'Words you know',unit:'words growing or known well',steps:[10,25,50,100,200,350,500,750,1000],val:m=>m.grow},
+  {k:'well',em:'🌳',title:'Words known well',unit:'words known well',steps:[25,50,100,250,500,1000,2000,3000],val:m=>m.well},
+  {k:'cards',em:'🔁',title:'Cards reviewed',unit:'cards reviewed',steps:[250,500,1000,2500,5000,10000],val:m=>m.cards}];
+const STOPS=[
+  {at:0,em:'🌱',name:'First words',can:'Greet, thank, ask prices, handle the basics.'},
+  {at:500,em:'🛒',name:'Getting around',can:'Taxi, market, directions, simple questions and answers.'},
+  {at:1000,em:'☕',name:'Everyday chats',can:'Talk about your family, your day and your work in simple sentences.'},
+  {at:2000,em:'🏠',name:'Real conversations',can:'Follow slower everyday talk. Share stories and plans.'},
+  {at:3000,em:'❤️',name:'Heart-level',can:'Talk about feelings, faith, hopes and struggles. Follow most everyday conversation.'},
+  {at:4000,em:'🌳',name:'At home in Darija',can:'Long natural conversations, humor, quick back-and-forth.'}];
+const LEGACY={streak7:'streak-7',streak30:'streak-30',streak100:'streak-100',grow10:'grow-10',well100:'well-100',well500:'well-500'};
+function metrics(){const ws=wordStats();let days=0,cards=0;Object.keys(S.log).forEach(k=>{cards+=S.log[k].n||0;if(dayMet(k))days++});
+  return {streak:streakInfo().n,days,cards,grow:ws.growing+ws.well,well:ws.well,ws}}
+const stopIndex=known=>{let i=0;STOPS.forEach((s,j)=>{if(known>=s.at)i=j});return i};
+function allMilestones(){const out=[];TRACKS.forEach(t=>t.steps.forEach(n=>out.push({id:t.k+'-'+n,em:t.em,name:`${n.toLocaleString()} ${t.unit}`,short:String(n>=1000?(n/1000)+'k':n),track:t.k,n})));
+  STOPS.slice(1).forEach(st=>out.push({id:'stop-'+st.at,em:st.em,name:'Journey: '+st.name,short:st.name.split(' ')[0],track:'stop',n:st.at}));return out}
+function earnedSet(){const got={...(S.badges||{})};Object.entries(LEGACY).forEach(([o,n])=>{if(got[o]&&!got[n])got[n]=got[o]});return got}
 function checkBadges(){
   if(isKid())return;
-  const st=streakInfo().n,ws=wordStats(),got=S.badges||{};let fresh=[];
-  BADGES.forEach(b=>{if(!got[b.id]&&b.test(st,ws)){got[b.id]=iso(Date.now());fresh.push(b)}});
+  const m=metrics(),got=earnedSet();let fresh=[];
+  TRACKS.forEach(t=>{const v=t.val(m);t.steps.forEach(n=>{const id=t.k+'-'+n;if(!got[id]&&v>=n){got[id]=iso(Date.now());fresh.push({em:t.em,name:`${n.toLocaleString()} ${t.unit}`})}})});
+  STOPS.slice(1).forEach(st=>{const id='stop-'+st.at;if(!got[id]&&m.grow>=st.at){got[id]=iso(Date.now());fresh.push({em:'🗺️',name:'New stop: '+st.em+' '+st.name})}});
   if(fresh.length){S.badges=got;write(['meta'],t=>t.objectStore('meta').put(got,'badges')).catch(()=>{});
-    setTimeout(()=>celebrate('🏅','New badge: '+fresh.map(b=>b.em+' '+b.name).join(', ')),fresh.length&&celebrating?2700:0)}
+    const top=fresh.slice(-2),more=fresh.length-top.length;setTimeout(()=>celebrate('🏅',top.map(b=>b.em+' '+b.name).join(' · ')+(more?` · +${more} more`:''),quoteFor('badge')),celebrating?2700:0)}
 }
+function snapToday(){if(isKid()||!S.cards)return;const ws=wordStats(),k=iso(Date.now());const o=S.snaps||{};const prev=o[k];
+  if(prev&&prev.s===ws.started&&prev.g===ws.growing&&prev.w===ws.well)return;o[k]={s:ws.started,g:ws.growing,w:ws.well};S.snaps=o;write(['meta'],t=>t.objectStore('meta').put(o,'snaps')).catch(()=>{})}
+/* ---------- quotes (filled in later by Kyle) ---------- */
+const QUOTES=[];/* {text:'…', who:'…'} */
+function quoteFor(where){
+  if(!QUOTES.length)return null;
+  if(where==='week'){const wk=Math.floor(mondayOf(today0())/(7*DAY));return QUOTES[wk%QUOTES.length]}
+  if(where==='done'&&Math.random()>0.2)return null;
+  return QUOTES[Math.floor(Math.random()*QUOTES.length)];
+}
+const quoteHtml=q=>q?`<figure class="quote"><blockquote>“${esc(q.text)}”</blockquote>${q.who?`<figcaption>— ${esc(q.who)}</figcaption>`:''}</figure>`:'';
 let celebrating=false;
-function celebrate(em,msg){
+function celebrate(em,msg,q){
   celebrating=true;const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
   const box=document.createElement('div');box.className='celebrate';box.setAttribute('role','status');
   let burst='';if(!reduce){const E=['🎉','✨','🔥','⭐','🌿'];for(let i=0;i<18;i++){const a=(i/18)*Math.PI*2,r=90+Math.random()*70;burst+=`<i style="--x:${Math.round(Math.cos(a)*r)}px;--y:${Math.round(Math.sin(a)*r)}px;animation-delay:${Math.random()*0.15}s">${E[i%E.length]}</i>`}}
-  box.innerHTML=`<div class="cel-card"><div class="cel-burst" aria-hidden="true">${burst}</div><span class="cel-em" aria-hidden="true">${em}</span><b>${esc(msg)}</b></div>`;
-  const close=()=>{box.remove();celebrating=false};box.addEventListener('click',close);document.body.appendChild(box);setTimeout(close,2600);
+  box.innerHTML=`<div class="cel-card"><div class="cel-burst" aria-hidden="true">${burst}</div><span class="cel-em" aria-hidden="true">${em}</span><b>${esc(msg)}</b>${quoteHtml(q)}</div>`;
+  const close=()=>{box.remove();celebrating=false};box.addEventListener('click',close);document.body.appendChild(box);setTimeout(close,q?5000:2600);
 }
 function logCleared(){const k=iso(Date.now());const e=S.log[k]||{n:0,cleared:false};if(e.n>0&&!e.cleared){e.cleared=true;S.log[k]=e;saveLog()}}
 const saveLog=()=>write(['meta'],t=>t.objectStore('meta').put(S.log,'log')).catch(()=>{});
@@ -559,10 +609,13 @@ function progressPanel(){
   </section>`;
 }
 
+function nextUp(m){let best=null;TRACKS.forEach(t=>{const v=t.val(m),n=t.steps.find(x=>x>v);if(n!=null){const prevN=[0,...t.steps].filter(x=>x<=v).pop()||0;const pct=(v-prevN)/(n-prevN);if(!best||pct>best.pct)best={t,n,v,pct}}});return best}
 function badgeRow(){
-  const got=S.badges||{},earned=BADGES.filter(b=>got[b.id]),next=BADGES.find(b=>!got[b.id]);
-  return `<div class="badges"><div class="brow">${earned.map(b=>`<span class="badge" title="${esc(b.name)}">${b.em}<small>${esc(b.name.split(' ')[0])}</small></span>`).join('')}${next?`<span class="badge next" title="Next: ${esc(next.name)}">${next.em}<small>${esc(next.name.split(' ')[0])}</small></span>`:''}</div>
-    <div class="bfoot"><span class="fine">${earned.length?`🏅 ${plural(earned.length,'badge')}`:'🏅 Badges'}${next?` · Next: ${esc(next.name)}`:''}</span><button class="linkbtn" data-act="week">📸 Share my week</button></div></div>`;
+  const got=earnedSet(),all=allMilestones(),earned=all.filter(b=>got[b.id]).sort((a,b)=>String(got[b.id]).localeCompare(String(got[a.id]))).slice(0,4),m=metrics(),nx=nextUp(m);
+  return `<div class="badges">
+    ${nx?`<div class="nextup"><span>Next: <b>${nx.t.em} ${nx.n.toLocaleString()} ${esc(nx.t.unit)}</b></span><span class="fine">${nx.v.toLocaleString()} / ${nx.n.toLocaleString()}</span></div><div class="track"><i style="width:${Math.round(nx.pct*100)}%"></i></div>`:''}
+    ${earned.length?`<div class="brow">${earned.map(b=>`<span class="badge" title="${esc(b.name)}">${b.em}<small>${esc(b.short)}</small></span>`).join('')}</div>`:''}
+    <div class="hlinks"><button class="linkbtn" data-act="progress">📈 Progress</button><button class="linkbtn" data-act="milestones">🏅 Milestones</button><button class="linkbtn" data-act="week">📸 Share my week</button></div></div>`;
 }
 /* ---------- deck helpers ---------- */
 const deckNotes=id=>[...S.notes.values()].filter(n=>n.deckId===id).sort((a,b)=>a.order-b.order);
@@ -738,8 +791,55 @@ async function makeWeekCard(){
   [['🌱',ws.started,'started'],['🌿',ws.growing,'growing'],['🌳',ws.well,'known well']].forEach((v,i)=>{const bx=90+i*310;
     x.fillStyle='rgba(255,255,255,.12)';rr(bx,1060,280,170,26);x.fill();
     x.fillStyle='#fff';x.font='56px '+F;x.fillText(v[0],bx+26,1138);x.fillStyle=ink;x.font='700 62px '+F;x.fillText(String(v[1]),bx+110,1140);x.fillStyle=soft;x.font='400 32px '+F;x.fillText(v[2],bx+28,1200)});
-  x.fillStyle=soft;x.font='400 28px '+F;x.fillText('papathibs.github.io/kelma',90,1300);
+  const q=quoteFor('week');if(q){x.fillStyle=ink;x.font='italic 400 30px '+F;const words=('“'+q.text+'”').split(' ');let line='',y=1265,lines=[];words.forEach(w=>{const t=line?line+' '+w:w;if(x.measureText(t).width>W-180){lines.push(line);line=w}else line=t});lines.push(line);
+    if(lines.length<=2){lines.forEach((l,i)=>x.fillText(l,90,1262+i*36));if(q.who){x.fillStyle=soft;x.font='400 24px '+F;x.textAlign='right';x.fillText('— '+q.who,W-90,1262+lines.length*36);x.textAlign='left'}}}
+  x.fillStyle=soft;x.font='400 28px '+F;x.fillText('papathibs.github.io/kelma',90,q?1335:1300);
   return new Promise(r=>cv.toBlob(b=>r(b),'image/png'));
+}
+function svgBars(vals,labels,max,color,unit){
+  const W=340,H=130,bw=W/vals.length,mx=Math.max(max||0,...vals,1);
+  const bars=vals.map((v,i)=>{const h=Math.round((v/mx)*(H-28));return `<rect x="${i*bw+3}" y="${H-18-h}" width="${bw-6}" height="${Math.max(h,v?3:1)}" rx="3" fill="${v?color:'var(--line)'}"><title>${labels[i]}: ${v} ${unit}</title></rect>`}).join('');
+  const lab=labels.map((l,i)=>(i%2===(labels.length-1)%2)?`<text x="${i*bw+bw/2}" y="${H-4}" text-anchor="middle" font-size="9" fill="var(--muted)">${l}</text>`:'').join('');
+  return `<svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="${unit} per week for the last ${vals.length} weeks: ${vals.join(', ')}">${bars}${lab}<text x="0" y="10" font-size="9" fill="var(--muted)">${mx}</text></svg>`;
+}
+function svgLines(pts){
+  const W=340,H=140;if(pts.length<2)return '';
+  const mx=Math.max(1,...pts.map(p=>p.s+p.g+p.w)),x=i=>10+i*(W-20)/(pts.length-1),y=v=>H-20-(v/mx)*(H-34);
+  const line=(f,c)=>`<polyline fill="none" stroke="${c}" stroke-width="2.5" stroke-linejoin="round" points="${pts.map((p,i)=>x(i)+','+y(f(p))).join(' ')}"/>`;
+  return `<svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Words over time">${line(p=>p.s+p.g+p.w,'var(--grow)')}${line(p=>p.g+p.w,'var(--accent)')}${line(p=>p.w,'var(--gold)')}
+    <text x="10" y="${H-4}" font-size="9" fill="var(--muted)">${pts[0].label}</text><text x="${W-10}" y="${H-4}" font-size="9" text-anchor="end" fill="var(--muted)">${pts[pts.length-1].label}</text><text x="0" y="10" font-size="9" fill="var(--muted)">${mx}</text></svg>
+    <div class="legend"><span><i style="background:var(--grow)"></i>started or better</span><span><i style="background:var(--accent)"></i>🌿 + 🌳</span><span><i style="background:var(--gold)"></i>🌳 known well</span></div>`;
+}
+function progressPage(){
+  const m=metrics(),known=m.grow,si=stopIndex(known),next=STOPS[si+1],t0=today0(),mon=mondayOf(t0);
+  const weeks=[];for(let w=11;w>=0;w--){const st=addDays(mon,-7*w);let days=0,cards=0;for(let i=0;i<7;i++){const k=iso(addDays(st,i));if(dayMet(k))days++;cards+=(S.log[k]||{n:0}).n}const d=new Date(st);weeks.push({label:`${MON3[d.getMonth()]} ${d.getDate()}`,days,cards})}
+  const snapKeys=Object.keys(S.snaps||{}).sort();const byWeek=new Map();snapKeys.forEach(k=>{const wk=mondayOf(Date.parse(k+'T00:00:00'));byWeek.set(wk,{...S.snaps[k],label:`${MON3[new Date(wk).getMonth()]} ${new Date(wk).getDate()}`})});
+  const pts=[...byWeek.values()].slice(-12);
+  const months=new Map();Object.keys(S.log).forEach(k=>{const mk=k.slice(0,7);const o=months.get(mk)||{days:0,cards:0,fresh:0};o.cards+=S.log[k].n||0;if(dayMet(k))o.days++;months.set(mk,o)});
+  S.cards.forEach(c=>{if(c.type==='recognition'&&c.firstSeen){const mk=iso(c.firstSeen).slice(0,7);const o=months.get(mk)||{days:0,cards:0,fresh:0};o.fresh++;months.set(mk,o)}});
+  const MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const monthRows=[...months.entries()].sort((a,b)=>b[0].localeCompare(a[0])).slice(0,6).map(([k,o])=>`<div class="mrow"><b>${MN[+k.slice(5,7)-1]}</b><span>${plural(o.days,'day')} · ${plural(o.cards,'card')} · ${plural(o.fresh,'new word')}</span></div>`).join('');
+  return `<div class="page prog"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">📈</span><div><h1>Your progress</h1><p>${plural(known,'word')} you know (🌿 + 🌳)</p></div></div>
+    <section class="sec"><h2>🗺️ Your journey</h2>
+      ${next?`<div class="nextup"><span>Next stop: <b>${next.em} ${next.name}</b></span><span class="fine">${(next.at-known).toLocaleString()} more words</span></div><div class="track"><i style="width:${Math.round(100*(known-STOPS[si].at)/(next.at-STOPS[si].at))}%"></i></div>`:''}
+      <ol class="journey">${STOPS.map((st,i)=>`<li class="${i<si?'done':i===si?'here':''}"><span class="dot" aria-hidden="true">${st.em}</span><div><b>${st.name}</b> <span class="fine">${st.at?'~'+st.at.toLocaleString()+' words':'start'}</span>${i===si?' <span class="here-tag">You are here</span>':''}<p>${st.can}</p></div></li>`).join('')}</ol>
+      <p class="fine small">A rough guide based on research with learners of European languages (Milton & Alexiou). Your words and pace will differ. Kelma builds your vocabulary; conversations build your fluency.</p></section>
+    <section class="sec"><h2>📅 Days studied per week</h2>${svgBars(weeks.map(w=>w.days),weeks.map(w=>w.label),7,'var(--fire)','days')}</section>
+    <section class="sec"><h2>🔁 Cards reviewed per week</h2>${svgBars(weeks.map(w=>w.cards),weeks.map(w=>w.label),0,'var(--accent)','cards')}</section>
+    <section class="sec"><h2>🌱 Words over time</h2>${pts.length>=2?svgLines(pts):`<p class="fine">Your word chart starts this week. Check back in a couple of weeks to see it grow.</p>`}</section>
+    ${monthRows?`<section class="sec"><h2>🗓️ By month</h2>${monthRows}</section>`:''}
+    <div class="row"><button class="btn" data-act="milestones">🏅 Milestones</button><button class="btn" data-act="week">📸 Share my week</button></div></div>`;
+}
+function milestonesPage(){
+  const m=metrics(),got=earnedSet();let total=0;
+  const tracks=TRACKS.map(t=>{const v=t.val(m),n=t.steps.find(x=>x>v),prevN=[0,...t.steps].filter(x=>x<=v).pop()||0;
+    const chips=t.steps.map(x=>{const on=!!got[t.k+'-'+x];if(on)total++;return `<span class="badge${on?'':' next'}" title="${x.toLocaleString()} ${esc(t.unit)}">${t.em}<small>${x>=1000?(x/1000)+'k':x}</small></span>`}).join('');
+    return `<section class="sec"><h2>${t.em} ${t.title}</h2>${n!=null?`<div class="nextup"><span>Next: <b>${n.toLocaleString()}</b></span><span class="fine">${v.toLocaleString()} / ${n.toLocaleString()}</span></div><div class="track"><i style="width:${Math.round(100*(v-prevN)/(n-prevN))}%"></i></div>`:'<p class="fine">All done! 🎉</p>'}<div class="brow">${chips}</div></section>`}).join('');
+  const stops=STOPS.slice(1).map(st=>{const on=!!got['stop-'+st.at];if(on)total++;return `<span class="badge${on?'':' next'}" title="${esc(st.name)}">${st.em}<small>${esc(st.name.split(' ')[0])}</small></span>`}).join('');
+  return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">🏅</span><div><h1>Milestones</h1><p>${plural(total,'milestone')} reached</p></div></div>
+    ${tracks}<section class="sec"><h2>🗺️ Journey stops</h2><div class="brow">${stops}</div><button class="linkbtn" data-act="progress">See your journey ›</button></section></div>`;
 }
 function weekPage(){
   return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
@@ -920,7 +1020,7 @@ function done(){
   const R={'':0,started:1,growing:2,well:3},by=cardsByNote();let up=0,toG=0,toW=0;
   (sess.before||new Map()).forEach((st,nid)=>{const now=stageOf(by.get(nid));if(R[now]>R[st]&&R[now]>=2){up++;if(now==='growing')toG++;else toW++}});
   const summary=`<div class="summary"><div><b>${sess.answered}</b><span>cards</span></div><div><b>✨ ${sess.newWords||0}</b><span>new words</span></div><div><b>⬆️ ${up}</b><span>${up?[toG?toG+' to 🌿':'',toW?toW+' to 🌳':''].filter(Boolean).join(' · '):'moved up'}</span></div></div>`;
-  return `<div class="done"><span class="big" aria-hidden="true">${met?'🔥':'✅'}</span><h3>Done for now</h3>${summary}${streakLine}<p class="fine">${tom} card${tom===1?' is':'s are'} due tomorrow.</p><div class="row">${counts().ready?`<button class="btn primary" data-act="learnMore">＋ Learn ${Math.min(10,counts().ready)} more</button>`:''}<button class="btn${counts().ready?'':' primary'}" data-act="exit">Back home</button></div></div>`;
+  return `<div class="done"><span class="big" aria-hidden="true">${met?'🔥':'✅'}</span><h3>Done for now</h3>${summary}${streakLine}<p class="fine">${tom} card${tom===1?' is':'s are'} due tomorrow.</p>${quoteHtml(quoteFor('done'))}<div class="row">${counts().ready?`<button class="btn primary" data-act="learnMore">＋ Learn ${Math.min(10,counts().ready)} more</button>`:''}<button class="btn${counts().ready?'':' primary'}" data-act="exit">Back home</button></div></div>`;
 }
 const needsName=()=>!isKid()&&(!curProfile().name||curProfile().name==='Me');
 function namePage(){
@@ -948,6 +1048,8 @@ function render(){
   else if(view==='combine')app.innerHTML=combinePage();
   else if(view==='card')app.innerHTML=cardPage();
   else if(view==='week')app.innerHTML=weekPage();
+  else if(view==='progress')app.innerHTML=progressPage();
+  else if(view==='milestones')app.innerHTML=milestonesPage();
   else if(view==='settings')app.innerHTML=settingsPage();
   else if(view==='who')app.innerHTML=whoPage();
   else if(view==='profile')app.innerHTML=profileFormPage();
@@ -1018,7 +1120,7 @@ async function removeProfile(){
   try{(await openNamed(dbName(p.id))).close()}catch(e){}dbs.delete(dbName(p.id));try{indexedDB.deleteDatabase(dbName(p.id))}catch(e){}
   editing=null;await useProfile(PROFILES.length>1?PROFILES[0].id:'main');go(PROFILES.length>1?'who':'home');
 }
-function exit(){if(sess)sess.urls.forEach(u=>URL.revokeObjectURL(u));sess=null;player.pause();go('home')}
+function exit(){if(sess)sess.urls.forEach(u=>URL.revokeObjectURL(u));sess=null;player.pause();snapToday();go('home')}
 
 /* ---------- events ---------- */
 app.addEventListener('click',e=>{
@@ -1041,6 +1143,8 @@ app.addEventListener('click',e=>{
   else if(a==='decks')go('decks');
   else if(a==='combine'){combineSel=new Set();go('combine')}
   else if(a==='week')openWeek();
+  else if(a==='progress'){snapToday();go('progress')}
+  else if(a==='milestones')go('milestones');
   else if(a==='saveMyName')saveMyName();
   else if(a==='shareWeek')shareWeek();
   else if(a==='card'){editId=id;editAudio=null;editDel=false;go('card')}
@@ -1128,7 +1232,7 @@ async function deleteDeck(id){
     if(PROFILES.length>1){if(last&&PROFILES.some(p=>p.id===last))await useProfile(last);else{await useProfile(PROFILES[0].id);view='who'}}
     else await load();
     try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}}catch(e){S.ok=false}
-  render();loadInstr();
+  render();loadInstr();try{snapToday()}catch(e){}
   if('serviceWorker' in navigator&&location.protocol==='https:'){try{navigator.serviceWorker.register('sw.js')}catch(e){}}
 })();
 })();
