@@ -298,7 +298,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
 const INSTR=6, APP_VERSION=23;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
-const DAY=86400000, TYPES=['recognition','listening','production'];
+const DAY=86400000, TYPES=['listening','recognition','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const exHtml=s=>esc(s).replace(/\*\*(.+?)\*\*/g,'<mark class="t">$1</mark>').replace(/&lt;b&gt;(.+?)&lt;\/b&gt;/gi,'<mark class="t">$1</mark>');
@@ -336,7 +336,7 @@ async function load(){
   S.decks=await getAll('decks');
   S.notes=new Map((await getAll('notes')).map(n=>[n.id,n]));
   S.allCards=await getAll('cards');
-  /* Every word gets at least 👁️ see + ✍️/🗣️ produce. Older audio-free decks had only the see card: add the missing one, progress kept. */
+  /* Every word gets at least 👁️ see + 🗣️ say. Older audio-free decks had only the see card: add the missing one, progress kept. */
   {const have=new Set(S.allCards.map(c=>c.id)),add=[];
    S.allCards.forEach(c=>{if(c.type==='recognition'){const id=c.noteId+':production';if(!have.has(id)){have.add(id);add.push({id,noteId:c.noteId,type:'production',state:'new',interval:0,ease:2.5,due:0,reps:0,lapses:0})}}});
    if(add.length){try{await write(['cards'],t=>{const st=t.objectStore('cards');add.forEach(c=>st.put(c))});S.allCards.push(...add)}catch(e){}}}
@@ -380,8 +380,10 @@ function eligibleNew(deckId){
     const n=S.notes.get(nid);if(!n||(deckId&&n.deckId!==deckId))return;
     cs.sort((a,b)=>TYPES.indexOf(a.type)-TYPES.indexOf(b.type));
     const k=cs.findIndex(c=>c.state==='new');if(k<0)return;
-    if(k===0){fresh.push([cs[0],n]);return}
-    const prev=cs[k-1];if(prev.firstSeen&&prev.firstSeen>=t0)return;
+    const seen=cs.filter(c=>c.state!=='new');
+    if(!seen.length){fresh.push([cs[k],n]);return}
+    /* Started words (also older words begun in the old see→hear order) continue the day after their last first-seen card. */
+    if(seen.some(c=>c.firstSeen&&c.firstSeen>=t0))return;
     follow.push([cs[k],n]);
   });
   const srt=(a,b)=>((order.get(a[1].deckId)??0)-(order.get(b[1].deckId)??0))||(a[1].order-b[1].order);
@@ -603,7 +605,7 @@ function stageOf(cs){
   if(cs.every(c=>c.state==='review'))return 'growing';
   return 'started';
 }
-const STAGES={started:['🌱','started','You’ve seen at least one of its cards in review.'],growing:['🌿','growing','All its cards (👁️ see, 👂 hear, 🗣️ say) reviewed, and your last answer on each was right.'],well:['🌳','known well','All its cards remembered over gaps of 3 weeks or more.']};
+const STAGES={started:['🌱','started','You’ve seen at least one of its cards in review.'],growing:['🌿','growing','All its cards (👂 hear, 👁️ see, 🗣️ say) reviewed, and your last answer on each was right.'],well:['🌳','known well','All its cards remembered over gaps of 3 weeks or more.']};
 const KSTAGES={started:['🌱','started','You’ve seen it once.'],growing:['🌿','I know it','You got it right last time.'],well:['🌳','known well','You still remembered it after 3 weeks or more.']};
 const stageSet=()=>isKid()?KSTAGES:STAGES;
 function cardsByNote(){const by=new Map();S.cards.forEach(c=>{if(!by.has(c.noteId))by.set(c.noteId,[]);by.get(c.noteId).push(c)});return by}
@@ -1031,9 +1033,9 @@ function cardHtml(c,n,shown){
   const exen=n.example_en?`<p class="exen">${exHtml(n.example_en)}</p>`:'';
   const tg=TAGS[n.tag]?`<span class="tagchip">${TAGS[n.tag][0]} ${TAGS[n.tag][1]}</span>`:'';
   let f='',b='';
-  if(c.type==='recognition'){f=`<span class="chip">👁️ See it · what does it mean?</span>${word}${ex}${play()}`;b=mean+exen}
+  if(c.type==='recognition'){f=`<span class="chip">👁️ See it · read it, what does it mean?</span>${word}${ex}`;b=mean+exen+play()}
   else if(c.type==='listening'){f=`<span class="chip">👂 Hear it · what did you hear?</span>${play(true)}`;b=word+ex+mean+exen}
-  else{f=n.audioKey?`<span class="chip">🗣️ Say it · in Darija</span>${mean}`:`<span class="chip">✍️ Write it · in Arabic</span>${mean}`;b=word+ex+play()+exen}
+  else{f=n.audioKey?`<span class="chip">🗣️ Say it · in Darija</span>${mean}`:`<span class="chip">🗣️ Say it · in Arabic</span>${mean}`;b=word+ex+play()+exen}
   return `<div class="card" data-act="${shown?'':'reveal'}">${tg}${f}${shown?`<div class="ans">${b}</div>`:''}</div>`;
 }
 function study(){
@@ -1097,7 +1099,7 @@ function go(v){view=v;status=null;renaming=false;if(S.pending&&S.pending.kind===
 
 /* ---------- session ---------- */
 function playCurrent(){if(celebrating)return;const c=S.cards.find(x=>x.id===sess.queue[0]);const u=c&&sess.urls.get(c.noteId);if(u){player.src=u;player.play().catch(()=>{})}}
-function autoplay(){if(celebrating)return;const c=S.cards.find(x=>x.id===sess.queue[0]);if(!c)return;if((!sess.shown&&c.type!=='production')||(sess.shown&&c.type==='production'))playCurrent()}
+function autoplay(){if(celebrating)return;const c=S.cards.find(x=>x.id===sess.queue[0]);if(!c)return;if((!sess.shown&&c.type==='listening')||(sess.shown&&c.type!=='listening'))playCurrent()}
 async function begin(q,mode,deckIds,types){
   if(!q.length)return;
   const urls=new Map();
