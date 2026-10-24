@@ -266,7 +266,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=6, APP_VERSION=15;
+const INSTR=6, APP_VERSION=16;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['recognition','listening','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -635,8 +635,8 @@ function decksPage(){
 }
 function profilesSec(){
   const multi=PROFILES.length>1,p=curProfile();
-  return `<section class="sec"><h2>👥 Profiles</h2>`+(multi?`<p class="fine">This profile: <b>${esc(p.name)}</b>${p.kid?' · 🧒 kid mode':''}</p>`:`<p class="fine">Sharing this device? Give each person a profile with their own decks and progress.</p>`)+
-    `<div class="row">${multi?`<button class="btn" data-act="who">⇄ Switch</button><button class="btn" data-act="editProfile">✏️ Edit this profile</button>`:''}<button class="btn" data-act="addProfile">＋ Add a profile</button></div></section>`;
+  return `<section class="sec"><h2>👥 Profiles</h2>`+(multi?`<p class="fine">This profile: <b>${esc(p.name)}</b>${p.kid?' · 🧒 kid mode':''}</p>`:`<p class="fine">Your name: <b>${esc(p.name)}</b></p><p class="fine">Sharing this device? Give each person a profile with their own decks and progress.</p>`)+
+    `<div class="row">${multi?`<button class="btn" data-act="who">⇄ Switch</button><button class="btn" data-act="editProfile">✏️ Edit this profile</button>`:`<button class="btn" data-act="editProfile">✏️ Change name</button>`}<button class="btn" data-act="addProfile">＋ Add a profile</button></div></section>`;
 }
 function settingsPage(){
   if(isKid())return kidSettingsPage();
@@ -703,37 +703,49 @@ function deckPage(){
     <button class="dangerlink" data-act="askDelete">🗑️ Delete this deck</button></div>`;
   return h;
 }
+const MON3=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function weekRange(mon){const a=new Date(mon),b=new Date(addDays(mon,6));
+  return a.getMonth()===b.getMonth()?`${MON3[a.getMonth()]} ${a.getDate()}–${b.getDate()}, ${b.getFullYear()}`:`${MON3[a.getMonth()]} ${a.getDate()} – ${MON3[b.getMonth()]} ${b.getDate()}, ${b.getFullYear()}`}
+function weekStats(mon){
+  let cards=0,days=0;for(let i=0;i<7;i++){const k=iso(addDays(mon,i));cards+=(S.log[k]||{n:0}).n;if(dayMet(k))days++}
+  const end=addDays(mon,7);const fresh=S.cards.filter(c=>c.type==='recognition'&&c.firstSeen&&c.firstSeen>=mon&&c.firstSeen<end).length;
+  return {cards,days,fresh};
+}
 async function makeWeekCard(){
   const W=1080,H=1350,cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');
-  const css=getComputedStyle(document.documentElement);const col=n=>css.getPropertyValue(n).trim()||'#000';
-  const dark=matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches;
-  const bg='#0A6B55',ink='#FFFFFF',soft='rgba(255,255,255,.75)',fire='#FF8A4C';
+  const bg='#0A6B55',ink='#FFFFFF',soft='rgba(255,255,255,.78)',fire='#FF8A4C',F='"Atkinson Hyperlegible", system-ui, sans-serif';
+  const rr=(X,Y,w,h,r)=>{x.beginPath();if(x.roundRect)x.roundRect(X,Y,w,h,r);else x.rect(X,Y,w,h)};
   x.fillStyle=bg;x.fillRect(0,0,W,H);
-  x.fillStyle='rgba(255,255,255,.06)';for(let i=0;i<8;i++){x.beginPath();x.arc(W-120,140,120+i*70,0,Math.PI*2);x.lineWidth=2;x.strokeStyle='rgba(255,255,255,.07)';x.stroke()}
-  const F='"Atkinson Hyperlegible", system-ui, sans-serif';
-  x.fillStyle=ink;x.font='600 92px "Reem Kufi", serif';x.textAlign='left';x.fillText('كلمة',90,190);
-  x.font='700 34px '+F;x.fillStyle=soft;x.fillText('KELMA · MY WEEK OF DARIJA',90,250);
-  const {n,rest}=streakInfo(),t0=today0(),mon=mondayOf(t0);
-  x.fillStyle='#fff';x.font='160px '+F;x.fillText('🔥',80,480);x.fillStyle=ink;x.font='700 170px '+F;x.fillText(String(n),300,480);
-  x.font='400 46px '+F;x.fillStyle=soft;x.fillText(n===1?'day in a row':'days in a row',305,545);
-  let cards=0;const L=['M','T','W','T','F','S','S'];
-  for(let i=0;i<7;i++){const d=addDays(mon,i),k=iso(d),cx=150+i*130,cy=680;cards+=(S.log[k]||{n:0}).n;
-    x.beginPath();x.arc(cx,cy,46,0,Math.PI*2);
-    if(dayMet(k)){x.fillStyle=fire;x.fill();x.fillStyle='#fff';x.font='700 44px '+F;x.textAlign='center';x.fillText('✓',cx,cy+15)}
+  for(let i=0;i<8;i++){x.beginPath();x.arc(W-110,130,110+i*70,0,Math.PI*2);x.lineWidth=2;x.strokeStyle='rgba(255,255,255,.07)';x.stroke()}
+  const t0=today0(),mon=mondayOf(t0),{n,rest}=streakInfo(),ws=wordStats(),wk=weekStats(mon);
+  const nm=curProfile().name||'';const title=nm?(/s$/i.test(nm)?nm+'’':nm+'’s')+' week of Darija':'My week of Darija';
+  x.textAlign='left';x.fillStyle=soft;x.font='600 46px "Reem Kufi", serif';x.fillText('كلمة',90,120);
+  x.font='700 28px '+F;x.fillText('KELMA',200,118);
+  x.fillStyle=ink;let fs=76;x.font=`700 ${fs}px ${F}`;while(x.measureText(title).width>W-180&&fs>44){fs-=4;x.font=`700 ${fs}px ${F}`}x.fillText(title,90,235);
+  x.fillStyle=soft;x.font='400 40px '+F;x.fillText(weekRange(mon),90,295);
+  x.fillStyle='#fff';x.font='96px '+F;x.fillText('🔥',86,440);x.fillStyle=ink;x.font='700 110px '+F;x.fillText(String(n),220,440);
+  x.fillStyle=soft;x.font='400 38px '+F;x.fillText(n===1?'day in a row':'days in a row',225+x.measureText(String(n)).width*0+0,490);
+  const L=['M','T','W','T','F','S','S'];
+  for(let i=0;i<7;i++){const d=addDays(mon,i),k=iso(d),cx=150+i*130,cy=600;x.beginPath();x.arc(cx,cy,44,0,Math.PI*2);
+    if(dayMet(k)){x.fillStyle=fire;x.fill();x.fillStyle='#fff';x.font='700 42px '+F;x.textAlign='center';x.fillText('✓',cx,cy+15)}
     else{x.lineWidth=5;x.strokeStyle=rest.has(k)?'rgba(255,255,255,.5)':'rgba(255,255,255,.25)';if(rest.has(k))x.setLineDash([10,10]);x.stroke();x.setLineDash([])}
-    x.fillStyle=d===t0?ink:soft;x.font='700 34px '+F;x.textAlign='center';x.fillText(L[i],cx,cy+100)}
-  x.textAlign='left';x.fillStyle=ink;x.font='700 64px '+F;x.fillText(plural(cards,'card'),90,900);x.font='400 40px '+F;x.fillStyle=soft;x.fillText('reviewed this week',90,955);
-  const ws=wordStats();[['🌱',ws.started,'started'],['🌿',ws.growing,'growing'],['🌳',ws.well,'known well']].forEach((v,i)=>{const bx=90+i*310;
-    x.fillStyle='rgba(255,255,255,.1)';x.beginPath();x.roundRect?x.roundRect(bx,1020,280,190,28):x.rect(bx,1020,280,190);x.fill();
-    x.fillStyle='#fff';x.font='64px '+F;x.textAlign='left';x.fillText(v[0],bx+28,1100);x.fillStyle=ink;x.font='700 64px '+F;x.fillText(String(v[1]),bx+120,1100);x.fillStyle=soft;x.font='400 34px '+F;x.fillText(v[2],bx+28,1170)});
-  x.fillStyle=soft;x.font='400 30px '+F;x.fillText('papathibs.github.io/kelma',90,1290);
+    x.fillStyle=d===t0?ink:soft;x.font='700 32px '+F;x.textAlign='center';x.fillText(L[i],cx,cy+92)}
+  x.textAlign='left';x.fillStyle=soft;x.font='700 28px '+F;x.fillText('THIS WEEK',90,770);
+  [[`${wk.days}/7`,'days studied'],[String(wk.cards),'cards reviewed'],[String(wk.fresh),'new words']].forEach((v,i)=>{const bx=90+i*310;
+    x.fillStyle='rgba(255,255,255,.12)';rr(bx,795,280,170,26);x.fill();
+    x.fillStyle=ink;x.font='700 66px '+F;x.fillText(v[0],bx+28,880);x.fillStyle=soft;x.font='400 32px '+F;x.fillText(v[1],bx+28,935)});
+  x.fillStyle=soft;x.font='700 28px '+F;x.fillText('ALL TIME',90,1035);
+  [['🌱',ws.started,'started'],['🌿',ws.growing,'growing'],['🌳',ws.well,'known well']].forEach((v,i)=>{const bx=90+i*310;
+    x.fillStyle='rgba(255,255,255,.12)';rr(bx,1060,280,170,26);x.fill();
+    x.fillStyle='#fff';x.font='56px '+F;x.fillText(v[0],bx+26,1138);x.fillStyle=ink;x.font='700 62px '+F;x.fillText(String(v[1]),bx+110,1140);x.fillStyle=soft;x.font='400 32px '+F;x.fillText(v[2],bx+28,1200)});
+  x.fillStyle=soft;x.font='400 28px '+F;x.fillText('papathibs.github.io/kelma',90,1300);
   return new Promise(r=>cv.toBlob(b=>r(b),'image/png'));
 }
 function weekPage(){
   return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
     <div class="dhead"><span class="ic" aria-hidden="true">📸</span><div><h1>Share my week</h1><p>Post it in your learners’ WhatsApp group.</p></div></div>
     ${statusBox()}
-    ${weekImg?`<img class="weekimg" src="${weekImg}" alt="Your week in Kelma: streak, days studied, cards reviewed and word stages">`:`<p class="fine">Making your picture…</p>`}
+    ${weekImg?`<img class="weekimg" src="${weekImg}" alt="${esc(curProfile().name)}’s week in Kelma: streak, days studied, cards reviewed, new words and word stages">`:`<p class="fine">Making your picture…</p>`}
     <button class="btn primary focus" data-act="shareWeek" ${weekBlob?'':'disabled'}>📤 Share picture</button></div>`;
 }
 async function openWeek(){
@@ -743,7 +755,7 @@ async function openWeek(){
 }
 function shareWeek(){
   if(!weekBlob)return;const f=new File([weekBlob],'kelma-my-week.png',{type:'image/png'});
-  if(navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:'My week in Kelma'}).catch(()=>{});return}
+  if(navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:(curProfile().name||'My')+' · Kelma week of '+weekRange(mondayOf(today0()))}).catch(()=>{});return}
   download({blob:weekBlob,name:'kelma-my-week.png'});status={msg:'✓ Picture saved.'};render();
 }
 function cardPage(){
@@ -910,7 +922,23 @@ function done(){
   const summary=`<div class="summary"><div><b>${sess.answered}</b><span>cards</span></div><div><b>✨ ${sess.newWords||0}</b><span>new words</span></div><div><b>⬆️ ${up}</b><span>${up?[toG?toG+' to 🌿':'',toW?toW+' to 🌳':''].filter(Boolean).join(' · '):'moved up'}</span></div></div>`;
   return `<div class="done"><span class="big" aria-hidden="true">${met?'🔥':'✅'}</span><h3>Done for now</h3>${summary}${streakLine}<p class="fine">${tom} card${tom===1?' is':'s are'} due tomorrow.</p><div class="row">${counts().ready?`<button class="btn primary" data-act="learnMore">＋ Learn ${Math.min(10,counts().ready)} more</button>`:''}<button class="btn${counts().ready?'':' primary'}" data-act="exit">Back home</button></div></div>`;
 }
+const needsName=()=>!isKid()&&(!curProfile().name||curProfile().name==='Me');
+function namePage(){
+  return `<div class="page"><div class="mark" style="display:flex;align-items:baseline;gap:10px"><span class="ar" lang="ar" style="font-family:var(--f-mark);font-size:30px;color:var(--accent)">كلمة</span><span class="lat" style="font-weight:700;letter-spacing:.08em;font-size:13px;color:var(--muted)">KELMA</span></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">👋</span><div><h1>What’s your name?</h1><p>It’s saved only on this phone and shows on pictures you share.</p></div></div>
+    ${statusBox()}
+    <input class="search" id="my-name" maxlength="24" autocomplete="given-name" placeholder="Your first name">
+    <button class="btn primary focus" data-act="saveMyName">Continue</button></div>`;
+}
+async function saveMyName(){
+  const v=((document.getElementById('my-name')||{}).value||'').trim().slice(0,24);
+  if(!v||v.toLowerCase()==='me'){status={err:true,msg:'Type your name first.'};render();return}
+  curProfile().name=v;try{await saveProfiles()}catch(e){}
+  status=null;view='home';render();window.scrollTo(0,0);
+}
 function render(){
+  if(needsName()&&!['who','profile','name','study'].includes(view))view='name';
+  if(view==='name'){app.innerHTML=namePage();return}
   if(view==='study'){if(!sess.queue.length&&sess.mode==='review')logCleared();app.innerHTML=sess.queue.length?study():done()}
   else if(view==='deck')app.innerHTML=deckPage();
   else if(view==='delete')app.innerHTML=deletePage();
@@ -1013,6 +1041,7 @@ app.addEventListener('click',e=>{
   else if(a==='decks')go('decks');
   else if(a==='combine'){combineSel=new Set();go('combine')}
   else if(a==='week')openWeek();
+  else if(a==='saveMyName')saveMyName();
   else if(a==='shareWeek')shareWeek();
   else if(a==='card'){editId=id;editAudio=null;editDel=false;go('card')}
   else if(a==='saveCard')saveCardEdit();
