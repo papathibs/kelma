@@ -228,6 +228,10 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 .brow{display:flex;gap:8px;flex-wrap:wrap}
 .badge{display:flex;flex-direction:column;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:color-mix(in srgb,var(--gold) 22%,transparent);font-size:22px;line-height:1}
 .badge small{font-size:11px;font-weight:700;color:var(--ink);margin-top:2px}
+.stoplist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.stopline{display:flex;align-items:center;gap:6px}
+.stopline .badge{width:44px;height:44px;font-size:20px;flex:none;margin-right:6px}
+.stopline.next>b,.stopline.next>.muted{opacity:.6}
 .badge.next{background:none;border:2px dashed var(--line);opacity:.55}
 .bfoot{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%}
@@ -292,7 +296,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=6, APP_VERSION=21;
+const INSTR=6, APP_VERSION=22;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['recognition','listening','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -853,10 +857,10 @@ function milestonesPage(){
   const tracks=TRACKS.map(t=>{const v=t.val(m),n=t.steps.find(x=>x>v),prevN=[0,...t.steps].filter(x=>x<=v).pop()||0;
     const chips=t.steps.map(x=>{const on=!!got[t.k+'-'+x];if(on)total++;return `<span class="badge${on?'':' next'}" title="${x.toLocaleString()} ${esc(t.unit)}">${t.em}<small>${x>=1000?(x/1000)+'k':x}</small></span>`}).join('');
     return `<section class="sec"><h2>${t.em} ${t.title}</h2>${n!=null?`<div class="nextup"><span>Next: <b>${n.toLocaleString()}</b></span><span class="fine">${v.toLocaleString()} / ${n.toLocaleString()}</span></div><div class="track"><i style="width:${Math.round(100*(v-prevN)/(n-prevN))}%"></i></div>`:'<p class="fine">All done! 🎉</p>'}<div class="brow">${chips}</div></section>`}).join('');
-  const stops=STOPS.slice(1).map(st=>{const on=!!got['stop-'+st.at];if(on)total++;return `<span class="badge${on?'':' next'}" title="${esc(st.name)}">${st.em}<small>${esc(st.name.split(' ')[0])}</small></span>`}).join('');
+  const stops=STOPS.slice(1).map(st=>{const on=!!got['stop-'+st.at];if(on)total++;return `<li class="stopline${on?'':' next'}"><span class="badge${on?'':' next'}" aria-hidden="true">${st.em}</span><b>${esc(st.name)}</b><span class="muted">· ${st.at.toLocaleString('en-US')} words${on?' ✓':''}</span></li>`}).join('');
   return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
     <div class="dhead"><span class="ic" aria-hidden="true">🏅</span><div><h1>Milestones</h1><p>${plural(total,'milestone')} reached</p></div></div>
-    ${tracks}<section class="sec"><h2>🗺️ Journey stops</h2><div class="brow">${stops}</div><button class="btn journeybtn" data-act="progress">🗺️ See your journey</button></section></div>`;
+    ${tracks}<section class="sec"><h2>🗺️ Journey stops</h2><ul class="stoplist">${stops}</ul><button class="btn journeybtn" data-act="progress">🗺️ See your journey</button></section></div>`;
 }
 function weekPage(){
   return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
