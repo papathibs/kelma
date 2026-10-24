@@ -164,7 +164,7 @@ details p{margin:10px 0 0}
 const KELMA='https://papathibs.github.io/kelma/';
 const IOS_APP='https://apps.apple.com/us/app/claude-by-anthropic/id6473753684';
 const ANDROID_APP='https://play.google.com/store/apps/details?id=com.anthropic.claude';
-const UPDATED='Oct 21, v5';
+const UPDATED='Oct 24, v6';
 const I={
  share:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>',
  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/></svg>',
@@ -201,7 +201,8 @@ const PARTS=[
     <div class="wa">${tb('السكوت علامة الرضا','11:07')}${tb('Silence is a sign of satisfaction','11:08')}${vb('0:03')}<div class="gap"></div>${tb('بزاف','11:09')}${tb('a lot','11:09')}${vb('0:02')}</div>
     <div class="flow"><span class="chip">Darija</span><span class="arrow">→</span><span class="chip">English</span><span class="arrow">→</span><span class="chip">🎤</span><span class="arrow">· repeat</span></div>
     <a class="btn" href="#examples">👀 Good and bad examples</a>`},
-  {t:'Copy into Claude',b:()=>`<div class="card">${tap(1,`In WhatsApp, hold a message and select all of today's words and voice notes`)}${tap(2,`Tap <span class="ui">Copy</span>`)}${tap(3,`Open <b>Darija Cards</b> in Claude, start a new chat, and paste`)}</div>`},
+  {t:'Copy into Claude',b:()=>`<div class="card">${tap(1,`In WhatsApp, hold a message and select all of today's words and voice notes`)}${tap(2,`Tap <span class="ui">Copy</span>`)}${tap(3,`Open <b>Darija Cards</b> in Claude, start a new chat, and paste`)}</div>
+    <p class="note">📎 Up to 20 files per message. Bigger lesson? Paste the rest in the <b>same chat</b>, then say <b>done</b>.</p>`},
   {t:'Check the list',b:()=>`<div class="card"><p class="note">Claude shows your words with a type: ⚡ verb, 💬 proverb… Fix anything wrong.</p><div class="bubble-me">looks good</div></div>`},
   {t:'Save the file',b:()=>`<div class="file">${I.zip}<div><b>kelma-2026-10-21-lesson.zip</b><span>Your deck file</span></div></div>
     <div class="card">${tap(1,`Tap the file`)}${tap(2,`<span class="ui">${I.share}Share</span>`)}${tap(3,`<span class="ui">Save to Files</span>`)}</div>`},
@@ -270,7 +271,8 @@ function examples(){
    <div class="wa">${tag('Your helper')}${tb('دار','11:07')}${tb('house','11:07')}${vb('0:02','hl')}<div class="gap"></div>${tb('بزاف','11:08')}${tb('a lot','11:08')}${vb('0:03','hl')}</div>
    <div class="legend"><span><b>1</b> Darija</span><span><b>2</b> English</span><span><b>3</b> 🎤 one voice note</span></div>`;
   EX.forEach(e=>{h+=`<div class="ex"><p class="ex-title">${e.t}</p><div class="pair"><div class="side">${verdict('good','Like this')}<div class="wa">${e.g()}</div></div><div class="side">${verdict(e.k||'bad',e.bl)}<div class="wa">${e.b()}</div></div></div></div>`});
-  h+=`<p class="note">No WhatsApp? A photo of your list, or a pasted text, also works.</p>
+  h+=`<p class="note">📎 Up to 20 files per message. Bigger lesson? Send in batches in the same chat, then say <b>done</b>.</p>
+   <p class="note">No WhatsApp? A photo of your list, or a pasted text, also works.</p>
    <div class="nav"><a class="btn" href="#">‹ Guide</a><a class="btn primary" href="#lesson-1">📝 After each lesson ›</a></div></div>`;
   return h;
 }

@@ -238,7 +238,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=5, APP_VERSION=12;
+const INSTR=6, APP_VERSION=13;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['recognition','listening','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -272,7 +272,7 @@ async function get(s,k){const d=await openDB();return reqP(d.transaction(s).obje
 async function write(stores,fn){const d=await openDB();return new Promise((res,rej)=>{const t=d.transaction(stores,'readwrite');fn(t);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)})}
 
 const S={decks:[],notes:new Map(),cards:[],settings:{newPerDay:15},newDone:{day:'',count:0},ok:true,pending:null,log:{},instrVer:null,instrAck:0,instrText:'',lastBackup:0};
-let stageTip='', status=null, view='home', sess=null, deckId=null, pickSel=null, pickAll=false, pickTypes=new Set(), renaming=false;
+let combineSel=new Set(), stageTip='', status=null, view='home', sess=null, deckId=null, pickSel=null, pickAll=false, pickTypes=new Set(), renaming=false;
 
 async function load(){
   S.decks=await getAll('decks');
@@ -631,10 +631,50 @@ function deckPage(){
     ${status?`<div class="status${status.err?' err':''}" role="status">${esc(status.msg)}</div>`:''}
     ${S.pending&&S.pending.kind==='deck'&&S.pending.deckId===d.id?`<button class="btn primary focus" data-act="saveBackup">📤 Send file</button>`:`<button class="btn focus" data-act="shareDeck" data-id="${esc(d.id)}">📤 Share deck</button>`}
     <p class="fine">Shares the words and audio, not your progress.</p>
+    ${S.decks.length>1?`<button class="btn focus" data-act="combine">🔗 Combine with other decks</button>`:''}
     <div class="words">`+ns.map(n=>`<div><span class="en">${TAGS[n.tag]?TAGS[n.tag][0]+' ':''}${esc(n.meaning)}</span><span class="ar" lang="ar"><span class="kw">${mark(n)}</span> ${esc(n.word)}</span></div>`).join('')+`</div>
     <p class="fine">🌱 started · 🌿 growing · 🌳 known well</p>
     <button class="dangerlink" data-act="askDelete">🗑️ Delete this deck</button></div>`;
   return h;
+}
+function combinePage(){
+  const d=S.decks.find(x=>x.id===deckId);if(!d){view='home';return home()}
+  const others=sortedDecks().filter(x=>x.id!==d.id);
+  const n=[...combineSel].reduce((a,id)=>a+deckNotes(id).length,0);
+  return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="deck" data-id="${esc(d.id)}">‹ Back</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">🔗</span><div><h1>Combine decks</h1><p>Words and your progress move into one deck.</p></div></div>
+    <label class="fine" for="combine-name"><b>New deck name</b></label>
+    <input id="combine-name" class="search" maxlength="60" value="${esc(d.name)}">
+    <p class="subhead">Add these decks to “${esc(d.name)}”</p>
+    <div class="pick">`+others.map(o=>`<label><input type="checkbox" data-comb="${esc(o.id)}" ${combineSel.has(o.id)?'checked':''}><span class="ic" aria-hidden="true">${esc(deckIcon(o.id))}</span><span><span class="name">${esc(o.name)}</span><br><span class="meta">${plural(deckNotes(o.id).length,'word')}</span></span></label>`).join('')+`</div>
+    <button class="btn primary focus" data-act="doCombine" ${combineSel.size?'':'disabled'}>${combineSel.size?`🔗 Combine ${plural(combineSel.size+1,'deck')} · ${plural(deckNotes(d.id).length+n,'word')}`:'Pick decks above'}</button>
+    <p class="fine">The decks you pick disappear and their words join this one. Nothing is lost.</p></div>`;
+}
+async function doCombine(){
+  const tgt=S.decks.find(x=>x.id===deckId);if(!tgt||!combineSel.size)return;
+  const inp=document.getElementById('combine-name');const name=(inp&&inp.value.trim().slice(0,60))||tgt.name;
+  let next=Math.max(0,...deckNotes(tgt.id).map(n=>Number(n.num)||n.order||0));
+  const moves=[];// [oldNote,newNote]
+  for(const sid of [...combineSel]){for(const n of deckNotes(sid)){next++;const nid=tgt.id+'#'+next;moves.push([n,{...n,id:nid,deckId:tgt.id,num:String(next),order:next,audioKey:n.audioKey?nid:null}])}}
+  const cardMap=new Map();
+  status={msg:'Combining…'};render();
+  try{
+    const blobs=new Map();for(const [o,nn] of moves){if(o.audioKey){const b=await get('audio',o.audioKey);if(b)blobs.set(nn.id,[o.audioKey,b])}}
+    let rev=[];try{const db=await openDB();rev=await new Promise((res,rej)=>{const out=[];const r=db.transaction('revlog').objectStore('revlog').openCursor();r.onsuccess=e=>{const c=e.target.result;if(c){out.push([c.key,c.value]);c.continue()}else res(out)};r.onerror=()=>rej(r.error)})}catch(e){}
+    await write(['decks','notes','cards','audio','revlog'],t=>{
+      const N=t.objectStore('notes'),C=t.objectStore('cards'),A=t.objectStore('audio'),R=t.objectStore('revlog'),D=t.objectStore('decks');
+      for(const [o,nn] of moves){
+        N.delete(o.id);N.put(nn);
+        S.cards.filter(c=>c.noteId===o.id).forEach(c=>{const nc={...c,id:nn.id+':'+c.type,noteId:nn.id};cardMap.set(c.id,nc.id);C.delete(c.id);C.put(nc)});
+        const bb=blobs.get(nn.id);if(bb){A.delete(bb[0]);A.put(bb[1],nn.id)}
+      }
+      rev.forEach(([k,v])=>{const nc=cardMap.get(v.card);if(nc){R.delete(k);R.put({...v,card:nc},v.t+'|'+nc)}});
+      combineSel.forEach(id=>D.delete(id));
+      const allSilent=!!tgt.noAudio&&[...combineSel].every(id=>(S.decks.find(x=>x.id===id)||{}).noAudio);
+      const rec={...tgt,name,renamed:name!==tgt.name?true:!!tgt.renamed};if(allSilent)rec.noAudio=true;else delete rec.noAudio;D.put(rec);
+    });
+  }catch(e){status={err:true,msg:'Could not combine the decks. Nothing was changed.'};render();return}
+  const k=combineSel.size;combineSel=new Set();await load();view='deck';status={msg:`✓ Combined ${plural(k+1,'deck')} into “${name}”. Progress kept.`};render();window.scrollTo(0,0);
 }
 function deletePage(){
   const d=S.decks.find(x=>x.id===deckId);if(!d){view='home';return home()}
@@ -723,6 +763,7 @@ function render(){
   else if(view==='pick')app.innerHTML=pickPage();
   else if(view==='update')app.innerHTML=updatePage();
   else if(view==='decks')app.innerHTML=decksPage();
+  else if(view==='combine')app.innerHTML=combinePage();
   else if(view==='settings')app.innerHTML=settingsPage();
   else if(view==='who')app.innerHTML=whoPage();
   else if(view==='profile')app.innerHTML=profileFormPage();
@@ -813,6 +854,8 @@ app.addEventListener('click',e=>{
   else if(a==='exit')exit();
   else if(a==='askDelete')go('delete');
   else if(a==='decks')go('decks');
+  else if(a==='combine'){combineSel=new Set();go('combine')}
+  else if(a==='doCombine')doCombine();
   else if(a==='stageTip'){stageTip=stageTip===el.dataset.k?'':el.dataset.k;render()}
   else if(a==='settings')go('settings');
   else if(a==='update'){loadInstr();go('update')}
@@ -846,6 +889,7 @@ app.addEventListener('input',e=>{
 app.addEventListener('change',e=>{
   const ds=e.target.dataset||{};
   if('pickall' in ds){pickAll=e.target.checked;render();return}
+  if(ds.comb){const nm=document.getElementById('combine-name');const keep=nm?nm.value:null;e.target.checked?combineSel.add(ds.comb):combineSel.delete(ds.comb);render();const n2=document.getElementById('combine-name');if(n2&&keep!==null)n2.value=keep;return}
   if(!ds.pick)return;
   if(!pickSel)pickSel=new Set();e.target.checked?pickSel.add(ds.pick):pickSel.delete(ds.pick);render();
 });
