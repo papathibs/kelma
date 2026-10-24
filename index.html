@@ -266,6 +266,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 .quote{margin:4px 0 0;padding:10px 12px;border-left:3px solid var(--gold);background:color-mix(in srgb,var(--gold) 10%,transparent);border-radius:0 10px 10px 0;font-size:14px;text-align:left}
 .quote blockquote{margin:0;font-style:italic}
 .quote figcaption{margin-top:4px;color:var(--muted);font-size:12px}
+.editbtn{padding:6px 8px;min-height:36px;font-size:18px}
 .pgrades{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .pgrades .btn{min-height:64px;font-size:17px}
 .who-chip{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;font:inherit;font-weight:700;font-size:14px;min-height:40px}
@@ -289,7 +290,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=6, APP_VERSION=18;
+const INSTR=6, APP_VERSION=19;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['recognition','listening','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -323,7 +324,7 @@ async function get(s,k){const d=await openDB();return reqP(d.transaction(s).obje
 async function write(stores,fn){const d=await openDB();return new Promise((res,rej)=>{const t=d.transaction(stores,'readwrite');fn(t);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)})}
 
 const S={decks:[],notes:new Map(),cards:[],settings:{newPerDay:15},newDone:{day:'',count:0},ok:true,pending:null,log:{},instrVer:null,instrAck:0,instrText:'',lastBackup:0};
-let weekImg=null, weekBlob=null, editId=null, editAudio=null, editDel=false, combineSel=new Set(), stageTip='', status=null, view='home', sess=null, deckId=null, pickSel=null, pickAll=false, pickTypes=new Set(), renaming=false;
+let editFrom='deck', weekImg=null, weekBlob=null, editId=null, editAudio=null, editDel=false, combineSel=new Set(), stageTip='', status=null, view='home', sess=null, deckId=null, pickSel=null, pickAll=false, pickTypes=new Set(), renaming=false;
 
 async function load(){
   S.decks=await getAll('decks');
@@ -870,7 +871,7 @@ function shareWeek(){
 function cardPage(){
   const n=S.notes.get(editId);if(!n){view='deck';return deckPage()}
   const opts=`<option value="">— none —</option>`+Object.entries(TAGS).map(([k,v])=>`<option value="${k}" ${n.tag===k?'selected':''}>${v[0]} ${v[1]}</option>`).join('');
-  return `<div class="page edit"><div class="top" style="display:flex"><button class="ghost" data-act="deck" data-id="${esc(n.deckId)}">‹ Back</button></div>
+  return `<div class="page edit"><div class="top" style="display:flex">${editFrom==='study'?`<button class="ghost" data-act="backToStudy">‹ Back to review</button>`:`<button class="ghost" data-act="deck" data-id="${esc(n.deckId)}">‹ Back</button>`}</div>
     <div class="dhead"><span class="ic" aria-hidden="true">✏️</span><div><h1>Edit card</h1><p>${n.hidden?'🙈 Hidden from reviews and practice':'Changes keep your progress.'}</p></div></div>
     ${statusBox()}
     <label for="e-word">Darija</label><textarea id="e-word" dir="rtl" lang="ar" rows="2">${esc(n.word)}</textarea>
@@ -888,6 +889,13 @@ function cardPage(){
     ${editDel?`<div class="warn"><p><b>Delete this card for good?</b> Its progress and audio are removed.</p><div class="row"><button class="btn solid-danger" data-act="deleteCard">Delete card</button><button class="btn" data-act="cancelDelCard">Keep it</button></div></div>`:`<button class="dangerlink" data-act="askDelCard">🗑️ Delete this card</button>`}</div>`;
 }
 async function testAudio(blob){return new Promise(res=>{const a=new Audio();const u=URL.createObjectURL(blob);let done=false;const fin=ok=>{if(done)return;done=true;URL.revokeObjectURL(u);res(ok)};a.oncanplay=a.onloadedmetadata=()=>fin(true);a.onerror=()=>fin(false);setTimeout(()=>fin(true),4000);a.preload='auto';a.src=u;a.load()})}
+async function backToStudy(note){
+  if(!sess){go('home');return}
+  if(note){const nid=note.id;
+    if(note.gone){sess.queue=sess.queue.filter(cid=>{const c=S.allCards.find(x=>x.id===cid);return c&&c.noteId!==nid});sess.shown=false}
+    else if(note.audioKey){const b=await get('audio',note.audioKey).catch(()=>null);if(b){const old=sess.urls.get(nid);if(old)URL.revokeObjectURL(old);sess.urls.set(nid,URL.createObjectURL(b))}}}
+  editFrom='deck';status=null;view='study';render();window.scrollTo(0,0);if(sess&&sess.queue.length)autoplay();
+}
 async function saveCardEdit(){
   const n=S.notes.get(editId);if(!n)return;
   const v=id=>(document.getElementById(id)||{}).value||'';
@@ -897,17 +905,23 @@ async function saveCardEdit(){
   nn.edited=true;if(editAudio)nn.audioKey=n.id;
   try{await write(['notes','audio'],t=>{t.objectStore('notes').put(nn);if(editAudio)t.objectStore('audio').put(editAudio,n.id)})}
   catch(e){status={err:true,msg:'Could not save. Your phone may be out of storage.'};render();return}
-  editAudio=null;await load();status={msg:'✓ Saved. Progress kept.'};render();
+  const hadAudio=!!editAudio;editAudio=null;await load();
+  if(editFrom==='study'){await backToStudy(hadAudio?nn:null);return}
+  status={msg:'✓ Saved. Progress kept.'};render();
 }
 async function toggleHide(){
   const n=S.notes.get(editId);if(!n)return;const nn={...n,hidden:!n.hidden};if(!nn.hidden)delete nn.hidden;
   try{await write(['notes'],t=>t.objectStore('notes').put(nn))}catch(e){}
-  await load();status={msg:nn.hidden?'🙈 Hidden. It won’t come up in reviews or practice.':'👁️ Showing again.'};render();
+  await load();
+  if(editFrom==='study'&&nn.hidden){await backToStudy({id:nn.id,gone:true});return}
+  status={msg:nn.hidden?'🙈 Hidden. It won’t come up in reviews or practice.':'👁️ Showing again.'};render();
 }
 async function deleteCard(){
   const n=S.notes.get(editId);if(!n)return;const ids=S.allCards.filter(c=>c.noteId===n.id).map(c=>c.id);
   try{await write(['notes','cards','audio'],t=>{t.objectStore('notes').delete(n.id);ids.forEach(i=>t.objectStore('cards').delete(i));if(n.audioKey)t.objectStore('audio').delete(n.audioKey)})}catch(e){}
-  const did=n.deckId;await load();editId=null;editDel=false;deckId=did;view='deck';status={msg:'🗑️ Card deleted.'};render();window.scrollTo(0,0);
+  const did=n.deckId;await load();editId=null;editDel=false;
+  if(editFrom==='study'){await backToStudy({id:n.id,gone:true});return}
+  deckId=did;view='deck';status={msg:'🗑️ Card deleted.'};render();window.scrollTo(0,0);
 }
 function combinePage(){
   const d=S.decks.find(x=>x.id===deckId);if(!d){view='home';return home()}
@@ -1010,7 +1024,7 @@ function cardHtml(c,n,shown){
 function study(){
   const id=sess.queue[0], c=S.cards.find(x=>x.id===id), n=c&&S.notes.get(c.noteId);
   const doneN=sess.answered, pct=Math.round(100*doneN/Math.max(1,doneN+sess.queue.length));
-  let h=`<div class="study"><div class="bar"><button class="ghost" data-act="exit">← Home</button>${sess.mode==='practice'?'<span class="mode">🎯 Practice</span>':''}<div class="prog" aria-hidden="true"><i style="width:${pct}%"></i></div><span class="left">${sess.queue.length} left</span></div>`;
+  let h=`<div class="study"><div class="bar"><button class="ghost" data-act="exit">← Home</button>${sess.mode==='practice'?'<span class="mode">🎯 Practice</span>':''}<div class="prog" aria-hidden="true"><i style="width:${pct}%"></i></div><span class="left">${sess.queue.length} left</span>${isKid()?'':`<button class="ghost editbtn" data-act="editCurrent" aria-label="Edit this card">✏️</button>`}</div>`;
   h+=cardHtml(c,n,sess.shown);
   if(!sess.shown)h+=`<button class="btn primary reveal" data-act="reveal">Show answer</button>`;
   else if(sess.mode==='practice')h+=`<div class="pgrades"><button class="btn" data-act="pgrade" data-g="0"><span class="g0">↺ Again</span></button><button class="btn" data-act="pgrade" data-g="1"><span class="g1">✓ Got it</span></button></div>`;
@@ -1156,7 +1170,9 @@ app.addEventListener('click',e=>{
   else if(a==='milestones')go('milestones');
   else if(a==='saveMyName')saveMyName();
   else if(a==='shareWeek')shareWeek();
-  else if(a==='card'){editId=id;editAudio=null;editDel=false;go('card')}
+  else if(a==='card'){editFrom='deck';editId=id;editAudio=null;editDel=false;go('card')}
+  else if(a==='editCurrent'){const c=sess&&S.cards.find(x=>x.id===sess.queue[0]);if(c){player.pause();editFrom='study';editId=c.noteId;editAudio=null;editDel=false;go('card')}}
+  else if(a==='backToStudy')backToStudy(null);
   else if(a==='saveCard')saveCardEdit();
   else if(a==='toggleHide')toggleHide();
   else if(a==='askDelCard'){editDel=true;render()}
