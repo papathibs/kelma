@@ -244,7 +244,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 @keyframes pop{0%{transform:scale(.7);opacity:0}100%{transform:scale(1);opacity:1}}
 @media (prefers-reduced-motion: reduce){.cel-card{animation:none}}
 .nextup{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:14px}
-.badges .track,.prog .track,.sec .track{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.badges .track,.progpage .track,.sec .track{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
 .badges .track i,.sec .track i{display:block;height:100%;background:var(--accent);border-radius:4px}
 .hlinks{display:flex;gap:14px;flex-wrap:wrap}
 .chart{width:100%;height:auto;display:block}
@@ -819,7 +819,7 @@ function progressPage(){
   S.cards.forEach(c=>{if(c.type==='recognition'&&c.firstSeen){const mk=iso(c.firstSeen).slice(0,7);const o=months.get(mk)||{days:0,cards:0,fresh:0};o.fresh++;months.set(mk,o)}});
   const MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
   const monthRows=[...months.entries()].sort((a,b)=>b[0].localeCompare(a[0])).slice(0,6).map(([k,o])=>`<div class="mrow"><b>${MN[+k.slice(5,7)-1]}</b><span>${plural(o.days,'day')} · ${plural(o.cards,'card')} · ${plural(o.fresh,'new word')}</span></div>`).join('');
-  return `<div class="page prog"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
+  return `<div class="page progpage"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
     <div class="dhead"><span class="ic" aria-hidden="true">📈</span><div><h1>Your progress</h1><p>${plural(known,'word')} you know (🌿 + 🌳)</p></div></div>
     <section class="sec"><h2>🗺️ Your journey</h2>
       ${next?`<div class="nextup"><span>Next stop: <b>${next.em} ${next.name}</b></span><span class="fine">${(next.at-known).toLocaleString()} more words</span></div><div class="track"><i style="width:${Math.round(100*(known-STOPS[si].at)/(next.at-STOPS[si].at))}%"></i></div>`:''}
