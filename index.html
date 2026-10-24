@@ -296,7 +296,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=6, APP_VERSION=22;
+const INSTR=6, APP_VERSION=23;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['recognition','listening','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -336,6 +336,10 @@ async function load(){
   S.decks=await getAll('decks');
   S.notes=new Map((await getAll('notes')).map(n=>[n.id,n]));
   S.allCards=await getAll('cards');
+  /* Every word gets at least 👁️ see + ✍️/🗣️ produce. Older audio-free decks had only the see card: add the missing one, progress kept. */
+  {const have=new Set(S.allCards.map(c=>c.id)),add=[];
+   S.allCards.forEach(c=>{if(c.type==='recognition'){const id=c.noteId+':production';if(!have.has(id)){have.add(id);add.push({id,noteId:c.noteId,type:'production',state:'new',interval:0,ease:2.5,due:0,reps:0,lapses:0})}}});
+   if(add.length){try{await write(['cards'],t=>{const st=t.objectStore('cards');add.forEach(c=>st.put(c))});S.allCards.push(...add)}catch(e){}}}
   S.cards=S.allCards.filter(c=>{const n=S.notes.get(c.noteId);return !(n&&n.hidden)});
   S.settings=(await get('meta','settings'))||{newPerDay:15};
   S.newDone=(await get('meta','newDone'))||{day:'',count:0};
@@ -443,7 +447,7 @@ async function importFile(file){
     notes.push({id,deckId:deck.deck_id,order:Number(num)||i+1,num:String(num),word:c.word,meaning:c.meaning,example:c.example||'',example_en:c.example_en||'',tag:TAGS[String(c.tag||'').toLowerCase()]?String(c.tag).toLowerCase():'',audioKey});
   }
   const noAudio=!notes.some(n=>n.audioKey)&&!deck.cards.some(c=>c.audio);
-  const kinds=noAudio?['recognition']:TYPES;
+  const kinds=noAudio?['recognition','production']:TYPES;
   /* Keep the person's own edits and hidden flags when a deck is re-imported */
   for(const n of notes){const old=S.notes.get(n.id);if(!old)continue;if(old.hidden)n.hidden=true;
     if(old.edited){['word','meaning','example','example_en','tag','audioKey'].forEach(k=>n[k]=old[k]);n.edited=true;for(let i=audio.length-1;i>=0;i--)if(audio[i][0]===n.id)audio.splice(i,1)}}
@@ -458,7 +462,7 @@ async function importFile(file){
   catch(e){status={err:true,msg:'Could not save the deck on this device. Your phone may be out of storage.'};render();return}
   if(!noAudio&&ver<INSTR&&S.instrAck>=INSTR){try{await write(['meta'],t=>t.objectStore('meta').put(-1,'instrAck'))}catch(e){}}
   await load();
-  let msg=`Imported “${drec.name}”: ${added} new word${added===1?'':'s'}`+(noAudio?'':` (${added*3} cards)`)+(updated?`, ${updated} already here and updated, progress kept`:'')+'.';
+  let msg=`Imported “${drec.name}”: ${added} new word${added===1?'':'s'}`+` (${added*(noAudio?2:3)} cards)`+(updated?`, ${updated} already here and updated, progress kept`:'')+'.';
   if(clash)msg+=' You already had a different deck with the same ID, so this was added as a new deck.';
   if(missing.length&&!noAudio)msg+=` No audio found for #${missing.join(', #')}.`;
   status={msg};render();
@@ -599,7 +603,7 @@ function stageOf(cs){
   if(cs.every(c=>c.state==='review'))return 'growing';
   return 'started';
 }
-const STAGES={started:['🌱','started','You’ve seen at least one of its 3 cards in review.'],growing:['🌿','growing','All 3 cards (👁️ see, 👂 hear, 🗣️ say) reviewed, and your last answer on each was right.'],well:['🌳','known well','All 3 cards remembered over gaps of 3 weeks or more.']};
+const STAGES={started:['🌱','started','You’ve seen at least one of its cards in review.'],growing:['🌿','growing','All its cards (👁️ see, 👂 hear, 🗣️ say) reviewed, and your last answer on each was right.'],well:['🌳','known well','All its cards remembered over gaps of 3 weeks or more.']};
 const KSTAGES={started:['🌱','started','You’ve seen it once.'],growing:['🌿','I know it','You got it right last time.'],well:['🌳','known well','You still remembered it after 3 weeks or more.']};
 const stageSet=()=>isKid()?KSTAGES:STAGES;
 function cardsByNote(){const by=new Map();S.cards.forEach(c=>{if(!by.has(c.noteId))by.set(c.noteId,[]);by.get(c.noteId).push(c)});return by}
@@ -1029,7 +1033,7 @@ function cardHtml(c,n,shown){
   let f='',b='';
   if(c.type==='recognition'){f=`<span class="chip">👁️ See it · what does it mean?</span>${word}${ex}${play()}`;b=mean+exen}
   else if(c.type==='listening'){f=`<span class="chip">👂 Hear it · what did you hear?</span>${play(true)}`;b=word+ex+mean+exen}
-  else{f=`<span class="chip">🗣️ Say it · in Darija</span>${mean}`;b=word+ex+play()+exen}
+  else{f=n.audioKey?`<span class="chip">🗣️ Say it · in Darija</span>${mean}`:`<span class="chip">✍️ Write it · in Arabic</span>${mean}`;b=word+ex+play()+exen}
   return `<div class="card" data-act="${shown?'':'reveal'}">${tg}${f}${shown?`<div class="ans">${b}</div>`:''}</div>`;
 }
 function study(){
