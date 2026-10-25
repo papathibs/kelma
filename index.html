@@ -345,7 +345,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=6, APP_VERSION=29;
+const INSTR=6, APP_VERSION=30;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['listening','recognition','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -811,7 +811,10 @@ const LESSON=[
   {em:'🗣️',t:'During the lesson',b:()=>`<p>Ask your helper to send each word in WhatsApp like this: <b>Arabic</b>, then <b>English</b>, then a <b>voice note</b>. Then the next word.</p>
     <div class="wachat">${wa('حاول، كيحاول','10:02')}${wa('to try','10:02')}${wv('0:03')}<div class="wagap"></div>${wa('خدمة، خدمات','10:04')}${wa('job, jobs','10:04')}${wv('0:02')}</div>
     <p class="fine">Use one WhatsApp chat just for lessons. It keeps things easy to find.</p>`},
-  {em:'📤',t:'Send it to Claude',b:()=>`<ol class="steps"><li>In WhatsApp, press and hold one message, tap <b>Select</b>, and tick all of today’s words and voice notes.</li><li>Copy or share them.</li><li>In Claude, open <b>Darija Cards</b>, start a new chat, and paste.</li></ol>
+  {em:'📤',t:'Send it to Claude',b:()=>`<div class="shots"><figure>${shot('w1-forward.jpg','Hold the first word, tap Forward')}<figcaption>1. Hold the first word, tap <b>Forward</b></figcaption></figure>
+    <figure>${shot('w2-share.jpg','Tick the words and voice notes, tap Share')}<figcaption>2. Tick today’s words and voice notes, tap <b>Share</b></figcaption></figure>
+    <figure>${shot('w3-copy.jpg','Tap Copy')}<figcaption>3. Tap <b>Copy</b></figcaption></figure></div>
+    <p>4. In Claude, open <b>Darija Cards</b>, start a new chat, and paste.</p>
     <p class="fine">📎 More than 15 files? Send them in batches in the <b>same chat</b>. Claude says “Got N files”. When you’ve sent everything, say <b>done</b>.</p>`},
   {em:'✅',t:'Check and save',b:()=>`<ol class="steps"><li>Claude lists your words with a type (⚡ verb, 🏷️ noun…). Fix anything wrong, or say <b>looks good</b>.</li><li>Tap one of the deck names Claude suggests.</li><li>Claude gives you a <b>.zip</b> file. Tap it, then <b>Share</b> → <b>Save to Files</b>.</li></ol>`},
   {em:'📥',t:'Import into Kelma',b:()=>`<ol class="steps"><li>In Kelma, tap <b>📥 Import</b> at the bottom of Home.</li><li>Pick the file you saved.</li></ol><p>✨ Your new words show up in your next review.</p>
