@@ -128,6 +128,9 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .imhelp{text-align:center;margin:8px 0 0;font-size:14px}.imhelp .linkbtn{color:var(--muted);font-weight:600;text-decoration:none}
 .sintro{margin:0;line-height:1.5}
 .hook{margin:0;font-size:26px;line-height:1.25}
+.welcome{min-height:85vh;display:flex;flex-direction:column;justify-content:center;gap:20px;padding:24px 8px}
+.welcome .hook{font-size:34px}.welcome .sintro{font-size:18px}.welcome .btn{width:100%;min-height:56px;font-size:18px;margin-top:8px}
+.welcome .mark{margin-bottom:12px}
 .helpq{font-size:20px;padding:6px 8px}
 .lessontip{display:flex;align-items:center;background:var(--surface);border:1.5px dashed var(--accent);border-radius:16px}
 .lessontip .lt-go{flex:1;background:none;border:none;text-align:left;padding:14px 16px;font:inherit;color:var(--ink);font-size:16px}
@@ -369,7 +372,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=8, APP_VERSION=36;
+const INSTR=8, APP_VERSION=37;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['listening','recognition','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -893,11 +896,15 @@ async function saveSetup(patch){S.setup=Object.assign({},S.setup||{},patch);
   try{await write(['meta'],t=>t.objectStore('meta').put(S.setup,'setup'))}catch(e){}}
 const nextStep=()=>SETUP.find(x=>!stepDone(x.k));
 let setupKey=null;
+let installOpen=false;
 function safariWelcome(){
-  setupKey='home';const body=stepPage().split('<div class="stepbody">')[1]||'';
-  return `<section class="setupcard" aria-label="Welcome"><h1 class="hook">You didn’t move to Morocco to type flashcards.</h1>
-    <p class="sintro">Kelma turns your lessons into flashcards in about two minutes, so your time goes back to learning.</p></section>
-    <div class="page step" style="padding-top:0"><div class="stepbody">${body}`;
+  if(!installOpen)return `<div class="welcome"><div class="mark"><span class="ar" lang="ar">كلمة</span><span class="lat">Kelma</span></div>
+    <h1 class="hook">You didn’t move to Morocco to type flashcards.</h1>
+    <p class="sintro">Kelma turns your lessons into flashcards in about two minutes, so your time goes back to learning.</p>
+    <button class="btn primary focus" data-act="installOpen">Get started ›</button></div>`;
+  setupKey='home';const body=(stepPage().split('<div class="stepbody">')[1]||'').replace('<p>Put Kelma on your home screen so it works like an app.</p>','');
+  return `<div class="page step"><div class="top" style="display:flex"><button class="ghost" data-act="installBack">‹ Back</button></div>
+    <h1>Add Kelma to your home screen</h1><div class="stepbody">${body}`;
 }
 /* First open in the installed app: load the 4 starter words so Home is ready to review. Only for a brand-new first person with no decks. */
 async function autoStarter(){
@@ -1093,7 +1100,7 @@ function home(){
   let h=`<header class="top"><div class="mark"><span class="ar" lang="ar">كلمة</span><span class="lat">Kelma</span></div><div style="display:flex;gap:4px;align-items:center">${multi?`<button class="who-chip" data-act="who" aria-label="Switch profile">${esc(curProfile().name)} ⇄</button>`:''}<button class="ghost helpq" data-act="help" aria-label="Help">❓</button><button class="ghost" data-act="settings" aria-label="Settings">⚙️</button></div></header>`;
   if(!S.ok)h+=`<div class="status err">This view can’t store cards. Open this page in Safari or the Claude app instead.</div>`;
   const su=!setupComplete();
-  if(su&&!STANDALONE)return h+statusBox()+safariWelcome();
+  if(su&&!STANDALONE)return statusBox()+safariWelcome();
   if(!STANDALONE)h+=`<div class="hint"><b>Install it first.</b> In Safari tap Share, then Add to Home Screen. Open Kelma from the new icon and import your decks there. The icon and the Safari tab keep separate cards.</div>`;
   h+=statusBox();
   if(su){h+=setupCard();if(!words)return h}
@@ -1662,6 +1669,7 @@ app.addEventListener('click',e=>{
   else if(a==='setupTick'){const k=el.dataset.k;(async()=>{if(k==='instr'){try{await write(['meta'],t=>t.objectStore('meta').put(INSTR,'instrAck'))}catch(e){}S.instrAck=INSTR}await saveSetup({[k]:true});goNextStep()})()}
   else if(a==='setupNext')goNextStep();
   else if(a==='addStarter')addStarter();
+  else if(a==='installOpen'||a==='installBack'){installOpen=a==='installOpen';render();window.scrollTo(0,0)}
   else if(a==='closeLessonTip'){saveSetup({lessonTipClosed:true}).then(render)}
   else if(a==='setupAll'){status=null;go('setup')}
   else if(a==='lesson'){lessonI=0;lessonMode='wa';go('lesson')}
