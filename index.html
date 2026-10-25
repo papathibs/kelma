@@ -98,6 +98,24 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .shots figure{margin:0;display:flex;flex-direction:column;gap:8px;width:100%;max-width:330px}
 .shot{width:100%;border-radius:16px;border:1px solid var(--line);display:block;background:var(--line);box-shadow:0 4px 14px rgba(0,0,0,.08)}
 .shots figcaption{order:-1;font-size:16px;line-height:1.4}
+.ldots{display:flex;gap:8px;justify-content:center}
+.ldot{width:40px;height:40px;border-radius:50%;border:2px solid var(--line);background:var(--surface);font-size:18px;padding:0;display:grid;place-items:center}
+.ldot.dn{background:var(--accent-soft);border-color:var(--accent-soft)}.ldot.on{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.lt{margin:6px 0 0;font-size:22px;text-transform:none;letter-spacing:0;color:var(--ink)}
+.lnav{display:flex;justify-content:space-between;gap:10px;margin-top:8px}.lnav .btn{flex:1}
+.mini{margin:0;padding-left:4px;list-style:none;display:flex;flex-direction:column;gap:6px}
+.wachat{background:#E7DED4;border-radius:16px;padding:12px;display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.wab{background:#D9FDD3;color:#111;border-radius:10px 10px 2px 10px;padding:6px 10px;max-width:80%;display:flex;align-items:flex-end;gap:10px;box-shadow:0 1px 1px rgba(0,0,0,.12);font-size:16px}
+.wab .ar{font-family:var(--f-ar);font-size:20px}.wab small{font-size:11px;color:#667}
+.wav{min-width:190px;align-items:center}.wav .pl{color:#556;font-size:14px}.wav .wf{flex:1;height:14px;background:repeating-linear-gradient(90deg,#8AA 0 2px,transparent 2px 5px);border-radius:3px;opacity:.7}
+.wagap{height:10px}
+.rmin{background:var(--surface);border:2px solid var(--accent);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.rmin3{display:flex;gap:8px;flex-wrap:wrap}.rmin3 span{background:var(--accent-soft);border-radius:999px;padding:6px 12px;font-weight:700;font-size:15px}
+.recipe{display:flex;flex-direction:column;gap:8px;margin-top:10px}.recipe h2{margin:0;font-size:20px;text-transform:none;letter-spacing:0;color:var(--ink)}.rask{margin:0}
+.rcard{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.rword{font-family:var(--f-ar);font-size:32px;line-height:1.5;margin:0;font-weight:600}.rmean{font-size:18px;font-weight:700;margin:0}
+.rex{font-family:var(--f-ar);font-size:20px;line-height:1.7;margin:4px 0 0}.rexen{font-size:14px;color:var(--muted);margin:0}
+.radd{font-size:14px;color:var(--muted);border:1.5px dashed var(--line);border-radius:10px;padding:4px 10px;margin:4px 0 0}
 .slist{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
 .srow{display:flex;align-items:center;gap:12px;padding:14px;border-top:1px solid var(--line);color:var(--ink);text-decoration:none}
 .srow:first-child{border-top:none}
@@ -327,7 +345,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=6, APP_VERSION=28;
+const INSTR=6, APP_VERSION=29;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['listening','recognition','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -770,7 +788,7 @@ function stepPage(){
   else if(x.k==='starter')b=dn?`<p>Your 4 starter words are in. Each one shows a good card: a verb, a noun, an adjective and a phrase.</p><button class="btn primary" data-act="study">▶️ Review them</button><button class="btn focus" data-act="setupNext">Next step ›</button>`:
     `<p>Try Kelma with 4 starter words before your first lesson. They also show what a good card looks like: a verb, a noun, an adjective and a phrase.</p><button class="btn primary focus" data-act="addStarter">＋ Add 4 starter words</button>`;
   else if(x.k==='lesson')b=`<p>${dn?'Your first deck is in. You’re set up.':'After your next lesson, Claude turns your WhatsApp messages and voice notes into a deck file. You import it here.'}</p>
-    <a class="btn ${dn?'':'primary'}" href="guide.html#lesson-1">📝 How to add a lesson</a>${dn?'<button class="btn primary focus" data-act="home">Done ›</button>':''}`;
+    <button class="btn ${dn?'':'primary'}" data-act="lesson">📝 How to add a lesson</button>${dn?'<button class="btn primary focus" data-act="home">Done ›</button>':''}`;
   return head+`<div class="stepbody">${b}</div></div>`;
 }
 async function addStarter(){
@@ -781,6 +799,46 @@ async function addStarter(){
 }
 function openStep(k){setupKey=k;status=null;view='step';render();window.scrollTo(0,0);if(k==='instr')loadInstr()}
 function goNextStep(){const nx=nextStep();if(nx&&nx.k!==setupKey)openStep(nx.k);else go('home')}
+
+/* ---------- Add a lesson walkthrough + recipes ---------- */
+let lessonI=0;
+const wa=(t,time,me)=>`<div class="wab"><span${/[\u0600-\u06FF]/.test(t)?' lang="ar" dir="rtl" class="ar"':''}>${esc(t)}</span><small>${time}</small></div>`;
+const wv=len=>`<div class="wab wav"><span class="pl">▶</span><span class="wf" aria-hidden="true"></span><small>${len}</small></div>`;
+const LESSON=[
+  {em:'📖',t:'Before the lesson',b:()=>`<p>Know what to ask your helper for. Every card needs <b>Arabic</b>, <b>English</b> and a <b>voice note</b>. Some kinds of words need a bit more:</p>
+    <ul class="mini"><li>⚡ <b>Verb:</b> he did + he does</li><li>🏷️ <b>Noun:</b> one + many</li><li>🎨 <b>Adjective:</b> masculine + feminine + plural</li><li>✍️ A sentence for each, when you can</li></ul>
+    <button class="btn" data-act="recipes">📖 See the recipes</button>`},
+  {em:'🗣️',t:'During the lesson',b:()=>`<p>Ask your helper to send each word in WhatsApp like this: <b>Arabic</b>, then <b>English</b>, then a <b>voice note</b>. Then the next word.</p>
+    <div class="wachat">${wa('حاول، كيحاول','10:02')}${wa('to try','10:02')}${wv('0:03')}<div class="wagap"></div>${wa('خدمة، خدمات','10:04')}${wa('job, jobs','10:04')}${wv('0:02')}</div>
+    <p class="fine">Use one WhatsApp chat just for lessons. It keeps things easy to find.</p>`},
+  {em:'📤',t:'Send it to Claude',b:()=>`<ol class="steps"><li>In WhatsApp, press and hold one message, tap <b>Select</b>, and tick all of today’s words and voice notes.</li><li>Copy or share them.</li><li>In Claude, open <b>Darija Cards</b>, start a new chat, and paste.</li></ol>
+    <p class="fine">📎 More than 15 files? Send them in batches in the <b>same chat</b>. Claude says “Got N files”. When you’ve sent everything, say <b>done</b>.</p>`},
+  {em:'✅',t:'Check and save',b:()=>`<ol class="steps"><li>Claude lists your words with a type (⚡ verb, 🏷️ noun…). Fix anything wrong, or say <b>looks good</b>.</li><li>Tap one of the deck names Claude suggests.</li><li>Claude gives you a <b>.zip</b> file. Tap it, then <b>Share</b> → <b>Save to Files</b>.</li></ol>`},
+  {em:'📥',t:'Import into Kelma',b:()=>`<ol class="steps"><li>In Kelma, tap <b>📥 Import</b> at the bottom of Home.</li><li>Pick the file you saved.</li></ol><p>✨ Your new words show up in your next review.</p>
+    <label class="btn primary" for="file">📥 Import a deck file</label>`}];
+function lessonPage(){
+  const i=Math.max(0,Math.min(lessonI,LESSON.length-1)),x=LESSON[i];
+  const dots=LESSON.map((y,j)=>`<button class="ldot${j===i?' on':''}${j<i?' dn':''}" data-act="lessonGo" data-i="${j}" aria-label="Step ${j+1}: ${esc(y.t)}">${y.em}</button>`).join('');
+  return `<div class="page step"><div class="top" style="display:flex;justify-content:space-between;align-items:center"><button class="ghost" data-act="home">‹ Home</button><span class="fine">${i+1} of ${LESSON.length}</span></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">📝</span><div><h1>Add a lesson</h1><p>About 10 minutes after each lesson</p></div></div>
+    <div class="ldots">${dots}</div>
+    <h2 class="lt">${x.em} ${esc(x.t)}</h2><div class="stepbody">${x.b()}</div>
+    <div class="lnav">${i?`<button class="btn" data-act="lessonGo" data-i="${i-1}">‹ Back</button>`:'<span></span>'}${i<LESSON.length-1?`<button class="btn primary" data-act="lessonGo" data-i="${i+1}">Next ›</button>`:`<button class="btn primary" data-act="home">Done ›</button>`}</div></div>`;
+}
+const RECIPES=[
+  {tag:'verb',ask:'He did + he does, and a sentence',word:'حاول، كيحاول',mean:'to try',ex:'**حاول** تجي بكري باش تكمل لخدمة فنهار واحد',exen:'**Try** to come early to finish the work in one day.'},
+  {tag:'noun',ask:'One + many, and a sentence',word:'خدمة، خدمات',mean:'job, jobs'},
+  {tag:'adjective',ask:'Masculine + feminine + plural, and a sentence',word:'ثقيل \\ ثقيلة \\ ثقال',mean:'heavy (m, f, pl)'},
+  {tag:'phrase',ask:'Everything else: the whole phrase or sentence',word:'واش ممكن تعرفني على راسك؟',mean:'Can you tell me about yourself?'}];
+function recipesPage(){
+  const card=r=>`<div class="rcard"><span class="tagchip">${TAGS[r.tag][0]} ${TAGS[r.tag][1]}</span><p class="rword" lang="ar" dir="rtl">${esc(r.word)}</p><p class="rmean">${esc(r.mean)}</p>${r.ex?`<p class="rex" lang="ar" dir="rtl">${exHtml(r.ex)}</p><p class="rexen">${exHtml(r.exen)}</p>`:(r.tag!=='phrase'?`<p class="radd">＋ add a sentence when you can</p>`:'')}</div>`;
+  return `<div class="page step"><div class="top" style="display:flex"><button class="ghost" data-act="${view==='recipes'&&recipesFrom==='lesson'?'lessonBack':'home'}">‹ ${recipesFrom==='lesson'?'Add a lesson':'Home'}</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">📖</span><div><h1>Card recipes</h1><p>What to ask your helper for</p></div></div>
+    <div class="rmin"><b>Every card</b><div class="rmin3"><span>🔤 Arabic</span><span>🇬🇧 English</span><span>🎤 Voice note</span></div></div>
+    ${RECIPES.map(r=>`<section class="recipe"><h2>${TAGS[r.tag][0]} ${TAGS[r.tag][1]}</h2><p class="rask">Ask for: <b>${esc(r.ask)}</b></p>${card(r)}</section>`).join('')}
+    <p class="fine">Missing something? Make the card anyway. The recipe is a goal, not a rule.</p></div>`;
+}
+let recipesFrom='home';
 
 /* ---------- views ---------- */
 function alertBanner(){
@@ -864,6 +922,8 @@ function settingsPage(){
     ${row('💾','Backup',`Last: <b>${lb}</b> · once a week`,pend?`<button class="btn small primary" data-act="saveBackup">Save file</button>`:`<button class="btn small" data-act="backup">Back up</button>`)}
     ${row('📋','Claude instructions','Copy, then paste into your Claude project',`<button class="btn small" data-act="update">Copy</button>`)}
     ${setupComplete()&&CUR==='main'?`<button class="srow slink" data-act="setupAll"><span class="sic" aria-hidden="true">🧭</span><div class="stxt"><b>Setup steps</b></div><span class="go" aria-hidden="true">›</span></button>`:''}
+    <button class="srow slink" data-act="lesson"><span class="sic" aria-hidden="true">📝</span><div class="stxt"><b>Add a lesson</b><span>Step by step</span></div><span class="go" aria-hidden="true">›</span></button>
+    <button class="srow slink" data-act="recipes"><span class="sic" aria-hidden="true">📖</span><div class="stxt"><b>Card recipes</b><span>What to ask your helper for</span></div><span class="go" aria-hidden="true">›</span></button>
     <a class="srow slink" href="guide.html#help"><span class="sic" aria-hidden="true">❓</span><div class="stxt"><b>Help</b></div><span class="go" aria-hidden="true">›</span></a>
     </div>
     <details class="more"><summary>More</summary>
@@ -1224,6 +1284,8 @@ function render(){
   if(view==='name'){app.innerHTML=namePage();return}
   if(view==='setup'){app.innerHTML=setupPage();return}
   if(view==='step'){app.innerHTML=stepPage();return}
+  if(view==='lesson'){app.innerHTML=lessonPage();return}
+  if(view==='recipes'){app.innerHTML=recipesPage();return}
   if(view==='study'){if(!sess.queue.length&&sess.mode==='review')logCleared();app.innerHTML=sess.queue.length?study():done()}
   else if(view==='deck')app.innerHTML=deckPage();
   else if(view==='delete')app.innerHTML=deletePage();
@@ -1353,6 +1415,10 @@ app.addEventListener('click',e=>{
   else if(a==='setupNext')goNextStep();
   else if(a==='addStarter')addStarter();
   else if(a==='setupAll'){status=null;go('setup')}
+  else if(a==='lesson'){lessonI=0;go('lesson')}
+  else if(a==='lessonGo'){lessonI=+el.dataset.i;view='lesson';render();window.scrollTo(0,0)}
+  else if(a==='recipes'){recipesFrom=view==='lesson'?'lesson':'home';go('recipes')}
+  else if(a==='lessonBack'){view='lesson';render();window.scrollTo(0,0)}
   else if(a==='rename'){renaming=true;render();const i=document.getElementById('deck-name');if(i){i.focus();i.select()}}
   else if(a==='cancelName'){renaming=false;render()}
   else if(a==='saveName')saveName(id);
