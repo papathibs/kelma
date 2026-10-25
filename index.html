@@ -357,7 +357,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=6, APP_VERSION=31;
+const INSTR=7, APP_VERSION=32;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['listening','recognition','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -852,7 +852,7 @@ function recipesPage(){
     <div class="dhead"><span class="ic" aria-hidden="true">📖</span><div><h1>Card recipes</h1><p>What to ask your helper for</p></div></div>
     <div class="rmin"><b>Every card</b><div class="rmin3"><span>🔤 Arabic</span><span>🇬🇧 English</span><span>🎤 Voice note</span></div></div>
     ${RECIPES.map(r=>`<section class="recipe"><h2>${TAGS[r.tag][0]} ${TAGS[r.tag][1]}</h2><p class="rask">Ask for: <b>${esc(r.ask)}</b></p>${card(r)}</section>`).join('')}
-    <p class="fine">Missing something? Make the card anyway. The recipe is a goal, not a rule.</p></div>`;
+    <p class="fine">Missing something? Make the card anyway. Claude will remind you what to ask for next time.</p></div>`;
 }
 let recipesFrom='home';
 
