@@ -80,6 +80,16 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .empty ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .setting{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 2px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .stepper{display:flex;align-items:center;gap:6px}
+.slist{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.srow{display:flex;align-items:center;gap:12px;padding:14px;border-top:1px solid var(--line);color:var(--ink);text-decoration:none}
+.srow:first-child{border-top:none}
+.sic{font-size:22px;flex:none;width:28px;text-align:center}
+.stxt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.stxt span{font-size:13px;color:var(--muted)}
+.sact{flex:none}
+.slink .go{color:var(--muted);font-size:20px}
+.more summary{cursor:pointer;color:var(--muted);font-weight:700;padding:6px 2px}
+.more .row{margin-top:8px}
 .stepper output{min-width:2.5ch;text-align:center;font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
 .fine{font-size:14px;color:var(--muted);margin:0;max-width:65ch}
 input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
@@ -299,7 +309,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=6, APP_VERSION=25;
+const INSTR=6, APP_VERSION=26;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['listening','recognition','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -733,17 +743,22 @@ function profilesSec(){
     `<div class="row">${multi?`<button class="btn" data-act="who">⇄ Switch</button><button class="btn" data-act="editProfile">✏️ Edit this profile</button>`:`<button class="btn" data-act="editProfile">✏️ Change name</button>`}<button class="btn" data-act="addProfile">＋ Add a profile</button></div></section>`;
 }
 function settingsPage(){
-  if(isKid())return kidSettingsPage();
+  const multi=PROFILES.length>1,p=curProfile();
   const lb=S.lastBackup?(daysSince(S.lastBackup)===0?'today':plural(daysSince(S.lastBackup),'day')+' ago'):'never';
+  const pend=S.pending&&S.pending.kind==='backup';
+  const row=(ic,title,sub,action)=>`<div class="srow"><span class="sic" aria-hidden="true">${ic}</span><div class="stxt"><b>${title}</b>${sub?`<span>${sub}</span>`:''}</div><div class="sact">${action}</div></div>`;
   return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
     <div class="dhead"><span class="ic" aria-hidden="true">⚙️</span><div><h1>Settings</h1></div></div>${statusBox()}
-    <section class="sec"><div class="setting"><span>✨ New words per day</span><div class="stepper">
-      <button class="btn small" data-act="newMinus" aria-label="Fewer">−</button><output>${S.settings.newPerDay}</output><button class="btn small" data-act="newPlus" aria-label="More">+</button></div></div>
-      <p class="fine">Each word comes back three ways: 👁️ see it, 👂 hear it, 🗣️ say it.</p></section>
-    <section class="sec"><h2>💾 Backup</h2><p class="fine">Last backup: <b>${lb}</b></p><div class="row">`+(S.pending&&S.pending.kind==='backup'?`<button class="btn primary" data-act="saveBackup">Save file</button>`:`<button class="btn" data-act="backup">Save backup</button>`)+`<label class="btn" for="file">Restore backup</label></div>
-      <p class="fine">Cards and progress live on this phone only. Save a backup once a week and keep it in Files or iCloud Drive.</p></section>
-    ${profilesSec()}
-    <section class="sec"><h2>🤖 Claude</h2><div class="row"><button class="btn" data-act="update">📋 Copy Claude instructions</button><a class="btn" href="guide.html" style="text-decoration:none">📖 Guide</a></div></section>
+    <div class="slist">
+    ${row('👤',esc(p.name),multi?`${PROFILES.length} people on this device`:'',`<button class="btn small" data-act="editProfile">Change</button>`)}
+    ${row('✨','New words per day','',`<div class="stepper"><button class="btn small" data-act="newMinus" aria-label="Fewer">−</button><output>${S.settings.newPerDay}</output><button class="btn small" data-act="newPlus" aria-label="More">+</button></div>`)}
+    ${row('💾','Backup',`Last: <b>${lb}</b> · once a week`,pend?`<button class="btn small primary" data-act="saveBackup">Save file</button>`:`<button class="btn small" data-act="backup">Back up</button>`)}
+    ${row('📋','Claude instructions','Copy, then paste into your Claude project',`<button class="btn small" data-act="update">Copy</button>`)}
+    <a class="srow slink" href="guide.html#help"><span class="sic" aria-hidden="true">❓</span><div class="stxt"><b>Help</b></div><span class="go" aria-hidden="true">›</span></a>
+    </div>
+    <details class="more"><summary>More</summary>
+      <div class="row"><label class="btn small" for="file">Restore a backup</label>${multi?`<button class="btn small" data-act="who">⇄ Switch person</button>`:''}<button class="btn small" data-act="addProfile">＋ Add a person to this device</button></div>
+    </details>
     <p class="fine">Kelma v${APP_VERSION} · Claude instructions v${INSTR}</p></div>`;
 }
 function backupSec(){
