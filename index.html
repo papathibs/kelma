@@ -296,7 +296,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=6, APP_VERSION=23;
+const INSTR=6, APP_VERSION=24;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['listening','recognition','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -350,6 +350,15 @@ async function load(){
   S.snaps=(await get('meta','snaps'))||{};
   const ia=await get('meta','instrAck');S.instrAck=(typeof ia==='number')?ia:0;
   if(S.newDone.day!==dayKey())S.newDone={day:dayKey(),count:0};
+  S.loadedDay=dayKey();
+}
+/* New day while the app sat open in the background: reload today's cards. Never interrupts a review in progress. */
+async function newDayCheck(){
+  if(!S.loadedDay||S.loadedDay===dayKey()||(sess&&sess.queue.length))return;
+  if(sess)exitQuiet();
+  try{await load()}catch(e){return}
+  if(view==='study')view='home';
+  render();try{snapToday()}catch(e){}
 }
 const saveMeta=()=>write(['meta'],t=>{const m=t.objectStore('meta');m.put(S.settings,'settings');m.put(S.newDone,'newDone')}).catch(()=>{});
 const logRev=(c,g,mode)=>{const t=Date.now();write(['revlog'],x=>x.objectStore('revlog').put({t,card:c.id,g,mode,ivl:c.interval,state:c.state},t+'|'+c.id)).catch(()=>{})};
@@ -1160,7 +1169,7 @@ async function removeProfile(){
   try{(await openNamed(dbName(p.id))).close()}catch(e){}dbs.delete(dbName(p.id));try{indexedDB.deleteDatabase(dbName(p.id))}catch(e){}
   editing=null;await useProfile(PROFILES.length>1?PROFILES[0].id:'main');go(PROFILES.length>1?'who':'home');
 }
-function exit(){if(sess)sess.urls.forEach(u=>URL.revokeObjectURL(u));sess=null;player.pause();snapToday();go('home')}
+function exit(){if(sess)sess.urls.forEach(u=>URL.revokeObjectURL(u));sess=null;player.pause();snapToday();go('home');newDayCheck()}
 
 /* ---------- events ---------- */
 app.addEventListener('click',e=>{
@@ -1275,6 +1284,8 @@ async function deleteDeck(id){
     else await load();
     try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}}catch(e){S.ok=false}
   render();loadInstr();try{snapToday()}catch(e){}
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')newDayCheck()});
+  window.addEventListener('pageshow',newDayCheck);window.addEventListener('focus',newDayCheck);setInterval(newDayCheck,60000);
   if('serviceWorker' in navigator&&location.protocol==='https:'){try{navigator.serviceWorker.register('sw.js')}catch(e){}}
 })();
 })();
