@@ -365,7 +365,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=8, APP_VERSION=34;
+const INSTR=8, APP_VERSION=35;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['listening','recognition','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -508,7 +508,7 @@ async function importFile(file){
   if(bk)return restore(zip,bk);
   const dj=find('deck.json');
   if(!dj){const chat=waChatFile(zip);if(chat)return waOpen(zip,chat);
-    status={err:true,msg:'This zip has no deck.json inside. Ask your project to rebuild it in the Kelma format.'};render();return}
+    status={err:true,msg:'This file isn’t a WhatsApp lesson chat or a Kelma deck. In WhatsApp, export the chat With all media.'};render();return}
   let deck;try{deck=JSON.parse(await dj.async('string'))}catch(e){status={err:true,msg:'deck.json is not valid JSON. Ask your project to rebuild the file.'};render();return}
   if(!deck.deck_id||!Array.isArray(deck.cards)||!deck.cards.length){status={err:true,msg:'deck.json needs a deck_id and a list of cards.'};render();return}
   const base=dj.name.includes('/')?dj.name.slice(0,dj.name.lastIndexOf('/')+1):'';
@@ -539,6 +539,7 @@ async function importFile(file){
   const drec={id:deck.deck_id,name:(prev&&prev.renamed)?prev.name:(deck.deck_name||deck.deck_id),importedAt:prev?prev.importedAt:Date.now()};
   if(prev&&prev.renamed)drec.renamed=true;
   if(noAudio)drec.noAudio=true;
+  if(deck.source==='whatsapp'||(prev&&prev.source==='whatsapp'))drec.source='whatsapp';
   const ver=Number(deck.instructions_version)||0;
   try{await write(['decks','notes','cards','audio','meta'],t=>{t.objectStore('decks').put(drec);if(!noAudio&&!starter)t.objectStore('meta').put(ver,'instrVer');notes.forEach(n=>t.objectStore('notes').put(n));newCards.forEach(c=>t.objectStore('cards').put(c));audio.forEach(([k,b])=>t.objectStore('audio').put(b,k))})}
   catch(e){status={err:true,msg:'Could not save the deck on this device. Your phone may be out of storage.'};render();return}
@@ -856,17 +857,22 @@ const sortedDecks=()=>[...S.decks].sort((a,b)=>b.importedAt-a.importedAt);
 
 /* ---------- setup path (first-time setup, shown until done) ---------- */
 const STARTER='kelma-starter';
+/* Everyone starts on the WhatsApp path. Claude is optional (photos, Bible passages, word types), set up from Settings. */
 const SETUP=[
-  {k:'account',em:'🔑',t:'Claude account'},
   {k:'home',em:'📱',t:'Home screen'},
   {k:'name',em:'✋',t:'Your name'},
-  {k:'project',em:'🤖',t:'Claude project'},
-  {k:'instr',em:'📋',t:'Instructions'},
   {k:'starter',em:'🧪',t:'Starter words'},
   {k:'lesson',em:'➡️',t:'Your first lesson'}];
+const CLAUDE_SETUP=[
+  {k:'account',em:'🔑',t:'Claude account'},
+  {k:'project',em:'🤖',t:'Claude project'},
+  {k:'instr',em:'📋',t:'Instructions'}];
+const stepGroup=k=>CLAUDE_SETUP.some(x=>x.k===k)?CLAUDE_SETUP:SETUP;
+/* Uses Claude: opened the Claude steps, pasted instructions, or has a deck that didn't come straight from WhatsApp. */
+const usesClaude=()=>!!(S.setup&&S.setup.claude)||S.instrAck!==0||ownDecks().some(d=>d.source!=='whatsapp');
 const ownDecks=()=>S.decks.filter(d=>d.id!==STARTER);
 function stepDone(k){const st=S.setup||{};
-  if(k==='account')return !!st.account||STANDALONE;
+  if(k==='account')return !!st.account;
   if(k==='home')return STANDALONE;
   if(k==='name')return !(!curProfile().name||curProfile().name==='Me');
   if(k==='project')return !!st.project;
@@ -899,13 +905,13 @@ function setupPage(){
 }
 const shot=(f,alt)=>`<img class="shot" src="setup/${f}" alt="${esc(alt)}" loading="lazy">`;
 function stepPage(){
-  const i=SETUP.findIndex(x=>x.k===setupKey),x=SETUP[i];if(!x)return setupPage();
+  const G=stepGroup(setupKey),i=G.findIndex(x=>x.k===setupKey),x=G[i];if(!x)return setupPage();
   const dn=stepDone(x.k);
-  const head=`<div class="page step"><div class="top" style="display:flex;justify-content:space-between;align-items:center"><button class="ghost" data-act="home">‹ Home</button><span class="fine">Step ${i+1} of ${SETUP.length}</span></div>
+  const head=`<div class="page step"><div class="top" style="display:flex;justify-content:space-between;align-items:center"><button class="ghost" data-act="home">‹ Home</button><span class="fine">${G===CLAUDE_SETUP?'Claude · ':''}Step ${i+1} of ${G.length}</span></div>
     <div class="dhead"><span class="ic" aria-hidden="true">${x.em}</span><div><h1>${esc(x.t)}</h1>${dn?'<p class="okline">✓ Done</p>':''}</div></div>${statusBox()}`;
   const doneBtn=k=>dn?`<button class="btn primary focus" data-act="setupNext">Next step ›</button>`:`<button class="btn primary focus" data-act="setupTick" data-k="${k}">✓ Done</button>`;
   let b='';
-  if(x.k==='account')b=`<p>Kelma uses a Claude project to turn your lessons into flashcards. Get the Claude app and make an account. The free plan is enough to start.</p>
+  if(x.k==='account')b=`<p>Only needed for photos of lists, Bible passages, or word types. Get the Claude app and make an account. The free plan is enough to start.</p>
     <a class="btn" href="https://claude.ai/download" target="_blank" rel="noopener">Get the Claude app</a>${doneBtn('account')}`;
   else if(x.k==='home')b=STANDALONE?`<p>Kelma is on your home screen. Always open it from there.</p><button class="btn primary focus" data-act="setupNext">Next step ›</button>`:
     `<p>Put Kelma on your home screen so it works like an app.</p>
@@ -926,10 +932,11 @@ function stepPage(){
     <button class="btn primary" data-act="copyInstr">📋 Copy instructions</button><span class="ok" id="copy-ok" role="status"></span>
     <div class="shots"><figure>${shot('5-instructions.jpg','In Darija Cards, tap Instructions')}<figcaption>1. In <b>Darija Cards</b>, tap <b>Instructions</b></figcaption></figure>
     <figure>${shot('6-paste.jpg','Paste, then tap the check')}<figcaption>2. Press and hold, <b>Paste</b>, tap ✓</figcaption></figure></div>
-    <details><summary class="fine">Copy not working?</summary><textarea readonly id="instr-box">${esc(S.instrText||'Loading… check your connection.')}</textarea></details>${doneBtn('instr')}`;
+    <details><summary class="fine">Copy not working?</summary><textarea readonly id="instr-box">${esc(S.instrText||'Loading… check your connection.')}</textarea></details>${doneBtn('instr')}
+    <button class="btn" data-act="lessonClaude">📝 How to add a lesson with Claude</button>`;
   else if(x.k==='starter')b=dn?`<p>Your 4 starter words are in. Each one shows a good card: a verb, a noun, an adjective and a phrase.</p><button class="btn primary" data-act="study">▶️ Review them</button><button class="btn focus" data-act="setupNext">Next step ›</button>`:
     `<p>Try Kelma with 4 starter words before your first lesson. They also show what a good card looks like: a verb, a noun, an adjective and a phrase.</p><button class="btn primary focus" data-act="addStarter">＋ Add 4 starter words</button>`;
-  else if(x.k==='lesson')b=`<p>${dn?'Your first deck is in. You’re set up.':'After your next lesson, Claude turns your WhatsApp messages and voice notes into a deck file. You import it here.'}</p>
+  else if(x.k==='lesson')b=`<p>${dn?'Your first deck is in. You’re set up.':'After your next lesson, export the WhatsApp chat and import it here. No other app needed.'}</p>
     <button class="btn ${dn?'':'primary'}" data-act="lesson">📝 How to add a lesson</button>${dn?'<button class="btn primary focus" data-act="home">Done ›</button>':''}`;
   return head+`<div class="stepbody">${b}</div></div>`;
 }
@@ -939,8 +946,18 @@ async function addStarter(){
     status={msg:'✓ 4 starter words added.'};view='step';setupKey='starter';render()}
   catch(e){status={err:true,msg:'Couldn’t load the starter words. Check your connection and try again.'};render()}
 }
-function openStep(k){setupKey=k;status=null;view='step';render();window.scrollTo(0,0);if(k==='instr')loadInstr()}
-function goNextStep(){const nx=nextStep();if(nx&&nx.k!==setupKey)openStep(nx.k);else go('home')}
+function openStep(k){setupKey=k;status=null;view='step';if(stepGroup(k)===CLAUDE_SETUP&&!(S.setup&&S.setup.claude))saveSetup({claude:true});render();window.scrollTo(0,0);if(k==='instr')loadInstr()}
+function goNextStep(){
+  if(stepGroup(setupKey)===CLAUDE_SETUP){const nx=CLAUDE_SETUP.find(x=>!stepDone(x.k));if(nx&&nx.k!==setupKey)openStep(nx.k);else go('claude');return}
+  const nx=nextStep();if(nx&&nx.k!==setupKey)openStep(nx.k);else go('home')}
+function claudePage(){
+  return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="settings">‹ Settings</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">🤖</span><div><h1>Use Claude too</h1><p>Optional</p></div></div>
+    <p>Most lessons go straight from WhatsApp to Kelma. Use Claude when you want:</p>
+    <ul class="mini"><li>📷 a photo of a written list</li><li>📖 words picked from a Bible passage</li><li>⚡ word types and tips on what to ask your helper</li></ul>
+    <div class="svlist">${CLAUDE_SETUP.map((x,i)=>{const dn=stepDone(x.k);return `<button class="svrow" data-act="setupStep" data-k="${x.k}"><span class="sdot${dn?' dn':''}">${dn?'✓':x.em}</span><span>${i+1}. ${esc(x.t)}</span><span class="go" aria-hidden="true">›</span></button>`}).join('')}</div>
+    <button class="btn" data-act="lessonClaude">📝 How to add a lesson with Claude</button></div>`;
+}
 
 /* ---------- Add a lesson walkthrough + recipes ---------- */
 let lessonI=0;
@@ -952,6 +969,7 @@ const LESSON=[
     <button class="btn" data-act="recipes">📖 See the recipes</button>`},
   {em:'🗣️',t:'During the lesson',b:()=>`<p>Use a <b>WhatsApp group with just you and your helper</b>, e.g. “Darija lessons”. Your helper sends each word like this: <b>Arabic</b>, then <b>English</b>, then a <b>voice note</b>. Then the next word.</p>
     <div class="wachat">${wa('حاول، كيحاول','10:02')}${wa('to try','10:02')}${wv('0:03')}<div class="wagap"></div>${wa('خدمة، خدمات','10:04')}${wa('job, jobs','10:04')}${wv('0:02')}</div>
+    <p class="fine">The Darija must be in Arabic letters. Each word, English and voice note is its own message.</p>
     <button class="btn" data-act="help" data-q="group">👥 How to make the lesson group</button>`},
   {em:'📤',t:'Send it to Claude',b:()=>`<div class="shots"><figure>${shot('x1-group.jpg','Tap the group name')}<figcaption>1. In the lesson group, tap the <b>group name</b></figcaption></figure>
     <figure>${shot('x2-export.jpg','Tap Export chat')}<figcaption>2. Tap <b>Export chat</b></figcaption></figure>
@@ -966,14 +984,25 @@ const LESSON=[
     <div class="shots"><figure>${shot('x4-clear.jpg','Tap Clear chat')}<figcaption>1. Tap the <b>group name</b>, then <b>Clear chat</b></figcaption></figure>
     <figure>${shot('x5-clearall.jpg','Tap Clear all messages')}<figcaption>2. Tap <b>Clear all messages</b></figcaption></figure></div>
     <p class="fine">Your cards and voice notes are safe in Kelma. This clears your phone only.</p>`}];
+/* WhatsApp-direct walkthrough: same first two and last steps, export saved to Files and imported straight into Kelma. */
+const LESSON_WA=[LESSON[0],LESSON[1],
+  {em:'📤',t:'Export the chat',b:()=>`<div class="shots"><figure>${shot('x1-group.jpg','Tap the group name')}<figcaption>1. In the lesson group, tap the <b>group name</b></figcaption></figure>
+    <figure>${shot('x2-export.jpg','Tap Export chat')}<figcaption>2. Tap <b>Export chat</b></figcaption></figure>
+    <figure>${shot('x3-allmedia.jpg','Tap With all media')}<figcaption>3. Tap <b>With all media</b></figcaption></figure></div>
+    <p>4. Tap <b>Save to Files</b>.</p>`},
+  {em:'📥',t:'Import into Kelma',b:()=>`<ol class="steps"><li>In Kelma, tap <b>📥 Import</b> at the bottom of Home.</li><li>Pick the chat file you saved.</li><li>Check the list. Words you already have are skipped. Tap <b>Import</b>.</li></ol><p>✨ Your new words show up in your next review.</p>
+    <label class="btn primary" for="file">📥 Import</label>`},
+  LESSON[5]];
+let lessonMode='wa';
 function lessonPage(){
-  const i=Math.max(0,Math.min(lessonI,LESSON.length-1)),x=LESSON[i];
-  const dots=LESSON.map((y,j)=>`<button class="ldot${j===i?' on':''}${j<i?' dn':''}" data-act="lessonGo" data-i="${j}" aria-label="Step ${j+1}: ${esc(y.t)}">${y.em}</button>`).join('');
-  return `<div class="page step"><div class="top" style="display:flex;justify-content:space-between;align-items:center"><button class="ghost" data-act="home">‹ Home</button><span class="fine">${i+1} of ${LESSON.length}</span></div>
-    <div class="dhead"><span class="ic" aria-hidden="true">📝</span><div><h1>Add a lesson</h1><p>About 10 minutes after each lesson</p></div></div>
+  const L=lessonMode==='claude'?LESSON:LESSON_WA;
+  const i=Math.max(0,Math.min(lessonI,L.length-1)),x=L[i];
+  const dots=L.map((y,j)=>`<button class="ldot${j===i?' on':''}${j<i?' dn':''}" data-act="lessonGo" data-i="${j}" aria-label="Step ${j+1}: ${esc(y.t)}">${y.em}</button>`).join('');
+  return `<div class="page step"><div class="top" style="display:flex;justify-content:space-between;align-items:center"><button class="ghost" data-act="home">‹ Home</button><span class="fine">${i+1} of ${L.length}</span></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">📝</span><div><h1>Add a lesson${lessonMode==='claude'?' with Claude':''}</h1><p>${lessonMode==='claude'?'About 10 minutes after each lesson':'About 2 minutes after each lesson'}</p></div></div>
     <div class="ldots">${dots}</div>
     <h2 class="lt">${x.em} ${esc(x.t)}</h2><div class="stepbody">${x.b()}</div>
-    <div class="lnav">${i?`<button class="btn" data-act="lessonGo" data-i="${i-1}">‹ Back</button>`:'<span></span>'}${i<LESSON.length-1?`<button class="btn primary" data-act="lessonGo" data-i="${i+1}">Next ›</button>`:`<button class="btn primary" data-act="home">Done ›</button>`}</div></div>`;
+    <div class="lnav">${i?`<button class="btn" data-act="lessonGo" data-i="${i-1}">‹ Back</button>`:'<span></span>'}${i<L.length-1?`<button class="btn primary" data-act="lessonGo" data-i="${i+1}">Next ›</button>`:`<button class="btn primary" data-act="home">Done ›</button>`}</div></div>`;
 }
 const RECIPES=[
   {tag:'verb',ask:'He did + he does, and a sentence',word:'حاول، كيحاول',mean:'to try',ex:'**حاول** تجي بكري باش تكمل لخدمة فنهار واحد',exen:'**Try** to come early to finish the work in one day.'},
@@ -1000,22 +1029,26 @@ const HELP=[
   ['practice','What is Focus practice?','Extra drilling on the decks you pick. It doesn’t change when cards come back, and it doesn’t count toward your 15 minutes.'],
   ['paused','New words stopped coming','More than 100 reviews are waiting, so new words pause until you catch up. Keep doing your 15 minutes a day.'],
   ['sound','No sound','Tap ▶ on the card. Phones sometimes block the first sound until you tap.']]],
- ['Lessons and Claude',[
-  ['lesson','How do I add a lesson?','Six steps, from WhatsApp to Kelma.','<button class="btn" data-act="lesson">📝 Add a lesson</button>'],
+ ['Lessons',[
+  ['lesson','How do I add a lesson?','Export your WhatsApp lesson chat and import it in Kelma.','<button class="btn" data-act="lesson">📝 Add a lesson</button>'],
   ['recipes','What should I ask my helper for?','Arabic, English and a voice note for every card, and a bit more for verbs, nouns and adjectives.','<button class="btn" data-act="recipes">📖 Card recipes</button>'],
   ['group','How do I make the lesson group?','In WhatsApp, tap <b>New group</b>, add your helper, and call it “Darija lessons”. Use it only for lessons, so clearing it never touches your other chats.'],
-  ['clear','I forgot to clear the chat','No problem. Claude uses only the latest day, so old lessons aren’t repeated. Clear it now: tap the group name → <b>Clear chat</b> → <b>Clear all messages</b>.'],
-  ['missed','I missed a few lessons','Export the chat as usual and tell Claude “since Oct 18” (your first missed day). It makes one deck from all of them, or one per day if you ask.'],
+  ['clear','I forgot to clear the chat','No problem. Kelma skips words you already have. Clear it now: tap the group name → <b>Clear chat</b> → <b>Clear all messages</b>.'],
+  ['missed','I missed a few lessons','Export the chat as usual. Kelma imports every lesson in it and skips words you already have.'],
+  ['skipped','Some words were skipped','Each word needs three messages from your helper: the Darija in Arabic letters, the English, then a voice note. Kelma lists what it skipped and why. Ask your helper to send those again that way.'],
   ['import','How do I import a deck?','<b>From WhatsApp:</b> in your lesson chat, tap the name → <b>Export Chat</b> → <b>Attach Media</b> → <b>Save to Files</b>. Then tap <b>📥 Import</b> and pick it. Check the list, tap Import, then clear the chat.<br><br><b>Your helper sends, for each word:</b> 1. the Darija (Arabic letters) 2. the English 3. a voice note.<br><br><b>From Claude:</b> save the .zip it gives you (Share → Save to Files), then tap <b>📥 Import</b> and pick it.'],
+  ['import2','Kelma says the file isn’t a chat or a deck','That file isn’t a WhatsApp chat export or a Kelma deck. In WhatsApp, export the lesson chat <b>With all media</b>.']]],
+ ['Claude (optional)',[
+  ['claudewhy','Do I need Claude?','No. Use it only for photos of lists, Bible passages, or word types.','<button class="btn" data-act="claude">🤖 Use Claude too</button>'],
   ['instr','Kelma says there are new instructions','Tap the banner, then <b>Copy</b>. In Claude, open <b>Darija Cards → Instructions</b>, delete the old text, paste, tap ✓. Back in Kelma, tap <b>I’ve done it</b>.'],
   ['voice','Claude asks which voice note to keep','You probably recorded a word twice. Tell Claude which one, e.g. “the second one.”'],
   ['audio','Audio is on the wrong word','Tell Claude, e.g. “voice note 3 goes with word 4,” and ask for the file again. Or fix it in Kelma: tap the word and replace the audio.'],
-  ['nodeck','Kelma says no deck.json','The file wasn’t made by your Darija Cards project. Make it in a chat inside that project.']]],
+  ['nodeck','Claude’s file won’t import','The file wasn’t made by your Darija Cards project. Make it in a chat inside that project.'],
+  ['types','Add types to an old deck','Send the old deck file (.zip) to a new chat in Darija Cards. Check the types, then import the new file. Your progress is kept.']]],
  ['Decks',[
   ['combine','Too many decks','Open a deck → <b>🔗 Combine with other decks</b>. Name it, tick the others, tap Combine. Your progress is kept.'],
   ['share','Share a deck with someone','Open a deck → <b>📤 Share deck</b> → <b>Send file</b> → WhatsApp. They tap 📥 Import in Kelma. Your progress isn’t shared.'],
-  ['twice','I imported the same file twice','No problem. Nothing is doubled and your progress is kept.'],
-  ['types','Add types to an old deck','Send the old deck file (.zip) to a new chat in Darija Cards. Check the types, then import the new file. Your progress is kept.']]],
+  ['twice','I imported the same file twice','No problem. Nothing is doubled and your progress is kept.']]],
  ['Your phone',[
   ['backup','Back up your cards','Your cards live only on this phone. Once a week: ⚙️ Settings → <b>Back up</b> → <b>Save file</b> → Save to Files or iCloud Drive.'],
   ['gone','My cards are gone','Open Kelma from the home screen icon, not Safari. They keep separate cards. Still gone? ⚙️ Settings → More → <b>Restore a backup</b>.'],
@@ -1030,7 +1063,7 @@ const info=(id,label)=>`<button class="infob" data-act="help" data-q="${id}" ari
 
 /* ---------- views ---------- */
 function alertBanner(){
-  if(!isKid()&&(S.instrVer===null||S.instrVer<INSTR)&&S.instrAck<INSTR)return `<button class="outdated" data-act="update"><span>${S.instrAck===-1?'⚠️ This deck used old instructions. Please update again.':'⚠️ New Claude instructions. Tap to update (1 min).'}</span>›</button>`;
+  if(!isKid()&&usesClaude()&&(S.instrVer===null||S.instrVer<INSTR)&&S.instrAck<INSTR)return `<button class="outdated" data-act="update"><span>${S.instrAck===-1?'⚠️ This deck used old instructions. Please update again.':'⚠️ New Claude instructions. Tap to update (1 min).'}</span>›</button>`;
   const oldest=Math.min(...S.decks.map(d=>d.importedAt||Date.now()));
   const since=S.lastBackup?daysSince(S.lastBackup):daysSince(oldest);
   if(since>=7)return `<button class="outdated" data-act="settings"><span>💾 ${S.lastBackup?`Last backup ${plural(since,'day')} ago.`:'No backup yet.'} Back up now.</span>›</button>`;
@@ -1108,16 +1141,17 @@ function settingsPage(){
     ${row('👤',esc(p.name),multi?`${PROFILES.length} people on this device`:'',`<button class="btn small" data-act="editProfile">Change</button>`)}
     ${row('✨','New words per day','',`<div class="stepper"><button class="btn small" data-act="newMinus" aria-label="Fewer">−</button><output>${S.settings.newPerDay}</output><button class="btn small" data-act="newPlus" aria-label="More">+</button></div>`)}
     ${row('💾','Backup '+info('backup','Backup'),`Last: <b>${lb}</b> · once a week`,pend?`<button class="btn small primary" data-act="saveBackup">Save file</button>`:`<button class="btn small" data-act="backup">Back up</button>`)}
-    ${row('📋','Claude instructions '+info('instr','Claude instructions'),'Copy, then paste into your Claude project',`<button class="btn small" data-act="update">Copy</button>`)}
+    ${usesClaude()?row('📋','Claude instructions '+info('instr','Claude instructions'),'Copy, then paste into your Claude project',`<button class="btn small" data-act="update">Copy</button>`):''}
     ${setupComplete()&&CUR==='main'?`<button class="srow slink" data-act="setupAll"><span class="sic" aria-hidden="true">🧭</span><div class="stxt"><b>Setup steps</b></div><span class="go" aria-hidden="true">›</span></button>`:''}
     <button class="srow slink" data-act="lesson"><span class="sic" aria-hidden="true">📝</span><div class="stxt"><b>Add a lesson</b><span>Step by step</span></div><span class="go" aria-hidden="true">›</span></button>
     <button class="srow slink" data-act="recipes"><span class="sic" aria-hidden="true">📖</span><div class="stxt"><b>Card recipes</b><span>What to ask your helper for</span></div><span class="go" aria-hidden="true">›</span></button>
     <button class="srow slink" data-act="help"><span class="sic" aria-hidden="true">❓</span><div class="stxt"><b>Help</b></div><span class="go" aria-hidden="true">›</span></button>
+    <button class="srow slink" data-act="claude"><span class="sic" aria-hidden="true">🤖</span><div class="stxt"><b>Use Claude too</b><span>Optional: photos, Bible passages, word types</span></div><span class="go" aria-hidden="true">›</span></button>
     </div>
     <details class="more"><summary>More</summary>
       <div class="row"><label class="btn small" for="file">Restore a backup</label>${multi?`<button class="btn small" data-act="who">⇄ Switch person</button>`:''}<button class="btn small" data-act="addProfile">＋ Add a person to this device</button></div>
     </details>
-    <p class="fine">Kelma v${APP_VERSION} · Claude instructions v${INSTR}</p></div>`;
+    <p class="fine">Kelma v${APP_VERSION}${usesClaude()?` · Claude instructions v${INSTR}`:''}</p></div>`;
 }
 function backupSec(){
   const lb=S.lastBackup?(daysSince(S.lastBackup)===0?'today':plural(daysSince(S.lastBackup),'day')+' ago'):'never';
@@ -1473,6 +1507,7 @@ function render(){
   if(view==='setup'){app.innerHTML=setupPage();return}
   if(view==='step'){app.innerHTML=stepPage();return}
   if(view==='lesson'){app.innerHTML=lessonPage();return}
+  if(view==='claude'){app.innerHTML=claudePage();return}
   if(view==='recipes'){app.innerHTML=recipesPage();return}
   if(view==='help'){app.innerHTML=helpPage();if(helpOpen){const el=document.getElementById('h-'+helpOpen);if(el)setTimeout(()=>el.scrollIntoView({block:'center'}),0)}return}
   if(view==='study'){if(!sess.queue.length&&sess.mode==='review')logCleared();app.innerHTML=sess.queue.length?study():done()}
@@ -1610,7 +1645,9 @@ app.addEventListener('click',e=>{
   else if(a==='setupNext')goNextStep();
   else if(a==='addStarter')addStarter();
   else if(a==='setupAll'){status=null;go('setup')}
-  else if(a==='lesson'){lessonI=0;go('lesson')}
+  else if(a==='lesson'){lessonI=0;lessonMode='wa';go('lesson')}
+  else if(a==='lessonClaude'){lessonI=0;lessonMode='claude';go('lesson')}
+  else if(a==='claude')go('claude');
   else if(a==='lessonGo'){lessonI=+el.dataset.i;view='lesson';render();window.scrollTo(0,0)}
   else if(a==='recipes'){recipesFrom=view==='lesson'?'lesson':'home';go('recipes')}
   else if(a==='help'){helpOpen=el.dataset.q||null;status=null;view='help';render();if(!helpOpen)window.scrollTo(0,0)}
