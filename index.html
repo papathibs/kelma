@@ -327,7 +327,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=6, APP_VERSION=27;
+const INSTR=6, APP_VERSION=28;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['listening','recognition','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -749,8 +749,12 @@ function stepPage(){
     <a class="btn" href="https://claude.ai/download" target="_blank" rel="noopener">Get the Claude app</a>${doneBtn('account')}`;
   else if(x.k==='home')b=STANDALONE?`<p>Kelma is on your home screen. Always open it from there.</p><button class="btn primary focus" data-act="setupNext">Next step ›</button>`:
     `<p>Put Kelma on your home screen so it works like an app.</p>
-    <ol class="steps"><li><b>iPhone:</b> in Safari, tap <b>Share</b> <span aria-hidden="true">⬆️</span>, then <b>Add to Home Screen</b>.</li><li><b>Android:</b> in Chrome, tap <b>⋮</b>, then <b>Add to Home screen</b>.</li><li>Close this page and open <b>Kelma</b> from the new icon.</li></ol>
-    <p class="fine">The icon and this browser page keep separate cards, so always use the icon.</p>`;
+    <div class="shots"><figure>${shot('h1-menu.jpg','Tap the button left of the address')}<figcaption>1. Tap the button to the <b>left of the address</b></figcaption></figure>
+    <figure>${shot('h2-share.jpg','Tap Share')}<figcaption>2. Tap <b>Share</b></figcaption></figure>
+    <figure>${shot('h3-more.jpg','Tap View More')}<figcaption>3. Tap <b>View More</b></figcaption></figure>
+    <figure>${shot('h4-add.jpg','Tap Add to Home Screen')}<figcaption>4. Tap <b>Add to Home Screen</b></figcaption></figure></div>
+    <p>5. Tap <b>Add</b>. Close Safari and open <b>Kelma</b> from the new icon.</p>
+    <p class="fine">On older iPhones, Share is the ⬆️ button at the bottom of Safari.<br><b>Android:</b> in Chrome, tap ⋮, then <b>Add to Home screen</b>.<br>The icon and this browser page keep separate cards, so always use the icon.</p>`;
   else if(x.k==='name')b=dn?`<p>You’re <b>${esc(curProfile().name)}</b>. Change it any time in Settings.</p><button class="btn primary focus" data-act="setupNext">Next step ›</button>`:
     `<p>Your name shows on the weekly picture you can share.</p><input class="search" id="my-name" maxlength="24" autocomplete="given-name" placeholder="Your first name"><button class="btn primary focus" data-act="saveMyName">Save</button>`;
   else if(x.k==='project')b=`<p>A project keeps Kelma’s instructions in one place in Claude. Make one called <b>Darija Cards</b> and pin it so it’s easy to find.</p>
