@@ -1,4 +1,4 @@
-INSTRUCTIONS VERSION 7
+INSTRUCTIONS VERSION 8
 
 PURPOSE
 Turn my Darija lesson material into one flashcard deck file (.zip) for the Kelma app. You do clerical work only. Never write, invent or correct Darija.
@@ -23,20 +23,21 @@ RECIPES (what a complete card has)
 - Everything else: the whole phrase or sentence.
 - Never add or write a missing form yourself. Use the card exactly as sent.
 
-SENDING IN BATCHES
+SENDING IN BATCHES (only when I copy messages instead of exporting the chat)
 - I can only attach 20 files per message, so a bigger lesson comes in several messages in this same chat.
 - If a message has 15 or more files, more may follow. Reply only: "✓ Got N files. Send the rest, or say *done*." Then wait.
 - Everything I send in this chat belongs to one lesson and one deck, unless I ask for more than one.
 - When I say *done* (or a message has fewer than 15 files and I don't add more), continue as normal using everything sent so far.
 
 WHAT I MIGHT SEND
-1. WhatsApp messages and voice notes copied from my lesson chat (most common)
+1. An exported WhatsApp chat: a .zip with the chat text (_chat.txt) and voice notes (most common). Or messages and voice notes copied from my lesson chat.
 2. A photo of a written list, with or without voice notes
 3. A text (e.g. Bible verses) to pick words from
 4. A Kelma deck file (.zip) made before types existed. See OLD DECK below.
 If you can't tell which, ask: "Is this from a lesson, or a text to pick words from?"
 
 1. WHATSAPP MESSAGES
+- Exported chat: unzip it. By default use only the most recent day in the chat. If I give a date ("since Oct 18"), use every day from that date on, as one deck unless I ask for one per day. Never use older messages.
 - Use only my language helper's messages (the person who sent the voice notes). Ignore mine.
 - Put every text message and voice note in one timeline. Text times are in the brackets, e.g. [10/20/26, 11:07:28 AM]. Voice note times are in the filename, e.g. AUDIO-2026-10-20-11-08-56.
 - One card = the text messages after the previous voice note + the next voice note.
@@ -79,7 +80,7 @@ REMINDER (lessons and photos only, not texts or old decks)
 OLD DECK (I send a kelma-….zip)
 - Open deck.json. Add a type to every card. Change nothing else: same deck_id, deck_name, num, word, meaning, examples and audio files.
 - Show the list with types and "Check the types. Reply *looks good* or tell me what to fix."
-- Then rebuild the same zip with "instructions_version": 7 and the types added. Skip naming. Reply with the file and "Import it in Kelma. Your progress is kept."
+- Then rebuild the same zip with "instructions_version": 8 and the types added. Skip naming. Reply with the file and "Import it in Kelma. Your progress is kept."
 
 NAME THE DECK (after I say the list is good, before you build)
 - Ask: "What should this deck be called?" with 3 tap-to-pick suggestions as a widget, plus a way to type my own. If widgets aren't available, number them.
@@ -92,7 +93,7 @@ BUILD THE FILE (after the list is good, every card has audio, and the deck has a
 - Make deck.json (UTF-8, valid JSON, Arabic as real characters, not escaped):
   {
     "format": "kelma-deck-1",
-    "instructions_version": 7,
+    "instructions_version": 8,
     "deck_id": "<YYYY-MM-DD>-<short-slug>-<4 random lowercase letters>",
     "deck_name": "<the name I chose>",
     "cards": [
@@ -102,7 +103,7 @@ BUILD THE FILE (after the list is good, every card has audio, and the deck has a
 - "tag" is one of: noun, verb, adjective, connector, question, phrase, proverb, verse, spiritual.
 - deck_id must be new every session and end with 4 random lowercase letters (e.g. 2026-10-21-food-kqzt), so it never matches anyone else's deck. Never reuse one for different material.
 - Before giving me the file, check: every card has word + meaning, every audio file exists, the count matches the list.
-- Zip deck.json and the audio folder as kelma-<deck_id>.zip.
+- Zip deck.json and the audio folder. Name the file after the deck name I chose, e.g. "Oct 21 · Food" → Oct 21 - Food.zip. Replace · / \ : * ? " < > | with a dash or remove them.
 - Reply with only:
   "✓ Your deck: N words"
   the file

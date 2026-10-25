@@ -357,7 +357,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=7, APP_VERSION=32;
+const INSTR=8, APP_VERSION=33;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['listening','recognition','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -535,7 +535,7 @@ async function importFile(file){
   catch(e){status={err:true,msg:'Could not save the deck on this device. Your phone may be out of storage.'};render();return}
   if(!noAudio&&!starter&&ver<INSTR&&S.instrAck>=INSTR){try{await write(['meta'],t=>t.objectStore('meta').put(-1,'instrAck'))}catch(e){}}
   await load();
-  let msg=`Imported “${drec.name}”: ${added} new word${added===1?'':'s'}`+` (${added*(noAudio?2:3)} cards)`+(updated?`, ${updated} already here and updated, progress kept`:'')+'.';
+  let msg=`Imported “${drec.name}”: ${added} new word${added===1?'':'s'}`+` (${added*(noAudio?2:3)} cards)`+(updated?`, ${updated} already here and updated, progress kept`:'')+'.'+(added&&!noAudio&&!starter?' 🧹 Now clear your lesson chat in WhatsApp.':'');
   if(clash)msg+=' You already had a different deck with the same ID, so this was added as a new deck.';
   if(missing.length&&!noAudio)msg+=` No audio found for #${missing.join(', #')}.`;
   status={msg};render();
@@ -821,17 +821,22 @@ const LESSON=[
   {em:'📖',t:'Before the lesson',b:()=>`<p>Know what to ask your helper for. Every card needs <b>Arabic</b>, <b>English</b> and a <b>voice note</b>. Some kinds of words need a bit more:</p>
     <ul class="mini"><li>⚡ <b>Verb:</b> he did + he does</li><li>🏷️ <b>Noun:</b> one + many</li><li>🎨 <b>Adjective:</b> masculine + feminine + plural</li><li>✍️ A sentence for each, when you can</li></ul>
     <button class="btn" data-act="recipes">📖 See the recipes</button>`},
-  {em:'🗣️',t:'During the lesson',b:()=>`<p>Ask your helper to send each word in WhatsApp like this: <b>Arabic</b>, then <b>English</b>, then a <b>voice note</b>. Then the next word.</p>
+  {em:'🗣️',t:'During the lesson',b:()=>`<p>Use a <b>WhatsApp group with just you and your helper</b>, e.g. “Darija lessons”. Your helper sends each word like this: <b>Arabic</b>, then <b>English</b>, then a <b>voice note</b>. Then the next word.</p>
     <div class="wachat">${wa('حاول، كيحاول','10:02')}${wa('to try','10:02')}${wv('0:03')}<div class="wagap"></div>${wa('خدمة، خدمات','10:04')}${wa('job, jobs','10:04')}${wv('0:02')}</div>
-    <p class="fine">Use one WhatsApp chat just for lessons. It keeps things easy to find.</p>`},
-  {em:'📤',t:'Send it to Claude',b:()=>`<div class="shots"><figure>${shot('w1-forward.jpg','Hold the first word, tap Forward')}<figcaption>1. Hold the first word, tap <b>Forward</b></figcaption></figure>
-    <figure>${shot('w2-share.jpg','Tick the words and voice notes, tap Share')}<figcaption>2. Tick today’s words and voice notes, tap <b>Share</b></figcaption></figure>
-    <figure>${shot('w3-copy.jpg','Tap Copy')}<figcaption>3. Tap <b>Copy</b></figcaption></figure></div>
-    <p>4. In Claude, open <b>Darija Cards</b>, start a new chat, and paste.</p>
-    <p class="fine">📎 More than 15 files? Send them in batches in the <b>same chat</b>. Claude says “Got N files”. When you’ve sent everything, say <b>done</b>.</p>`},
+    <button class="btn" data-act="help" data-q="group">👥 How to make the lesson group</button>`},
+  {em:'📤',t:'Send it to Claude',b:()=>`<div class="shots"><figure>${shot('x1-group.jpg','Tap the group name')}<figcaption>1. In the lesson group, tap the <b>group name</b></figcaption></figure>
+    <figure>${shot('x2-export.jpg','Tap Export chat')}<figcaption>2. Tap <b>Export chat</b></figcaption></figure>
+    <figure>${shot('x3-allmedia.jpg','Tap With all media')}<figcaption>3. Tap <b>With all media</b></figcaption></figure></div>
+    <p>4. Pick <b>Claude</b>. Not there? Tap <b>Save to Files</b>, then attach the file in Claude.</p>
+    <p>5. In <b>Darija Cards</b>, start a new chat and send it.</p>
+    <p class="fine">Claude uses only the latest day. Missed a few lessons? Add “since Oct 18”.</p>`},
   {em:'✅',t:'Check and save',b:()=>`<ol class="steps"><li>Claude lists your words with a type (⚡ verb, 🏷️ noun…). Fix anything wrong, or say <b>looks good</b>.</li><li>Tap one of the deck names Claude suggests.</li><li>Claude gives you a <b>.zip</b> file. Tap it, then <b>Share</b> → <b>Save to Files</b>.</li></ol>`},
-  {em:'📥',t:'Import into Kelma',b:()=>`<ol class="steps"><li>In Kelma, tap <b>📥 Import</b> at the bottom of Home.</li><li>Pick the file you saved.</li></ol><p>✨ Your new words show up in your next review.</p>
-    <label class="btn primary" for="file">📥 Import a deck file</label>`}];
+  {em:'📥',t:'Import into Kelma',b:()=>`<ol class="steps"><li>In Kelma, tap <b>📥 Import</b> at the bottom of Home.</li><li>Pick the file you saved. It has the deck’s name.</li></ol><p>✨ Your new words show up in your next review.</p>
+    <label class="btn primary" for="file">📥 Import a deck file</label>`},
+  {em:'🧹',t:'Clear the lesson chat',b:()=>`<p>Once Kelma shows your new words, clear the group. The next export then holds only the next lesson, so it never gets too big.</p>
+    <div class="shots"><figure>${shot('x4-clear.jpg','Tap Clear chat')}<figcaption>1. Tap the <b>group name</b>, then <b>Clear chat</b></figcaption></figure>
+    <figure>${shot('x5-clearall.jpg','Tap Clear all messages')}<figcaption>2. Tap <b>Clear all messages</b></figcaption></figure></div>
+    <p class="fine">Your cards and voice notes are safe in Kelma. This clears your phone only.</p>`}];
 function lessonPage(){
   const i=Math.max(0,Math.min(lessonI,LESSON.length-1)),x=LESSON[i];
   const dots=LESSON.map((y,j)=>`<button class="ldot${j===i?' on':''}${j<i?' dn':''}" data-act="lessonGo" data-i="${j}" aria-label="Step ${j+1}: ${esc(y.t)}">${y.em}</button>`).join('');
@@ -867,8 +872,11 @@ const HELP=[
   ['paused','New words stopped coming','More than 100 reviews are waiting, so new words pause until you catch up. Keep doing your 15 minutes a day.'],
   ['sound','No sound','Tap ▶ on the card. Phones sometimes block the first sound until you tap.']]],
  ['Lessons and Claude',[
-  ['lesson','How do I add a lesson?','Five steps, from WhatsApp to Kelma.','<button class="btn" data-act="lesson">📝 Add a lesson</button>'],
+  ['lesson','How do I add a lesson?','Six steps, from WhatsApp to Kelma.','<button class="btn" data-act="lesson">📝 Add a lesson</button>'],
   ['recipes','What should I ask my helper for?','Arabic, English and a voice note for every card, and a bit more for verbs, nouns and adjectives.','<button class="btn" data-act="recipes">📖 Card recipes</button>'],
+  ['group','How do I make the lesson group?','In WhatsApp, tap <b>New group</b>, add your helper, and call it “Darija lessons”. Use it only for lessons, so clearing it never touches your other chats.'],
+  ['clear','I forgot to clear the chat','No problem. Claude uses only the latest day, so old lessons aren’t repeated. Clear it now: tap the group name → <b>Clear chat</b> → <b>Clear all messages</b>.'],
+  ['missed','I missed a few lessons','Export the chat as usual and tell Claude “since Oct 18” (your first missed day). It makes one deck from all of them, or one per day if you ask.'],
   ['import','How do I import a deck?','Save the .zip file Claude gives you (Share → Save to Files). Then tap <b>📥 Import</b> at the bottom of Home and pick the file.'],
   ['instr','Kelma says there are new instructions','Tap the banner, then <b>Copy</b>. In Claude, open <b>Darija Cards → Instructions</b>, delete the old text, paste, tap ✓. Back in Kelma, tap <b>I’ve done it</b>.'],
   ['voice','Claude asks which voice note to keep','You probably recorded a word twice. Tell Claude which one, e.g. “the second one.”'],
