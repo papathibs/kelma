@@ -128,6 +128,9 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .imhelp{text-align:center;margin:8px 0 0;font-size:14px}.imhelp .linkbtn{color:var(--muted);font-weight:600;text-decoration:none}
 .sintro{margin:0;line-height:1.5}
 .helpq{font-size:20px;padding:6px 8px}
+.lessontip{display:flex;align-items:center;background:var(--surface);border:1.5px dashed var(--accent);border-radius:16px}
+.lessontip .lt-go{flex:1;background:none;border:none;text-align:left;padding:14px 16px;font:inherit;color:var(--ink);font-size:16px}
+.lessontip .lt-x{background:none;border:none;color:var(--muted);font-size:18px;padding:12px 16px;min-width:44px;min-height:44px}
 .slist{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
 .srow{display:flex;align-items:center;gap:12px;padding:14px;border-top:1px solid var(--line);color:var(--ink);text-decoration:none}
 .srow:first-child{border-top:none}
@@ -365,7 +368,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=8, APP_VERSION=35;
+const INSTR=8, APP_VERSION=36;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['listening','recognition','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -881,7 +884,7 @@ function stepDone(k){const st=S.setup||{};
   if(k==='lesson')return ownDecks().length>0;}
 /* Set up already: everyone but the first person on a device, anyone with their own decks and instructions pasted, or all steps ticked. */
 function setupComplete(){const st=S.setup||{};
-  if(st.complete||CUR!=='main')return true;
+  if(st.complete||CUR!=='main'||STANDALONE)return true;
   if(ownDecks().length&&(S.instrAck>0||S.instrAck===-1||S.instrVer!==null))return true;
   return SETUP.every(x=>stepDone(x.k));}
 async function saveSetup(patch){S.setup=Object.assign({},S.setup||{},patch);
@@ -889,6 +892,19 @@ async function saveSetup(patch){S.setup=Object.assign({},S.setup||{},patch);
   try{await write(['meta'],t=>t.objectStore('meta').put(S.setup,'setup'))}catch(e){}}
 const nextStep=()=>SETUP.find(x=>!stepDone(x.k));
 let setupKey=null;
+function safariWelcome(){
+  setupKey='home';const body=stepPage().split('<div class="stepbody">')[1]||'';
+  return `<section class="setupcard" aria-label="Welcome"><div class="sh"><b>Welcome to Kelma</b></div>
+    <p class="sintro">Kelma turns your language lessons into flashcards, and helps you review them 15 minutes a day.</p></section>
+    <div class="page step" style="padding-top:0"><div class="stepbody">${body}`;
+}
+/* First open in the installed app: load the 4 starter words so Home is ready to review. Only for a brand-new first person with no decks. */
+async function autoStarter(){
+  const st=S.setup||{};if(!STANDALONE||CUR!=='main'||st.starter||S.decks.length)return;
+  try{const r=await fetch('setup/starter.zip');if(!r.ok)return;const bl=await r.blob();
+    await importFile(new File([bl],'starter.zip',{type:'application/zip'}));await saveSetup({starter:true,complete:true});
+    status={msg:'👋 Here are 4 starter words to try. Tap Start review.'};view='home';render()}catch(e){}
+}
 function setupCard(){
   const nx=nextStep();if(!nx)return '';
   const dots=SETUP.map((x,i)=>{const dn=stepDone(x.k),cur=x===nx;return (i?`<i class="sl${dn?' dn':''}"></i>`:'')+`<button class="sdot${dn?' dn':''}${cur?' cur':''}" data-act="setupStep" data-k="${x.k}" aria-label="${esc(x.t)}${dn?', done':''}">${dn?'✓':x.em}</button>`}).join('');
@@ -1076,7 +1092,7 @@ function home(){
   let h=`<header class="top"><div class="mark"><span class="ar" lang="ar">كلمة</span><span class="lat">Kelma</span></div><div style="display:flex;gap:4px;align-items:center">${multi?`<button class="who-chip" data-act="who" aria-label="Switch profile">${esc(curProfile().name)} ⇄</button>`:''}<button class="ghost helpq" data-act="help" aria-label="Help">❓</button><button class="ghost" data-act="settings" aria-label="Settings">⚙️</button></div></header>`;
   if(!S.ok)h+=`<div class="status err">This view can’t store cards. Open this page in Safari or the Claude app instead.</div>`;
   const su=!setupComplete();
-  if(su&&!STANDALONE)return h+statusBox()+setupCard();
+  if(su&&!STANDALONE)return h+statusBox()+safariWelcome();
   if(!STANDALONE)h+=`<div class="hint"><b>Install it first.</b> In Safari tap Share, then Add to Home Screen. Open Kelma from the new icon and import your decks there. The icon and the Safari tab keep separate cards.</div>`;
   h+=statusBox();
   if(su){h+=setupCard();if(!words)return h}
@@ -1104,6 +1120,7 @@ function home(){
     ${backlogged()?`<p class="paused">⏸️ New words are paused while you catch up. They come back once reviews are under ${BACKLOG}.</p>`:''}
     ${total&&dayMet(iso(Date.now()))?`<p class="doneday">✓ Done for today</p><button class="btn keepgo" data-act="study">Keep going (${total} more)</button>`:total?`<button class="btn primary" data-act="study">▶️ Start review</button>`:c.ready?`<button class="btn primary" data-act="learnMore">✓ Reviews done · ＋ Learn ${Math.min(10,c.ready)} more</button>`:`<button class="btn primary" disabled>✓ All reviews done</button>`}
     <div class="fprow"><button class="btn focus" data-act="pick">🎯 Focus practice</button>${info('practice','Focus practice')}</div></section>`;
+  if(!kid&&CUR==='main'&&!ownDecks().length&&!(S.setup&&S.setup.lessonTipClosed))h+=`<section class="lessontip"><button class="lt-go" data-act="lesson">📝 <b>Next: add your first lesson</b> <span aria-hidden="true">›</span></button><button class="lt-x" data-act="closeLessonTip" aria-label="Close">✕</button></section>`;
   const latest=sortedDecks()[0];
   if(latest){const n=deckNotes(latest.id).length;
     h+=`<section class="latest"><button class="latest-info" data-act="deck" data-id="${esc(latest.id)}"><span class="ic" aria-hidden="true">${esc(deckIcon(latest.id))}</span><span><span class="kick">📝 Newest deck</span><span class="name">${esc(latest.name)}</span><span class="meta">${plural(n,'word')}</span></span></button> <button class="btn small" data-act="practiceDeck" data-id="${esc(latest.id)}">🎯 Practice</button></section>`}
@@ -1142,7 +1159,6 @@ function settingsPage(){
     ${row('✨','New words per day','',`<div class="stepper"><button class="btn small" data-act="newMinus" aria-label="Fewer">−</button><output>${S.settings.newPerDay}</output><button class="btn small" data-act="newPlus" aria-label="More">+</button></div>`)}
     ${row('💾','Backup '+info('backup','Backup'),`Last: <b>${lb}</b> · once a week`,pend?`<button class="btn small primary" data-act="saveBackup">Save file</button>`:`<button class="btn small" data-act="backup">Back up</button>`)}
     ${usesClaude()?row('📋','Claude instructions '+info('instr','Claude instructions'),'Copy, then paste into your Claude project',`<button class="btn small" data-act="update">Copy</button>`):''}
-    ${setupComplete()&&CUR==='main'?`<button class="srow slink" data-act="setupAll"><span class="sic" aria-hidden="true">🧭</span><div class="stxt"><b>Setup steps</b></div><span class="go" aria-hidden="true">›</span></button>`:''}
     <button class="srow slink" data-act="lesson"><span class="sic" aria-hidden="true">📝</span><div class="stxt"><b>Add a lesson</b><span>Step by step</span></div><span class="go" aria-hidden="true">›</span></button>
     <button class="srow slink" data-act="recipes"><span class="sic" aria-hidden="true">📖</span><div class="stxt"><b>Card recipes</b><span>What to ask your helper for</span></div><span class="go" aria-hidden="true">›</span></button>
     <button class="srow slink" data-act="help"><span class="sic" aria-hidden="true">❓</span><div class="stxt"><b>Help</b></div><span class="go" aria-hidden="true">›</span></button>
@@ -1493,16 +1509,17 @@ function namePage(){
     <div class="dhead"><span class="ic" aria-hidden="true">👋</span><div><h1>What’s your name?</h1><p>It’s saved only on this phone and shows on pictures you share.</p></div></div>
     ${statusBox()}
     <input class="search" id="my-name" maxlength="24" autocomplete="given-name" placeholder="Your first name">
-    <button class="btn primary focus" data-act="saveMyName">Continue</button></div>`;
+    <button class="btn primary focus" data-act="saveMyName">Continue</button>
+    <p class="fine">New phone? <button class="linkbtn" data-act="help" data-q="newphone">Restore your cards</button></p></div>`;
 }
 async function saveMyName(){
   const v=((document.getElementById('my-name')||{}).value||'').trim().slice(0,24);
   if(!v||v.toLowerCase()==='me'){status={err:true,msg:'Type your name first.'};render();return}
   curProfile().name=v;try{await saveProfiles()}catch(e){}
-  status=null;if(view==='step'){goNextStep();return}view='home';render();window.scrollTo(0,0);
+  status=null;if(view==='step'){goNextStep();return}view='home';render();window.scrollTo(0,0);autoStarter();
 }
 function render(){
-  if(needsName()&&!['who','profile','name','study'].includes(view))view='name';
+  if(needsName()&&!['who','profile','name','study','help','settings'].includes(view))view='name';
   if(view==='name'){app.innerHTML=namePage();return}
   if(view==='setup'){app.innerHTML=setupPage();return}
   if(view==='step'){app.innerHTML=stepPage();return}
@@ -1644,6 +1661,7 @@ app.addEventListener('click',e=>{
   else if(a==='setupTick'){const k=el.dataset.k;(async()=>{if(k==='instr'){try{await write(['meta'],t=>t.objectStore('meta').put(INSTR,'instrAck'))}catch(e){}S.instrAck=INSTR}await saveSetup({[k]:true});goNextStep()})()}
   else if(a==='setupNext')goNextStep();
   else if(a==='addStarter')addStarter();
+  else if(a==='closeLessonTip'){saveSetup({lessonTipClosed:true}).then(render)}
   else if(a==='setupAll'){status=null;go('setup')}
   else if(a==='lesson'){lessonI=0;lessonMode='wa';go('lesson')}
   else if(a==='lessonClaude'){lessonI=0;lessonMode='claude';go('lesson')}
