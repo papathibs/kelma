@@ -345,6 +345,14 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 .kidopt{display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:start;margin:14px 0;font-size:16px}
 .kidopt input{width:22px;height:22px;margin-top:3px}
 @media (prefers-reduced-motion: reduce){.prog i{transition:none}}
+.warow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.warow .watxt{flex:1;min-width:0}
+.waar{font-size:20px}
+.waen{color:var(--muted)}
+.watog{border:0;background:none;font-size:22px;padding:4px;cursor:pointer}
+.wadup{display:block}
+.wachoice{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.wachoice .btn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
 </style>
 </head>
 <body>
@@ -499,7 +507,8 @@ async function importFile(file){
   const bk=find('backup.json');
   if(bk)return restore(zip,bk);
   const dj=find('deck.json');
-  if(!dj){status={err:true,msg:'This zip has no deck.json inside. Ask your project to rebuild it in the Kelma format.'};render();return}
+  if(!dj){const chat=waChatFile(zip);if(chat)return waOpen(zip,chat);
+    status={err:true,msg:'This zip has no deck.json inside. Ask your project to rebuild it in the Kelma format.'};render();return}
   let deck;try{deck=JSON.parse(await dj.async('string'))}catch(e){status={err:true,msg:'deck.json is not valid JSON. Ask your project to rebuild the file.'};render();return}
   if(!deck.deck_id||!Array.isArray(deck.cards)||!deck.cards.length){status={err:true,msg:'deck.json needs a deck_id and a list of cards.'};render();return}
   const base=dj.name.includes('/')?dj.name.slice(0,dj.name.lastIndexOf('/')+1):'';
@@ -515,7 +524,7 @@ async function importFile(file){
     let audioKey=null;
     if(c.audio){const f=zip.file(base+c.audio)||zip.file(c.audio);
       if(f){const buf=await f.async('arraybuffer');const ext=(c.audio.split('.').pop()||'').toLowerCase();
-        audio.push([id,new Blob([buf],{type:ext==='m4a'?'audio/mp4':ext==='wav'?'audio/wav':ext==='ogg'?'audio/ogg':'audio/mpeg'})]);audioKey=id}
+        audio.push([id,new Blob([buf],{type:ext==='m4a'?'audio/mp4':ext==='wav'?'audio/wav':(ext==='ogg'||ext==='opus')?'audio/ogg':'audio/mpeg'})]);audioKey=id}
       else missing.push(num)}
     notes.push({id,deckId:deck.deck_id,order:Number(num)||i+1,num:String(num),word:c.word,meaning:c.meaning,example:c.example||'',example_en:c.example_en||'',tag:TAGS[String(c.tag||'').toLowerCase()]?String(c.tag).toLowerCase():'',audioKey});
   }
@@ -582,6 +591,126 @@ function saveBackup(){
   download(p);done();
 }
 function download(p){const a=document.createElement('a');a.href=URL.createObjectURL(p.blob);a.download=p.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},5000)}
+
+/* ---------- WhatsApp chat import ----------
+   Same rules as the Claude instructions: only the helper's messages (the person who sent the voice notes);
+   one card = the text messages since the previous voice note + the next voice note.
+   Arabic script = Darija (2nd one = example), Latin letters = English (2nd one = example English).
+   Nothing is saved until the person taps Import on the preview. */
+let waImp=null;
+const waKeepName=()=>{const i=document.getElementById('wa-name');if(i&&waImp)waImp.name=i.value};
+const AR_RE=/[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/;
+const AUDIO_RE=/\.(opus|ogg|oga|m4a|mp3|aac|wav|amr)$/i;
+const normAr=s=>String(s||'').normalize('NFC').replace(/[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g,'').replace(/[\u0623\u0625\u0622\u0671]/g,'\u0627').replace(/\u0649/g,'\u064A').replace(/[^\p{L}\p{N}]+/gu,' ').trim().replace(/^\u0627\u0644(?=\S{3})/,'');
+function waChatFile(zip){return Object.values(zip.files).find(f=>!f.dir&&!f.name.startsWith('__MACOSX')&&/(^|\/)(_chat\.txt|WhatsApp Chat[^/]*\.txt)$/i.test(f.name))}
+function waParse(text){
+  text=String(text).replace(/\r/g,'').replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g,'').replace(/[\u202F\u00A0]/g,' ');
+  const ios=/^\[(\d{1,4}[\/.\-]\d{1,2}[\/.\-]\d{1,4}),? (\d{1,2}[:.]\d{2}(?:[:.]\d{2})?(?: ?[AaPp]\.? ?[Mm]\.?)?)\] ([^:]{1,60}): ?(.*)$/;
+  const andr=/^(\d{1,4}[\/.\-]\d{1,2}[\/.\-]\d{1,4}),? (\d{1,2}[:.]\d{2}(?: ?[AaPp]\.? ?[Mm]\.?)?) [-–] ([^:]{1,60}): ?(.*)$/;
+  const msgs=[];
+  for(const line of text.split('\n')){
+    const m=line.match(ios)||line.match(andr);
+    if(m)msgs.push({date:m[1],time:m[2],who:m[3].trim(),text:m[4]});
+    else if(msgs.length)msgs[msgs.length-1].text+='\n'+line;
+  }
+  for(const m of msgs){
+    m.text=m.text.trim();
+    const att=m.text.match(/<(?:attached|pièce jointe|adjunto)\s*:\s*([^>]+)>/i)||m.text.match(/^(\S+\.[A-Za-z0-9]{2,5}) \((?:file attached|fichier joint|archivo adjunto)\)/i);
+    if(att){m.file=att[1].trim();m.kind=AUDIO_RE.test(m.file)?'audio':'other'}
+    else if(/^<?(media omitted|médias omis|multimedia omitido)>?$|^(audio|image|video|sticker|GIF|document) omitted$/i.test(m.text))m.kind='omitted';
+    else if(!m.text||/^(this message was deleted|you deleted this message|messages and calls are end-to-end encrypted|ce message a été supprimé)/i.test(m.text))m.kind='system';
+    else m.kind='text';
+  }
+  return msgs;
+}
+function waBuild(msgs){
+  const n={};msgs.forEach(m=>{if(m.kind==='audio')n[m.who]=(n[m.who]||0)+1});
+  const helper=(Object.entries(n).sort((a,b)=>b[1]-a[1])[0]||[])[0]||null;
+  const cards=[],skipped=[];
+  if(!helper)return {helper,cards,skipped,omitted:msgs.some(m=>m.kind==='omitted')};
+  let buf=[];
+  const short=s=>{s=String(s).replace(/\s+/g,' ');return s.length>60?s.slice(0,57)+'…':s};
+  for(const m of msgs){
+    if(m.who!==helper)continue;
+    if(m.kind==='text')buf.push(m.text.replace(/\s*\n\s*/g,' ').trim());
+    else if(m.kind==='audio'){
+      if(!buf.length){skipped.push({why:'Voice note with nothing typed before it',what:m.date+' '+m.time});continue}
+      const ar=buf.filter(t=>AR_RE.test(t)),en=buf.filter(t=>!AR_RE.test(t));buf=[];
+      if(!ar.length){skipped.push({why:'No Darija in Arabic letters',what:short(en.join(' / '))});continue}
+      if(!en.length){skipped.push({why:'No English',what:short(ar.join(' / '))});continue}
+      cards.push({word:ar[0],meaning:en[0],example:ar[1]||'',example_en:en[1]||'',file:m.file,date:m.date,extra:Math.max(0,ar.length-2)+Math.max(0,en.length-2)});
+    }
+    else if(m.kind==='other')skipped.push({why:'Not a voice note (photo or file)',what:short(m.file)});
+  }
+  if(buf.length)skipped.push({why:'No voice note after it',what:short(buf.join(' / '))});
+  /* duplicates: repeated inside this chat, or already in a deck on this profile */
+  const have=new Map();[...S.notes.values()].forEach(x=>{const k=normAr(x.word);if(k&&!have.has(k))have.set(k,x)});
+  const seen=new Set();
+  cards.forEach(c=>{const k=normAr(c.word);
+    if(seen.has(k)){c.rep=true;c.on=false;return}seen.add(k);
+    const old=have.get(k);if(old){c.dupOf=old.id;c.dupDeck=(S.decks.find(d=>d.id===old.deckId)||{}).name||'';c.dupMeaning=old.meaning;c.act='skip';c.on=false}
+    else c.on=true});
+  return {helper,cards,skipped,omitted:false};
+}
+const waFile=(zip,name)=>Object.values(zip.files).find(f=>!f.dir&&!f.name.startsWith('__MACOSX')&&f.name.split('/').pop()===name);
+const audioType=name=>{const e=(name.split('.').pop()||'').toLowerCase();return e==='m4a'?'audio/mp4':e==='wav'?'audio/wav':e==='mp3'?'audio/mpeg':e==='aac'?'audio/aac':e==='amr'?'audio/amr':'audio/ogg'};
+async function waOpen(zip,chat){
+  let text;try{text=await chat.async('string')}catch(e){status={err:true,msg:'Could not read the chat inside this zip.'};render();return}
+  const r=waBuild(waParse(text));
+  if(!r.helper){status={err:true,msg:r.omitted?'This chat was exported without the voice notes. In WhatsApp, export it again and choose Attach Media.':'No voice notes found in this chat. Is this the right lesson chat?'};render();return}
+  r.cards.forEach(c=>{c.f=waFile(zip,c.file);if(!c.f){c.noFile=true;c.on=false}});
+  /* can this phone play WhatsApp voice notes? */
+  let audioOk=null;const first=r.cards.find(c=>c.f);
+  if(first){try{const b=new Blob([await first.f.async('arraybuffer')],{type:audioType(first.file)});audioOk=await waCanPlay(b)}catch(e){audioOk=false}}
+  const last=r.cards.length?r.cards[r.cards.length-1].date:'';
+  waImp={zip,...r,audioOk,name:'Lesson'+(last?' · '+last:'')};
+  status=null;view='waprev';render();window.scrollTo(0,0);
+}
+function waCanPlay(blob){return new Promise(res=>{const a=new Audio(),u=URL.createObjectURL(blob);let done=false;const fin=ok=>{if(done)return;done=true;URL.revokeObjectURL(u);res(ok)};
+  a.onloadedmetadata=a.oncanplay=()=>fin(true);a.onerror=()=>fin(false);setTimeout(()=>fin(null),5000);a.preload='auto';a.src=u;a.load()})}
+let waUrl=null;
+async function waPlay(i){const c=waImp&&waImp.cards[i];if(!c||!c.f)return;
+  try{if(waUrl)URL.revokeObjectURL(waUrl);waUrl=URL.createObjectURL(new Blob([await c.f.async('arraybuffer')],{type:audioType(c.file)}));player.src=waUrl;await player.play()}
+  catch(e){status={err:true,msg:'This phone could not play that voice note.'};render()}}
+function waPage(){
+  const cs=waImp.cards, fresh=cs.filter(c=>!c.rep&&!c.dupOf&&!c.noFile), dups=cs.filter(c=>c.dupOf), reps=cs.filter(c=>c.rep), nof=cs.filter(c=>c.noFile);
+  const nOn=fresh.filter(c=>c.on).length+dups.filter(c=>c.act==='add').length, nRep=dups.filter(c=>c.act==='audio').length;
+  const row=(c,body)=>`<div class="warow">${body}${c.f?`<button class="btn small" data-act="waPlay" data-i="${cs.indexOf(c)}" aria-label="Play">▶</button>`:''}</div>`;
+  const line=c=>`<span class="watxt"><span lang="ar" dir="rtl" class="waar">${esc(c.word)}</span> <span class="waen">— ${esc(c.meaning)}</span>${c.example?`<br><span class="fine" lang="ar" dir="rtl">${esc(c.example)}</span>`:''}${c.extra?`<br><span class="fine">⚠️ ${c.extra} extra message${c.extra===1?'':'s'} left out</span>`:''}</span>`;
+  let h=`<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="waCancel">‹ Cancel</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">💬</span><div><h1>From WhatsApp</h1><p>Voice notes from ${esc(waImp.helper)}</p></div></div>
+    ${statusBox()}`;
+  if(waImp.audioOk===false)h+=`<div class="warn"><p><b>⚠️ This phone can’t play these voice notes.</b> The cards would import without working audio. Tell Kyle before importing.</p></div>`;
+  h+=`<label class="subhead" for="wa-name">Deck name</label><input class="search" id="wa-name" maxlength="60" value="${esc(waImp.name)}">`;
+  h+=`<p class="subhead">✓ New words · ${fresh.filter(c=>c.on).length} of ${fresh.length}</p>`;
+  h+=fresh.length?fresh.map(c=>row(c,`<button class="watog" data-act="waTog" data-i="${cs.indexOf(c)}" aria-pressed="${c.on}">${c.on?'☑️':'⬜️'}</button>${line(c)}`)).join(''):'<p class="fine">No new words in this chat.</p>';
+  if(dups.length)h+=`<p class="subhead">🔁 Already in your decks · ${dups.length}</p>`+dups.map(c=>row(c,`<div class="watxt">${line(c)}<span class="fine wadup">In “${esc(c.dupDeck)}”${c.dupMeaning&&c.dupMeaning!==c.meaning?` as “${esc(c.dupMeaning)}”`:''}</span><span class="wachoice"><button class="btn small" data-act="waDup" data-v="skip" data-i="${cs.indexOf(c)}" aria-pressed="${c.act==='skip'}">Skip</button><button class="btn small" data-act="waDup" data-v="audio" data-i="${cs.indexOf(c)}" aria-pressed="${c.act==='audio'}">Use new audio</button><button class="btn small" data-act="waDup" data-v="add" data-i="${cs.indexOf(c)}" aria-pressed="${c.act==='add'}">Add as new</button></span></div>`)).join('');
+  if(reps.length)h+=`<p class="subhead">♊ Twice in this chat · kept once</p>`+reps.map(c=>row(c,line(c))).join('');
+  const sk=[...waImp.skipped,...nof.map(c=>({why:'Voice note missing from the zip',what:c.word}))];
+  if(sk.length)h+=`<details><summary class="subhead">⚠️ Couldn’t import · ${sk.length}</summary>`+sk.map(s=>`<p class="fine"><b>${esc(s.why)}:</b> <span dir="auto">${esc(s.what)}</span></p>`).join('')+`</details>`;
+  const any=nOn+nRep;
+  h+=`<button class="btn primary focus" data-act="waImport" ${any?'':'disabled'}>${any?`✓ Import${nOn?' '+plural(nOn,'word'):''}${nRep?(nOn?' + ':' ')+nRep+' new audio':''}`:'Nothing to import'}</button>`;
+  h+=`<p class="fine">Types (verb, noun…) aren’t added here. You can set them on any card later.</p></div>`;
+  return h;
+}
+async function waImport(){
+  if(!waImp)return;
+  const name=(((document.getElementById('wa-name')||{}).value)||'').trim().slice(0,60)||waImp.name;
+  const fresh=waImp.cards.filter(c=>c.f&&!c.rep&&((c.on&&!c.dupOf)||(c.dupOf&&c.act==='add'))), reps=waImp.cards.filter(c=>c.dupOf&&c.act==='audio'&&c.f);
+  status={msg:'Importing…'};render();
+  let replaced=0;
+  if(reps.length){const blobs=[];for(const c of reps){const old=S.notes.get(c.dupOf);if(!old)continue;blobs.push([old,new Blob([await c.f.async('arraybuffer')],{type:audioType(c.file)})])}
+    try{await write(['notes','audio'],t=>{blobs.forEach(([n,b])=>{const k=n.audioKey||n.id;t.objectStore('audio').put(b,k);if(!n.audioKey)t.objectStore('notes').put({...n,audioKey:k})})});replaced=blobs.length}catch(e){}}
+  waImp=null;view='home';
+  if(!fresh.length){await load();view='home';status={msg:replaced?`✓ ${replaced} card${replaced===1?'':'s'} got the new audio. 🧹 Now clear your lesson chat in WhatsApp.`:'Nothing imported.'};render();return}
+  const out=new JSZip(),cards=[],d=new Date(),ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const rnd=Array.from({length:4},()=>'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random()*26)]).join('');
+  for(const [i,c] of fresh.entries()){const ext=(c.file.split('.').pop()||'opus').toLowerCase(),p='audio/'+String(i+1).padStart(2,'0')+'.'+ext;
+    out.file(p,await c.f.async('arraybuffer'));cards.push({num:i+1,word:c.word,meaning:c.meaning,example:c.example,example_en:c.example_en,tag:'',audio:p})}
+  out.file('deck.json',JSON.stringify({format:'kelma-deck-1',instructions_version:INSTR,source:'whatsapp',deck_id:ymd+'-wa-'+rnd,deck_name:name,cards}));
+  await importFile(new File([await out.generateAsync({type:'blob'})],'whatsapp.zip',{type:'application/zip'}));
+  if(replaced&&status&&!status.err){status.msg+=` ${replaced} older card${replaced===1?'':'s'} got the new audio.`;render()}
+}
 
 /* ---------- study log + progress ---------- */
 const GOAL=10, GOAL_MS=15*60000, CARD_MAX=60000;
@@ -1350,6 +1479,7 @@ function render(){
   else if(view==='deck')app.innerHTML=deckPage();
   else if(view==='delete')app.innerHTML=deletePage();
   else if(view==='pick')app.innerHTML=pickPage();
+  else if(view==='waprev')app.innerHTML=waImp?waPage():home();
   else if(view==='update')app.innerHTML=updatePage();
   else if(view==='decks')app.innerHTML=decksPage();
   else if(view==='combine')app.innerHTML=combinePage();
@@ -1441,6 +1571,11 @@ app.addEventListener('click',e=>{
   else if(a==='practiceAgain')startPractice(sess.deckIds||[],sess.types||[]);
   else if(a==='deck'){deckId=id;go('deck')}
   else if(a==='home')go('home');
+  else if(a==='waTog'){const c=waImp&&waImp.cards[+el.dataset.i];if(c){c.on=!c.on;waKeepName();render()}}
+  else if(a==='waDup'){const c=waImp&&waImp.cards[+el.dataset.i];if(c){c.act=el.dataset.v;waKeepName();render()}}
+  else if(a==='waPlay'){e.stopPropagation();waPlay(+el.dataset.i)}
+  else if(a==='waImport')waImport();
+  else if(a==='waCancel'){waImp=null;status=null;go('home')}
   else if(a==='reveal'){if(!sess.shown){sess.shown=true;render();autoplay()}}
   else if(a==='play'){e.stopPropagation();playCurrent()}
   else if(a==='grade')grade(+el.dataset.g);
