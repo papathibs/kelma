@@ -53,12 +53,14 @@ header.top{display:flex;align-items:baseline;justify-content:space-between;gap:1
 .mark{display:flex;align-items:baseline;gap:10px}
 .mark .ar{font-family:var(--f-mark);font-size:30px;color:var(--accent);line-height:1}
 .mark .lat{font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:13px;color:var(--muted)}
-.today{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:16px}
+.today{background:color-mix(in srgb,var(--accent-soft) 45%,var(--surface));border:2px solid var(--accent);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:16px}
 .nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .num b{display:block;font-size:34px;line-height:1.1;font-variant-numeric:tabular-nums}
 .num span{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .num.due b{color:var(--accent)}
 .today .btn.primary{width:100%;font-size:18px;min-height:56px}
+.doneday{margin:0;text-align:center;font-size:20px;font-weight:800;color:var(--grow)}
+.today .keepgo{width:100%}
 h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0}
 .sec{display:flex;flex-direction:column;gap:10px}
 .sechead{display:flex;justify-content:space-between;align-items:center;gap:8px}
@@ -243,6 +245,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 .cel-card{position:relative;background:var(--surface);color:var(--ink);border-radius:20px;padding:22px 24px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;max-width:320px;box-shadow:0 10px 30px rgba(0,0,0,.25);animation:pop .35s ease-out}
 .cel-em{font-size:52px;line-height:1}
 .cel-ok{margin-top:8px;min-width:140px}
+.cel-btns{display:flex;flex-direction:column;gap:8px;width:100%;margin-top:8px}.cel-btns .btn{width:100%;margin:0}
 .cel-burst{position:absolute;left:50%;top:40%;width:0;height:0}
 .cel-burst i{position:absolute;font-style:normal;font-size:22px;animation:fly .9s ease-out forwards;opacity:0}
 @keyframes fly{0%{transform:translate(-50%,-50%) scale(.4);opacity:1}100%{transform:translate(calc(var(--x) - 50%),calc(var(--y) - 50%)) scale(1);opacity:0}}
@@ -296,7 +299,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=6, APP_VERSION=24;
+const INSTR=6, APP_VERSION=25;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['listening','recognition','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -320,7 +323,7 @@ const reqP=r=>new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()
 const dbName=id=>id==='main'?'kelma':'kelma-'+id;
 let PROFILES=[{id:'main',name:'Me',kid:false}], CUR='main';
 const curProfile=()=>PROFILES.find(p=>p.id===CUR)||PROFILES[0];
-const isKid=()=>!!curProfile().kid;
+const isKid=()=>false; /* kid mode retired: profiles are just names */
 async function loadProfiles(){try{const d=await openNamed('kelma');const p=await reqP(d.transaction('meta').objectStore('meta').get('profiles'));if(Array.isArray(p)&&p.length)PROFILES=p}catch(e){}}
 async function saveProfiles(){const d=await openNamed('kelma');return new Promise((res,rej)=>{const t=d.transaction(['meta'],'readwrite');t.objectStore('meta').put(PROFILES,'profiles');t.oncomplete=()=>res();t.onerror=()=>rej(t.error)})}
 async function useProfile(id){CUR=id;DBN=dbName(id);try{sessionStorage.setItem('kelma-profile',id)}catch(e){}
@@ -522,13 +525,17 @@ function saveBackup(){
 function download(p){const a=document.createElement('a');a.href=URL.createObjectURL(p.blob);a.download=p.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},5000)}
 
 /* ---------- study log + progress ---------- */
-const GOAL=10;
+const GOAL=10, GOAL_MS=15*60000, CARD_MAX=60000;
 const iso=d=>{const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
 const addDays=(t,n)=>{const d=new Date(t);d.setDate(d.getDate()+n);d.setHours(0,0,0,0);return d.getTime()};
 const mondayOf=t=>{const d=new Date(t);d.setHours(0,0,0,0);const wd=(d.getDay()+6)%7;return addDays(d.getTime(),-wd)};
-const dayMet=k=>{const e=S.log[k];return !!e&&(e.n>=GOAL||e.cleared)};
-function logAnswer(){const k=iso(Date.now());const before=dayMet(k);const e=S.log[k]||{n:0,cleared:false};e.n++;S.log[k]=e;saveLog();
-  if(!isKid()&&!before&&dayMet(k)){const {n}=streakInfo();celebrate('🔥',`Goal reached! ${n} ${n===1?'day':'days'} in a row`)}}
+/* A day counts when you put in 15 minutes of review, or cleared everything due. Days logged before minutes were tracked keep the old 10-card rule. */
+const dayMet=k=>{const e=S.log[k];if(!e)return false;if(e.cleared)return true;return e.ms===undefined?e.n>=GOAL:e.ms>=GOAL_MS};
+const todayMs=()=>{const e=S.log[iso(Date.now())];return e?(e.ms===undefined?(e.n>=GOAL?GOAL_MS:0):e.ms):0};
+function logAnswer(ms){const k=iso(Date.now());const before=dayMet(k);const e=S.log[k]||{n:0,cleared:false,ms:0};
+  if(e.ms===undefined)e.ms=e.n>=GOAL?GOAL_MS:0;
+  e.n++;if(ms)e.ms+=ms;S.log[k]=e;saveLog();
+  if(!before&&dayMet(k)){const {n}=streakInfo();celebrate('⏱️',`15 minutes done! 🔥 ${n} ${n===1?'day':'days'} in a row. Stop here or keep going.`,null,{stop:true})}}
 /* Milestones: five tracks plus journey stops. Old badge ids kept so earned badges carry over. */
 const TRACKS=[
   {k:'streak',em:'🔥',title:'Days in a row',unit:'days in a row',steps:[3,7,14,30,60,100,180,365],val:m=>m.streak},
@@ -577,16 +584,17 @@ function quoteFor(where){
 const quoteHtml=q=>q?`<figure class="quote"><blockquote>“${esc(q.text)}”</blockquote>${q.who?`<figcaption>— ${esc(q.who)}</figcaption>`:''}</figure>`:'';
 /* Pop-ups wait for OK. They pause the card's audio and line up one after another. */
 let celebrating=false;const celQ=[];
-function celebrate(em,msg,q){celQ.push([em,msg,q]);if(!celebrating)showCel()}
+function celebrate(em,msg,q,o){celQ.push([em,msg,q,o||{}]);if(!celebrating)showCel()}
 function showCel(){
   const nx=celQ.shift();if(!nx){celebrating=false;if(view==='study'&&sess&&sess.queue.length)autoplay();return}
-  const [em,msg,q]=nx;celebrating=true;try{player.pause()}catch(e){}
+  const [em,msg,q,o]=nx;const canStop=o.stop&&view==='study'&&sess&&sess.queue.length;celebrating=true;try{player.pause()}catch(e){}
   const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
   const box=document.createElement('div');box.className='celebrate';box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');
   let burst='';if(!reduce){const E=['🎉','✨','🔥','⭐','🌿'];for(let i=0;i<18;i++){const a=(i/18)*Math.PI*2,r=90+Math.random()*70;burst+=`<i style="--x:${Math.round(Math.cos(a)*r)}px;--y:${Math.round(Math.sin(a)*r)}px;animation-delay:${Math.random()*0.15}s">${E[i%E.length]}</i>`}}
-  box.innerHTML=`<div class="cel-card"><div class="cel-burst" aria-hidden="true">${burst}</div><span class="cel-em" aria-hidden="true">${em}</span><b>${esc(msg)}</b>${quoteHtml(q)}<button class="btn primary cel-ok">OK</button></div>`;
+  box.innerHTML=`<div class="cel-card"><div class="cel-burst" aria-hidden="true">${burst}</div><span class="cel-em" aria-hidden="true">${em}</span><b>${esc(msg)}</b>${quoteHtml(q)}${canStop?`<div class="cel-btns"><button class="btn primary cel-stop">✓ Stop here</button><button class="btn cel-ok">Keep going</button></div>`:`<button class="btn primary cel-ok">OK</button>`}</div>`;
   const ok=box.querySelector('.cel-ok');ok.addEventListener('click',e=>{e.stopPropagation();box.remove();showCel()});
-  document.body.appendChild(box);ok.focus();
+  const st=box.querySelector('.cel-stop');if(st)st.addEventListener('click',e=>{e.stopPropagation();box.remove();celQ.length=0;celebrating=false;exit()});
+  document.body.appendChild(box);(st||ok).focus();
 }
 function logCleared(){const k=iso(Date.now());const e=S.log[k]||{n:0,cleared:false};if(e.n>0&&!e.cleared){e.cleared=true;S.log[k]=e;saveLog()}}
 const saveLog=()=>write(['meta'],t=>t.objectStore('meta').put(S.log,'log')).catch(()=>{});
@@ -627,7 +635,7 @@ function progressPanel(){
   const {n,rest}=streakInfo(), t0=today0(), mon=mondayOf(t0), tk=iso(t0);
   const kid=isKid(), ST=stageSet(), kd=S.newDone.done||0, kq=kid?buildQueue(null).length:0;
   const G=kid?Math.max(1,kd+kq):GOAL;
-  const e=kid?{n:kd}:(S.log[tk]||{n:0}), met=kid?(kq===0&&kd>0):dayMet(tk), pct=Math.min(100,Math.round(100*e.n/G));
+  const e=kid?{n:kd}:(S.log[tk]||{n:0}), met=kid?(kq===0&&kd>0):dayMet(tk), mins=Math.floor(todayMs()/60000), pct=Math.min(100,Math.round(100*todayMs()/GOAL_MS));
   const ws=wordStats();
   const days=['M','T','W','T','F','S','S'].map((l,i)=>{const d=addDays(mon,i),k=iso(d);
     const cls=dayMet(k)?'met':rest.has(k)?'rest':'';const tod=d===t0?' now':'';
@@ -635,7 +643,7 @@ function progressPanel(){
   return `<section class="prog-panel" aria-label="Your progress">
     <div class="streak${n?'':' zero'}"><span class="flame" aria-hidden="true">🔥</span><div><b>${n}</b><span>${n===1?'day in a row':'days in a row'}${n?'':' · study today to start'}</span></div></div>
     <div class="week" aria-label="This week">${days}</div>
-    <div class="goal${met?' met':''}"><div class="lbl">${met?'<b>✓ Done for today</b>':'<b>🎯 Today</b>'}<span>${Math.min(e.n,G)} / ${G} cards</span></div><div class="track"><i style="width:${met?100:pct}%"></i></div></div>
+    <div class="goal${met?' met':''}"><div class="lbl">${met?'<b>✓ Done for today</b>':'<b>🎯 Today</b>'}<span>${Math.min(mins,15)} / 15 min</span></div><div class="track"><i style="width:${met?100:pct}%"></i></div></div>
     <div class="stages">${['started','growing','well'].map(k=>`<button class="stage${stageTip===k?' on':''}" data-act="stageTip" data-k="${k}" aria-expanded="${stageTip===k}"><span class="em" aria-hidden="true">${ST[k][0]}</span><b>${ws[k]}</b><span>${ST[k][1]}</span></button>`).join('')}</div>
     ${stageTip?`<p class="stage-tip" role="status">${ST[stageTip][0]} <b>${ST[stageTip][1][0].toUpperCase()+ST[stageTip][1].slice(1)}:</b> ${ST[stageTip][2]}</p>`:''}
     ${kid?'':badgeRow()}
@@ -696,11 +704,11 @@ function home(){
   }else h+=`<section class="today" aria-label="Review">
     <div class="line"><span>🔁 <b>${c.due}</b> to review</span><span>✨ <b>${c.newToday}</b> new</span></div>
     ${backlogged()?`<p class="paused">⏸️ New words are paused while you catch up. They come back once reviews are under ${BACKLOG}.</p>`:''}
-    ${total?`<button class="btn primary" data-act="study">▶️ Start review</button>`:c.ready?`<button class="btn primary" data-act="learnMore">✓ Reviews done · ＋ Learn ${Math.min(10,c.ready)} more</button>`:`<button class="btn primary" disabled>✓ All reviews done</button>`}
+    ${total&&dayMet(iso(Date.now()))?`<p class="doneday">✓ Done for today</p><button class="btn keepgo" data-act="study">Keep going (${total} more)</button>`:total?`<button class="btn primary" data-act="study">▶️ Start review</button>`:c.ready?`<button class="btn primary" data-act="learnMore">✓ Reviews done · ＋ Learn ${Math.min(10,c.ready)} more</button>`:`<button class="btn primary" disabled>✓ All reviews done</button>`}
     <button class="btn focus" data-act="pick">🎯 Focus practice</button></section>`;
   const latest=sortedDecks()[0];
   if(latest){const n=deckNotes(latest.id).length;
-    h+=`<section class="latest"><button class="latest-info" data-act="deck" data-id="${esc(latest.id)}"><span class="ic" aria-hidden="true">${esc(deckIcon(latest.id))}</span><span><span class="kick">📝 Newest deck</span><span class="name">${esc(latest.name)}</span><span class="meta">${plural(n,'word')}</span></span></button><button class="btn small primary" data-act="practiceDeck" data-id="${esc(latest.id)}">🎯 Practice</button></section>`}
+    h+=`<section class="latest"><button class="latest-info" data-act="deck" data-id="${esc(latest.id)}"><span class="ic" aria-hidden="true">${esc(deckIcon(latest.id))}</span><span><span class="kick">📝 Newest deck</span><span class="name">${esc(latest.name)}</span><span class="meta">${plural(n,'word')}</span></span></button> <button class="btn small" data-act="practiceDeck" data-id="${esc(latest.id)}">🎯 Practice</button></section>`}
   if(kid){h+=`<nav class="homenav"><button class="btn" data-act="pick">🎯<span>Practice</span></button><button class="btn" data-act="decks">📚<span>Decks (${S.decks.length})</span></button><button class="btn" data-act="settings">⚙️<span>Settings</span></button></nav>`;return h}
   h+=`<nav class="homenav"><button class="btn" data-act="decks">📚<span>Decks (${S.decks.length})</span></button><label class="btn" for="file">📥<span>Import</span></label><button class="btn" data-act="settings">⚙️<span>Settings</span></button></nav>`;
   return h;
@@ -721,7 +729,7 @@ function decksPage(){
 }
 function profilesSec(){
   const multi=PROFILES.length>1,p=curProfile();
-  return `<section class="sec"><h2>👥 Profiles</h2>`+(multi?`<p class="fine">This profile: <b>${esc(p.name)}</b>${p.kid?' · 🧒 kid mode':''}</p>`:`<p class="fine">Your name: <b>${esc(p.name)}</b></p><p class="fine">Sharing this device? Give each person a profile with their own decks and progress.</p>`)+
+  return `<section class="sec"><h2>👥 Profiles</h2>`+(multi?`<p class="fine">This profile: <b>${esc(p.name)}</b></p>`:`<p class="fine">Your name: <b>${esc(p.name)}</b></p><p class="fine">Sharing this device? Give each person a profile with their own decks and progress.</p>`)+
     `<div class="row">${multi?`<button class="btn" data-act="who">⇄ Switch</button><button class="btn" data-act="editProfile">✏️ Edit this profile</button>`:`<button class="btn" data-act="editProfile">✏️ Change name</button>`}<button class="btn" data-act="addProfile">＋ Add a profile</button></div></section>`;
 }
 function settingsPage(){
@@ -767,7 +775,7 @@ function profileFormPage(){
   return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="settings">‹ Settings</button></div>
     <div class="dhead"><span class="ic" aria-hidden="true">👤</span><div><h1>${p?'Edit profile':'Add a profile'}</h1></div></div>${statusBox()}
     <section class="sec"><label class="fine" for="pf-name">Name</label><input class="search" id="pf-name" maxlength="24" value="${esc(p?p.name:'')}" autocomplete="off">
-    <label class="kidopt"><input type="checkbox" id="pf-kid" ${kid?'checked':''}><span><b>🧒 Kid mode</b><br><span class="fine">Short daily sessions with a fixed number of cards. Hides review counts.</span></span></label>
+
     ${!p&&PROFILES.length===1?`<label class="fine" for="pf-me">Your name (for the switch screen)</label><input class="search" id="pf-me" maxlength="24" value="${esc(PROFILES[0].name==='Me'?'':PROFILES[0].name)}" autocomplete="off">`:''}
     <button class="btn primary focus" data-act="saveProfile">${p?'Save':'＋ Add profile'}</button>
     ${p&&p.id!=='main'?`<button class="dangerlink" data-act="removeProfile">🗑️ Remove this profile</button>`:''}</section></div>`;
@@ -1049,6 +1057,7 @@ function cardHtml(c,n,shown){
 }
 function study(){
   const id=sess.queue[0], c=S.cards.find(x=>x.id===id), n=c&&S.notes.get(c.noteId);
+  if(sess.curId!==id){sess.curId=id;sess.t0=Date.now()}
   const doneN=sess.answered, pct=Math.round(100*doneN/Math.max(1,doneN+sess.queue.length));
   let h=`<div class="study"><div class="bar"><button class="ghost" data-act="exit">← Home</button>${sess.mode==='practice'?'<span class="mode">🎯 Practice</span>':''}<div class="prog" aria-hidden="true"><i style="width:${pct}%"></i></div><span class="left">${sess.queue.length} left</span>${isKid()?'':`<button class="ghost editbtn" data-act="editCurrent" aria-label="Edit this card">✏️</button>`}</div>`;
   h+=cardHtml(c,n,sess.shown);
@@ -1059,7 +1068,7 @@ function study(){
 }
 function done(){
   const met=dayMet(iso(Date.now())), {n}=streakInfo();
-  const streakLine=met?`<p>🔥 ${n} ${n===1?'day':'days'} in a row</p>`:`<p class="fine">🎯 ${Math.max(0,GOAL-((S.log[iso(Date.now())]||{n:0}).n))} more cards to count today toward your streak.</p>`;
+  const streakLine=met?`<p>🔥 ${n} ${n===1?'day':'days'} in a row</p>`:`<p class="fine">⏱️ ${Math.max(1,Math.ceil((GOAL_MS-todayMs())/60000))} more min of review today counts toward your streak.</p>`;
   if(sess.mode==='practice'){
     return `<div class="done"><span class="big" aria-hidden="true">🎯</span><h3>Practice round done</h3><p>${sess.answered} card${sess.answered===1?'':'s'} drilled.</p>${streakLine}<div class="row"><button class="btn primary" data-act="practiceAgain">↺ Practice again</button><button class="btn" data-act="exit">Back home</button></div></div>`;
   }
@@ -1123,7 +1132,7 @@ function startPractice(ids,types){if(sess)sess.urls.forEach(u=>URL.revokeObjectU
 function grade(g){
   const c=S.cards.find(x=>x.id===sess.queue[0]);if(!c)return;
   if(c.state==='new'){S.newDone.count++;saveMeta();c.firstSeen=Date.now();if(c.type==='recognition')sess.newWords++}
-  sess.queue.shift();logAnswer();
+  sess.queue.shift();logAnswer(Math.max(0,Math.min(CARD_MAX,Date.now()-(sess.t0||Date.now()))));
   if(g===0){
     if(c.state==='review'){c.lapses++;c.ease=Math.max(1.3,+(c.ease-0.2).toFixed(2));c.interval=Math.max(1,Math.round(c.interval*0.3))}
     else if(c.state==='new')c.interval=0;
@@ -1137,7 +1146,7 @@ function grade(g){
   saveCard(c);logRev(c,g,'review');sess.shown=false;render();autoplay();checkBadges();
 }
 function pgrade(g){
-  const id=sess.queue.shift();if(!id)return;logAnswer();{const c=S.cards.find(x=>x.id===id);if(c)logRev(c,g,'practice')}
+  const id=sess.queue.shift();if(!id)return;logAnswer(0);{const c=S.cards.find(x=>x.id===id);if(c)logRev(c,g,'practice')}
   if(g===0)sess.queue.splice(Math.min(4,sess.queue.length),0,id);else sess.answered++;
   sess.shown=false;render();autoplay();checkBadges();
 }
@@ -1224,7 +1233,7 @@ app.addEventListener('click',e=>{
   else if(a==='kNewMinus'||a==='kNewPlus'){S.settings.newPerDay=Math.min(15,Math.max(1,S.settings.newPerDay+(a==='kNewPlus'?1:-1)));saveMeta();render()}
   else if(a==='who'){if(sess)exitQuiet();go('who')}
   else if(a==='pickProfile')switchTo(id);
-  else if(a==='addProfile'){editing={kid:true};go('profile')}
+  else if(a==='addProfile'){editing={kid:false};go('profile')}
   else if(a==='editProfile'){editing={id:CUR,kid:!!curProfile().kid};go('profile')}
   else if(a==='saveProfile')saveProfile();
   else if(a==='removeProfile')removeProfile();
