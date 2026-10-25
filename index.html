@@ -116,6 +116,18 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .rword{font-family:var(--f-ar);font-size:32px;line-height:1.5;margin:0;font-weight:600}.rmean{font-size:18px;font-weight:700;margin:0}
 .rex{font-family:var(--f-ar);font-size:20px;line-height:1.7;margin:4px 0 0}.rexen{font-size:14px;color:var(--muted);margin:0}
 .radd{font-size:14px;color:var(--muted);border:1.5px dashed var(--line);border-radius:10px;padding:4px 10px;margin:4px 0 0}
+.hgrp{margin-top:8px}.hgrp h2{margin:8px 2px}
+.hlist{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.hq{border-top:1px solid var(--line)}.hq:first-child{border-top:none}
+.hq summary{padding:14px;font-weight:700;cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:10px}
+.hq summary::-webkit-details-marker{display:none}.hq summary::after{content:'›';color:var(--muted);transition:transform .15s}.hq[open] summary::after{transform:rotate(90deg)}
+.ha{padding:0 14px 14px;display:flex;flex-direction:column;gap:10px;line-height:1.5}.ha p{margin:0}
+.infob{background:none;border:none;color:var(--muted);font-size:18px;line-height:1;padding:4px 6px;min-width:32px;min-height:32px;cursor:pointer}
+.today .line{align-items:center}.today .line .sp{flex:1}
+.fprow{display:flex;align-items:center;gap:6px}.fprow .btn{flex:1}
+.imhelp{text-align:center;margin:8px 0 0;font-size:14px}.imhelp .linkbtn{color:var(--muted);font-weight:600;text-decoration:none}
+.sintro{margin:0;line-height:1.5}
+.helpq{font-size:20px;padding:6px 8px}
 .slist{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
 .srow{display:flex;align-items:center;gap:12px;padding:14px;border-top:1px solid var(--line);color:var(--ink);text-decoration:none}
 .srow:first-child{border-top:none}
@@ -345,7 +357,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=6, APP_VERSION=30;
+const INSTR=6, APP_VERSION=31;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['listening','recognition','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -746,9 +758,10 @@ function setupCard(){
   const nx=nextStep();if(!nx)return '';
   const dots=SETUP.map((x,i)=>{const dn=stepDone(x.k),cur=x===nx;return (i?`<i class="sl${dn?' dn':''}"></i>`:'')+`<button class="sdot${dn?' dn':''}${cur?' cur':''}" data-act="setupStep" data-k="${x.k}" aria-label="${esc(x.t)}${dn?', done':''}">${dn?'✓':x.em}</button>`}).join('');
   const n=SETUP.filter(x=>stepDone(x.k)).length;
-  return `<section class="setupcard" aria-label="Setup"><div class="sh"><b>Set up Kelma</b><span>${n} of ${SETUP.length}</span></div>
+  const intro=n<2?`<p class="sintro">Kelma turns your language lessons into flashcards, and helps you review them a little every day. Follow these ${SETUP.length} steps to set it up. Tap the green button to start.</p>`:'';
+  return `<section class="setupcard" aria-label="Setup"><div class="sh"><b>${n<2?'Welcome to Kelma':'Set up Kelma'}</b><span>${n} of ${SETUP.length}</span></div>${intro}
     <div class="spath">${dots}</div>
-    <button class="btn primary" data-act="setupStep" data-k="${nx.k}">${nx.em} ${esc(nx.t)} ›</button></section>`;
+    <button class="btn primary" data-act="setupStep" data-k="${nx.k}">${n?'':'Start: '}${nx.em} ${esc(nx.t)} ›</button>${STANDALONE?`<p class="fine">New phone? <button class="linkbtn" data-act="help" data-q="newphone">Restore your cards</button></p>`:''}</section>`;
 }
 function setupPage(){
   return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
@@ -843,6 +856,41 @@ function recipesPage(){
 }
 let recipesFrom='home';
 
+/* ---------- Help ---------- */
+const HELP=[
+ ['Daily review',[
+  ['streak','What counts for my streak?','A day counts when you do <b>15 minutes of review</b>, or clear everything due. One missed day a week is forgiven. 🎯 Focus practice is extra and doesn’t count.'],
+  ['today','Too many cards today','Stop at 15 minutes. Kelma tells you when you get there. Leftover cards wait for tomorrow. Have more time? Tap <b>Keep going</b>.'],
+  ['stages','My words stay at 🌱','Each card of a word comes the day after the one before: 👂 hear, then 👁️ see, then 🗣️ say. A word reaches 🌿 once all its cards are right. That takes at least 3 days, or 2 for words without audio.'],
+  ['wrong','A card is wrong','While reviewing, tap ✏️. Or go to 📚 Decks, open the deck and tap the word. Fix the text, replace the audio, hide it or delete it. Your progress is kept.'],
+  ['practice','What is Focus practice?','Extra drilling on the decks you pick. It doesn’t change when cards come back, and it doesn’t count toward your 15 minutes.'],
+  ['paused','New words stopped coming','More than 100 reviews are waiting, so new words pause until you catch up. Keep doing your 15 minutes a day.'],
+  ['sound','No sound','Tap ▶ on the card. Phones sometimes block the first sound until you tap.']]],
+ ['Lessons and Claude',[
+  ['lesson','How do I add a lesson?','Five steps, from WhatsApp to Kelma.','<button class="btn" data-act="lesson">📝 Add a lesson</button>'],
+  ['recipes','What should I ask my helper for?','Arabic, English and a voice note for every card, and a bit more for verbs, nouns and adjectives.','<button class="btn" data-act="recipes">📖 Card recipes</button>'],
+  ['import','How do I import a deck?','Save the .zip file Claude gives you (Share → Save to Files). Then tap <b>📥 Import</b> at the bottom of Home and pick the file.'],
+  ['instr','Kelma says there are new instructions','Tap the banner, then <b>Copy</b>. In Claude, open <b>Darija Cards → Instructions</b>, delete the old text, paste, tap ✓. Back in Kelma, tap <b>I’ve done it</b>.'],
+  ['voice','Claude asks which voice note to keep','You probably recorded a word twice. Tell Claude which one, e.g. “the second one.”'],
+  ['audio','Audio is on the wrong word','Tell Claude, e.g. “voice note 3 goes with word 4,” and ask for the file again. Or fix it in Kelma: tap the word and replace the audio.'],
+  ['nodeck','Kelma says no deck.json','The file wasn’t made by your Darija Cards project. Make it in a chat inside that project.']]],
+ ['Decks',[
+  ['combine','Too many decks','Open a deck → <b>🔗 Combine with other decks</b>. Name it, tick the others, tap Combine. Your progress is kept.'],
+  ['share','Share a deck with someone','Open a deck → <b>📤 Share deck</b> → <b>Send file</b> → WhatsApp. They tap 📥 Import in Kelma. Your progress isn’t shared.'],
+  ['twice','I imported the same file twice','No problem. Nothing is doubled and your progress is kept.'],
+  ['types','Add types to an old deck','Send the old deck file (.zip) to a new chat in Darija Cards. Check the types, then import the new file. Your progress is kept.']]],
+ ['Your phone',[
+  ['backup','Back up your cards','Your cards live only on this phone. Once a week: ⚙️ Settings → <b>Back up</b> → <b>Save file</b> → Save to Files or iCloud Drive.'],
+  ['gone','My cards are gone','Open Kelma from the home screen icon, not Safari. They keep separate cards. Still gone? ⚙️ Settings → More → <b>Restore a backup</b>.'],
+  ['newphone','New phone','On the old phone, make a backup and save it to iCloud Drive or send it to yourself. On the new phone, add Kelma to the home screen, then ⚙️ Settings → More → <b>Restore a backup</b>.']]]];
+let helpOpen=null;
+function helpPage(){
+  return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">❓</span><div><h1>Help</h1><p>Tap a question</p></div></div>
+    ${HELP.map(([g,qs])=>`<section class="hgrp"><h2>${esc(g)}</h2><div class="hlist">${qs.map(([id,q,a,btn])=>`<details class="hq" id="h-${id}" ${helpOpen===id?'open':''}><summary>${esc(q)}</summary><div class="ha"><p>${a}</p>${btn||''}</div></details>`).join('')}</div></section>`).join('')}</div>`;
+}
+const info=(id,label)=>`<button class="infob" data-act="help" data-q="${id}" aria-label="Help: ${esc(label)}">ⓘ</button>`;
+
 /* ---------- views ---------- */
 function alertBanner(){
   if(!isKid()&&(S.instrVer===null||S.instrVer<INSTR)&&S.instrAck<INSTR)return `<button class="outdated" data-act="update"><span>${S.instrAck===-1?'⚠️ This deck used old instructions. Please update again.':'⚠️ New Claude instructions. Tap to update (1 min).'}</span>›</button>`;
@@ -855,7 +903,7 @@ function statusBox(){return status?`<div class="status${status.err?' err':''}" r
 function home(){
   const c=counts(), words=S.notes.size, total=c.due+c.newToday;
   const kid=isKid(), multi=PROFILES.length>1;
-  let h=`<header class="top"><div class="mark"><span class="ar" lang="ar">كلمة</span><span class="lat">Kelma</span></div><div style="display:flex;gap:4px;align-items:center">${multi?`<button class="who-chip" data-act="who" aria-label="Switch profile">${esc(curProfile().name)} ⇄</button>`:''}${kid?'':`<a class="ghost" href="guide.html" style="text-decoration:none">Guide</a>`}<button class="ghost" data-act="settings" aria-label="Settings">⚙️</button></div></header>`;
+  let h=`<header class="top"><div class="mark"><span class="ar" lang="ar">كلمة</span><span class="lat">Kelma</span></div><div style="display:flex;gap:4px;align-items:center">${multi?`<button class="who-chip" data-act="who" aria-label="Switch profile">${esc(curProfile().name)} ⇄</button>`:''}<button class="ghost helpq" data-act="help" aria-label="Help">❓</button><button class="ghost" data-act="settings" aria-label="Settings">⚙️</button></div></header>`;
   if(!S.ok)h+=`<div class="status err">This view can’t store cards. Open this page in Safari or the Claude app instead.</div>`;
   const su=!setupComplete();
   if(su&&!STANDALONE)return h+statusBox()+setupCard();
@@ -882,15 +930,15 @@ function home(){
     ${c.today?`<div class="line"><span>📅 Today: <b>${c.today}</b> card${c.today===1?'':'s'} · about ${Math.max(1,Math.round(c.today/2.5))} min</span></div><button class="btn primary" data-act="study">▶️ Start</button>`:`<button class="btn primary" disabled>🎉 Done for today</button>${more?`<button class="btn focus" data-act="bonus">⭐ Bonus: 5 more cards</button>`:''}`}
     </section>`;
   }else h+=`<section class="today" aria-label="Review">
-    <div class="line"><span>🔁 <b>${c.due}</b> to review</span><span>✨ <b>${c.newToday}</b> new</span></div>
+    <div class="line"><span>🔁 <b>${c.due}</b> to review</span><span>✨ <b>${c.newToday}</b> new</span><span class="sp"></span>${info('today','How today works')}</div>
     ${backlogged()?`<p class="paused">⏸️ New words are paused while you catch up. They come back once reviews are under ${BACKLOG}.</p>`:''}
     ${total&&dayMet(iso(Date.now()))?`<p class="doneday">✓ Done for today</p><button class="btn keepgo" data-act="study">Keep going (${total} more)</button>`:total?`<button class="btn primary" data-act="study">▶️ Start review</button>`:c.ready?`<button class="btn primary" data-act="learnMore">✓ Reviews done · ＋ Learn ${Math.min(10,c.ready)} more</button>`:`<button class="btn primary" disabled>✓ All reviews done</button>`}
-    <button class="btn focus" data-act="pick">🎯 Focus practice</button></section>`;
+    <div class="fprow"><button class="btn focus" data-act="pick">🎯 Focus practice</button>${info('practice','Focus practice')}</div></section>`;
   const latest=sortedDecks()[0];
   if(latest){const n=deckNotes(latest.id).length;
     h+=`<section class="latest"><button class="latest-info" data-act="deck" data-id="${esc(latest.id)}"><span class="ic" aria-hidden="true">${esc(deckIcon(latest.id))}</span><span><span class="kick">📝 Newest deck</span><span class="name">${esc(latest.name)}</span><span class="meta">${plural(n,'word')}</span></span></button> <button class="btn small" data-act="practiceDeck" data-id="${esc(latest.id)}">🎯 Practice</button></section>`}
   if(kid){h+=`<nav class="homenav"><button class="btn" data-act="pick">🎯<span>Practice</span></button><button class="btn" data-act="decks">📚<span>Decks (${S.decks.length})</span></button><button class="btn" data-act="settings">⚙️<span>Settings</span></button></nav>`;return h}
-  h+=`<nav class="homenav"><button class="btn" data-act="decks">📚<span>Decks (${S.decks.length})</span></button><label class="btn" for="file">📥<span>Import</span></label><button class="btn" data-act="settings">⚙️<span>Settings</span></button></nav>`;
+  h+=`<nav class="homenav"><button class="btn" data-act="decks">📚<span>Decks (${S.decks.length})</span></button><label class="btn" for="file">📥<span>Import</span></label><button class="btn" data-act="settings">⚙️<span>Settings</span></button></nav><p class="imhelp"><button class="linkbtn" data-act="help" data-q="import">ⓘ How to import a deck</button></p>`;
   return h;
 }
 function decksPage(){
@@ -922,12 +970,12 @@ function settingsPage(){
     <div class="slist">
     ${row('👤',esc(p.name),multi?`${PROFILES.length} people on this device`:'',`<button class="btn small" data-act="editProfile">Change</button>`)}
     ${row('✨','New words per day','',`<div class="stepper"><button class="btn small" data-act="newMinus" aria-label="Fewer">−</button><output>${S.settings.newPerDay}</output><button class="btn small" data-act="newPlus" aria-label="More">+</button></div>`)}
-    ${row('💾','Backup',`Last: <b>${lb}</b> · once a week`,pend?`<button class="btn small primary" data-act="saveBackup">Save file</button>`:`<button class="btn small" data-act="backup">Back up</button>`)}
-    ${row('📋','Claude instructions','Copy, then paste into your Claude project',`<button class="btn small" data-act="update">Copy</button>`)}
+    ${row('💾','Backup '+info('backup','Backup'),`Last: <b>${lb}</b> · once a week`,pend?`<button class="btn small primary" data-act="saveBackup">Save file</button>`:`<button class="btn small" data-act="backup">Back up</button>`)}
+    ${row('📋','Claude instructions '+info('instr','Claude instructions'),'Copy, then paste into your Claude project',`<button class="btn small" data-act="update">Copy</button>`)}
     ${setupComplete()&&CUR==='main'?`<button class="srow slink" data-act="setupAll"><span class="sic" aria-hidden="true">🧭</span><div class="stxt"><b>Setup steps</b></div><span class="go" aria-hidden="true">›</span></button>`:''}
     <button class="srow slink" data-act="lesson"><span class="sic" aria-hidden="true">📝</span><div class="stxt"><b>Add a lesson</b><span>Step by step</span></div><span class="go" aria-hidden="true">›</span></button>
     <button class="srow slink" data-act="recipes"><span class="sic" aria-hidden="true">📖</span><div class="stxt"><b>Card recipes</b><span>What to ask your helper for</span></div><span class="go" aria-hidden="true">›</span></button>
-    <a class="srow slink" href="guide.html#help"><span class="sic" aria-hidden="true">❓</span><div class="stxt"><b>Help</b></div><span class="go" aria-hidden="true">›</span></a>
+    <button class="srow slink" data-act="help"><span class="sic" aria-hidden="true">❓</span><div class="stxt"><b>Help</b></div><span class="go" aria-hidden="true">›</span></button>
     </div>
     <details class="more"><summary>More</summary>
       <div class="row"><label class="btn small" for="file">Restore a backup</label>${multi?`<button class="btn small" data-act="who">⇄ Switch person</button>`:''}<button class="btn small" data-act="addProfile">＋ Add a person to this device</button></div>
@@ -1289,6 +1337,7 @@ function render(){
   if(view==='step'){app.innerHTML=stepPage();return}
   if(view==='lesson'){app.innerHTML=lessonPage();return}
   if(view==='recipes'){app.innerHTML=recipesPage();return}
+  if(view==='help'){app.innerHTML=helpPage();if(helpOpen){const el=document.getElementById('h-'+helpOpen);if(el)setTimeout(()=>el.scrollIntoView({block:'center'}),0)}return}
   if(view==='study'){if(!sess.queue.length&&sess.mode==='review')logCleared();app.innerHTML=sess.queue.length?study():done()}
   else if(view==='deck')app.innerHTML=deckPage();
   else if(view==='delete')app.innerHTML=deletePage();
@@ -1421,6 +1470,7 @@ app.addEventListener('click',e=>{
   else if(a==='lesson'){lessonI=0;go('lesson')}
   else if(a==='lessonGo'){lessonI=+el.dataset.i;view='lesson';render();window.scrollTo(0,0)}
   else if(a==='recipes'){recipesFrom=view==='lesson'?'lesson':'home';go('recipes')}
+  else if(a==='help'){helpOpen=el.dataset.q||null;status=null;view='help';render();if(!helpOpen)window.scrollTo(0,0)}
   else if(a==='lessonBack'){view='lesson';render();window.scrollTo(0,0)}
   else if(a==='rename'){renaming=true;render();const i=document.getElementById('deck-name');if(i){i.focus();i.select()}}
   else if(a==='cancelName'){renaming=false;render()}
