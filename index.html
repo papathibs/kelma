@@ -127,6 +127,7 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .fprow{display:flex;align-items:center;gap:6px}.fprow .btn{flex:1}
 .imhelp{text-align:center;margin:8px 0 0;font-size:14px}.imhelp .linkbtn{color:var(--muted);font-weight:600;text-decoration:none}
 .sintro{margin:0;line-height:1.5}
+.hook{margin:0;font-size:26px;line-height:1.25}
 .helpq{font-size:20px;padding:6px 8px}
 .lessontip{display:flex;align-items:center;background:var(--surface);border:1.5px dashed var(--accent);border-radius:16px}
 .lessontip .lt-go{flex:1;background:none;border:none;text-align:left;padding:14px 16px;font:inherit;color:var(--ink);font-size:16px}
@@ -894,8 +895,8 @@ const nextStep=()=>SETUP.find(x=>!stepDone(x.k));
 let setupKey=null;
 function safariWelcome(){
   setupKey='home';const body=stepPage().split('<div class="stepbody">')[1]||'';
-  return `<section class="setupcard" aria-label="Welcome"><div class="sh"><b>Welcome to Kelma</b></div>
-    <p class="sintro">Kelma turns your language lessons into flashcards, and helps you review them 15 minutes a day.</p></section>
+  return `<section class="setupcard" aria-label="Welcome"><h1 class="hook">You didn’t move to Morocco to type flashcards.</h1>
+    <p class="sintro">Kelma turns your lessons into flashcards in about two minutes, so your time goes back to learning.</p></section>
     <div class="page step" style="padding-top:0"><div class="stepbody">${body}`;
 }
 /* First open in the installed app: load the 4 starter words so Home is ready to review. Only for a brand-new first person with no decks. */
