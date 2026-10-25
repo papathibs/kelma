@@ -80,6 +80,24 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .empty ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .setting{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 2px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .stepper{display:flex;align-items:center;gap:6px}
+.setupcard{background:var(--surface);border:2px solid var(--accent);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.setupcard .sh{display:flex;justify-content:space-between;align-items:baseline}.setupcard .sh span{color:var(--muted);font-size:14px}
+.spath{display:flex;align-items:center}
+.spath .sl{flex:1;height:3px;background:var(--line);min-width:4px}.spath .sl.dn{background:var(--accent)}
+.sdot{flex:none;width:38px;height:38px;border-radius:50%;border:2px solid var(--line);background:var(--surface);display:grid;place-items:center;font-size:17px;padding:0;color:var(--ink)}
+.sdot.dn{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:800}
+.sdot.cur{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft);width:44px;height:44px;font-size:20px}
+.setupcard .btn.primary{width:100%;min-height:52px;font-size:17px}
+.svlist{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.svrow{display:flex;align-items:center;gap:12px;padding:12px 14px;border:none;border-top:1px solid var(--line);background:none;color:var(--ink);font:inherit;text-align:left}
+.svrow:first-child{border-top:none}.svrow>span:nth-child(2){flex:1;font-weight:700}.svrow .go{color:var(--muted)}
+.step .stepbody{display:flex;flex-direction:column;gap:14px;font-size:16px;line-height:1.5}.step .stepbody p{margin:0}
+.step .stepbody .btn{width:100%}.okline{color:var(--grow);font-weight:700}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
+.shots{display:flex;flex-direction:column;align-items:center;gap:22px}
+.shots figure{margin:0;display:flex;flex-direction:column;gap:8px;width:100%;max-width:330px}
+.shot{width:100%;border-radius:16px;border:1px solid var(--line);display:block;background:var(--line);box-shadow:0 4px 14px rgba(0,0,0,.08)}
+.shots figcaption{order:-1;font-size:16px;line-height:1.4}
 .slist{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
 .srow{display:flex;align-items:center;gap:12px;padding:14px;border-top:1px solid var(--line);color:var(--ink);text-decoration:none}
 .srow:first-child{border-top:none}
@@ -189,7 +207,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 .upd .num{flex:none;width:30px;height:30px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:700}
 .upd .st{display:flex;gap:12px;align-items:center}
 .upd textarea{width:100%;min-height:120px;font:12px/1.4 ui-monospace,Menlo,monospace;border:1px solid var(--line);border-radius:10px;padding:8px;background:var(--bg);color:var(--ink)}
-.upd .ok{font-weight:700;color:var(--accent);font-size:15px}
+.upd .ok,.step .ok{font-weight:700;color:var(--accent);font-size:15px}
 .rename{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0}
 .rename input{font:inherit;font-size:20px;font-weight:700;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
 .edit{background:none;border:none;color:var(--muted);font-size:18px;padding:6px;min-height:40px;min-width:40px}
@@ -309,7 +327,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=6, APP_VERSION=26;
+const INSTR=6, APP_VERSION=27;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['listening','recognition','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -361,6 +379,7 @@ async function load(){
   S.lastBackup=(await get('meta','lastBackup'))||0;
   S.badges=(await get('meta','badges'))||{};
   S.snaps=(await get('meta','snaps'))||{};
+  S.setup=(await get('meta','setup'))||{};
   const ia=await get('meta','instrAck');S.instrAck=(typeof ia==='number')?ia:0;
   if(S.newDone.day!==dayKey())S.newDone={day:dayKey(),count:0};
   S.loadedDay=dayKey();
@@ -470,7 +489,7 @@ async function importFile(file){
       else missing.push(num)}
     notes.push({id,deckId:deck.deck_id,order:Number(num)||i+1,num:String(num),word:c.word,meaning:c.meaning,example:c.example||'',example_en:c.example_en||'',tag:TAGS[String(c.tag||'').toLowerCase()]?String(c.tag).toLowerCase():'',audioKey});
   }
-  const noAudio=!notes.some(n=>n.audioKey)&&!deck.cards.some(c=>c.audio);
+  const noAudio=!notes.some(n=>n.audioKey)&&!deck.cards.some(c=>c.audio), starter=deck.deck_id===STARTER;
   const kinds=noAudio?['recognition','production']:TYPES;
   /* Keep the person's own edits and hidden flags when a deck is re-imported */
   for(const n of notes){const old=S.notes.get(n.id);if(!old)continue;if(old.hidden)n.hidden=true;
@@ -482,9 +501,9 @@ async function importFile(file){
   if(prev&&prev.renamed)drec.renamed=true;
   if(noAudio)drec.noAudio=true;
   const ver=Number(deck.instructions_version)||0;
-  try{await write(['decks','notes','cards','audio','meta'],t=>{t.objectStore('decks').put(drec);if(!noAudio)t.objectStore('meta').put(ver,'instrVer');notes.forEach(n=>t.objectStore('notes').put(n));newCards.forEach(c=>t.objectStore('cards').put(c));audio.forEach(([k,b])=>t.objectStore('audio').put(b,k))})}
+  try{await write(['decks','notes','cards','audio','meta'],t=>{t.objectStore('decks').put(drec);if(!noAudio&&!starter)t.objectStore('meta').put(ver,'instrVer');notes.forEach(n=>t.objectStore('notes').put(n));newCards.forEach(c=>t.objectStore('cards').put(c));audio.forEach(([k,b])=>t.objectStore('audio').put(b,k))})}
   catch(e){status={err:true,msg:'Could not save the deck on this device. Your phone may be out of storage.'};render();return}
-  if(!noAudio&&ver<INSTR&&S.instrAck>=INSTR){try{await write(['meta'],t=>t.objectStore('meta').put(-1,'instrAck'))}catch(e){}}
+  if(!noAudio&&!starter&&ver<INSTR&&S.instrAck>=INSTR){try{await write(['meta'],t=>t.objectStore('meta').put(-1,'instrAck'))}catch(e){}}
   await load();
   let msg=`Imported “${drec.name}”: ${added} new word${added===1?'':'s'}`+` (${added*(noAudio?2:3)} cards)`+(updated?`, ${updated} already here and updated, progress kept`:'')+'.';
   if(clash)msg+=' You already had a different deck with the same ID, so this was added as a new deck.';
@@ -676,6 +695,89 @@ const daysSince=t=>Math.floor((today0()-new Date(t).setHours(0,0,0,0))/DAY);
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const sortedDecks=()=>[...S.decks].sort((a,b)=>b.importedAt-a.importedAt);
 
+/* ---------- setup path (first-time setup, shown until done) ---------- */
+const STARTER='kelma-starter';
+const SETUP=[
+  {k:'account',em:'🔑',t:'Claude account'},
+  {k:'home',em:'📱',t:'Home screen'},
+  {k:'name',em:'✋',t:'Your name'},
+  {k:'project',em:'🤖',t:'Claude project'},
+  {k:'instr',em:'📋',t:'Instructions'},
+  {k:'starter',em:'🧪',t:'Starter words'},
+  {k:'lesson',em:'➡️',t:'Your first lesson'}];
+const ownDecks=()=>S.decks.filter(d=>d.id!==STARTER);
+function stepDone(k){const st=S.setup||{};
+  if(k==='account')return !!st.account||STANDALONE;
+  if(k==='home')return STANDALONE;
+  if(k==='name')return !(!curProfile().name||curProfile().name==='Me');
+  if(k==='project')return !!st.project;
+  if(k==='instr')return !!st.instr||S.instrAck>0||S.instrAck===-1;
+  if(k==='starter')return !!st.starter||S.decks.some(d=>d.id===STARTER);
+  if(k==='lesson')return ownDecks().length>0;}
+/* Set up already: everyone but the first person on a device, anyone with their own decks and instructions pasted, or all steps ticked. */
+function setupComplete(){const st=S.setup||{};
+  if(st.complete||CUR!=='main')return true;
+  if(ownDecks().length&&(S.instrAck>0||S.instrAck===-1||S.instrVer!==null))return true;
+  return SETUP.every(x=>stepDone(x.k));}
+async function saveSetup(patch){S.setup=Object.assign({},S.setup||{},patch);
+  if(!S.setup.complete&&SETUP.every(x=>stepDone(x.k)))S.setup.complete=true;
+  try{await write(['meta'],t=>t.objectStore('meta').put(S.setup,'setup'))}catch(e){}}
+const nextStep=()=>SETUP.find(x=>!stepDone(x.k));
+let setupKey=null;
+function setupCard(){
+  const nx=nextStep();if(!nx)return '';
+  const dots=SETUP.map((x,i)=>{const dn=stepDone(x.k),cur=x===nx;return (i?`<i class="sl${dn?' dn':''}"></i>`:'')+`<button class="sdot${dn?' dn':''}${cur?' cur':''}" data-act="setupStep" data-k="${x.k}" aria-label="${esc(x.t)}${dn?', done':''}">${dn?'✓':x.em}</button>`}).join('');
+  const n=SETUP.filter(x=>stepDone(x.k)).length;
+  return `<section class="setupcard" aria-label="Setup"><div class="sh"><b>Set up Kelma</b><span>${n} of ${SETUP.length}</span></div>
+    <div class="spath">${dots}</div>
+    <button class="btn primary" data-act="setupStep" data-k="${nx.k}">${nx.em} ${esc(nx.t)} ›</button></section>`;
+}
+function setupPage(){
+  return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">🧭</span><div><h1>Setup steps</h1><p>Tap any step to see it again.</p></div></div>
+    <div class="svlist">${SETUP.map((x,i)=>{const dn=stepDone(x.k);return `<button class="svrow" data-act="setupStep" data-k="${x.k}"><span class="sdot${dn?' dn':''}">${dn?'✓':x.em}</span><span>${i+1}. ${esc(x.t)}</span><span class="go" aria-hidden="true">›</span></button>`}).join('')}</div></div>`;
+}
+const shot=(f,alt)=>`<img class="shot" src="setup/${f}" alt="${esc(alt)}" loading="lazy">`;
+function stepPage(){
+  const i=SETUP.findIndex(x=>x.k===setupKey),x=SETUP[i];if(!x)return setupPage();
+  const dn=stepDone(x.k);
+  const head=`<div class="page step"><div class="top" style="display:flex;justify-content:space-between;align-items:center"><button class="ghost" data-act="home">‹ Home</button><span class="fine">Step ${i+1} of ${SETUP.length}</span></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">${x.em}</span><div><h1>${esc(x.t)}</h1>${dn?'<p class="okline">✓ Done</p>':''}</div></div>${statusBox()}`;
+  const doneBtn=k=>dn?`<button class="btn primary focus" data-act="setupNext">Next step ›</button>`:`<button class="btn primary focus" data-act="setupTick" data-k="${k}">✓ Done</button>`;
+  let b='';
+  if(x.k==='account')b=`<p>Kelma uses a Claude project to turn your lessons into flashcards. Get the Claude app and make an account. The free plan is enough to start.</p>
+    <a class="btn" href="https://claude.ai/download" target="_blank" rel="noopener">Get the Claude app</a>${doneBtn('account')}`;
+  else if(x.k==='home')b=STANDALONE?`<p>Kelma is on your home screen. Always open it from there.</p><button class="btn primary focus" data-act="setupNext">Next step ›</button>`:
+    `<p>Put Kelma on your home screen so it works like an app.</p>
+    <ol class="steps"><li><b>iPhone:</b> in Safari, tap <b>Share</b> <span aria-hidden="true">⬆️</span>, then <b>Add to Home Screen</b>.</li><li><b>Android:</b> in Chrome, tap <b>⋮</b>, then <b>Add to Home screen</b>.</li><li>Close this page and open <b>Kelma</b> from the new icon.</li></ol>
+    <p class="fine">The icon and this browser page keep separate cards, so always use the icon.</p>`;
+  else if(x.k==='name')b=dn?`<p>You’re <b>${esc(curProfile().name)}</b>. Change it any time in Settings.</p><button class="btn primary focus" data-act="setupNext">Next step ›</button>`:
+    `<p>Your name shows on the weekly picture you can share.</p><input class="search" id="my-name" maxlength="24" autocomplete="given-name" placeholder="Your first name"><button class="btn primary focus" data-act="saveMyName">Save</button>`;
+  else if(x.k==='project')b=`<p>A project keeps Kelma’s instructions in one place in Claude. Make one called <b>Darija Cards</b> and pin it so it’s easy to find.</p>
+    <div class="shots"><figure>${shot('1-projects.jpg','Open the menu and tap Projects')}<figcaption>1. Open the menu, tap <b>Projects</b></figcaption></figure>
+    <figure>${shot('2-new-project.jpg','Tap New project')}<figcaption>2. Tap <b>New project</b></figcaption></figure>
+    <figure>${shot('3-name.jpg','Type Darija Cards and tap the check')}<figcaption>3. Type <b>Darija Cards</b>, tap ✓</figcaption></figure>
+    <figure>${shot('4-pin.jpg','Tap the pin')}<figcaption>4. Tap the <b>pin</b></figcaption></figure></div>${doneBtn('project')}`;
+  else if(x.k==='instr')b=`<p>These tell Claude how to make your deck files.</p>
+    <button class="btn primary" data-act="copyInstr">📋 Copy instructions</button><span class="ok" id="copy-ok" role="status"></span>
+    <div class="shots"><figure>${shot('5-instructions.jpg','In Darija Cards, tap Instructions')}<figcaption>1. In <b>Darija Cards</b>, tap <b>Instructions</b></figcaption></figure>
+    <figure>${shot('6-paste.jpg','Paste, then tap the check')}<figcaption>2. Press and hold, <b>Paste</b>, tap ✓</figcaption></figure></div>
+    <details><summary class="fine">Copy not working?</summary><textarea readonly id="instr-box">${esc(S.instrText||'Loading… check your connection.')}</textarea></details>${doneBtn('instr')}`;
+  else if(x.k==='starter')b=dn?`<p>Your 4 starter words are in. Each one shows a good card: a verb, a noun, an adjective and a phrase.</p><button class="btn primary" data-act="study">▶️ Review them</button><button class="btn focus" data-act="setupNext">Next step ›</button>`:
+    `<p>Try Kelma with 4 starter words before your first lesson. They also show what a good card looks like: a verb, a noun, an adjective and a phrase.</p><button class="btn primary focus" data-act="addStarter">＋ Add 4 starter words</button>`;
+  else if(x.k==='lesson')b=`<p>${dn?'Your first deck is in. You’re set up.':'After your next lesson, Claude turns your WhatsApp messages and voice notes into a deck file. You import it here.'}</p>
+    <a class="btn ${dn?'':'primary'}" href="guide.html#lesson-1">📝 How to add a lesson</a>${dn?'<button class="btn primary focus" data-act="home">Done ›</button>':''}`;
+  return head+`<div class="stepbody">${b}</div></div>`;
+}
+async function addStarter(){
+  try{const r=await fetch('setup/starter.zip');if(!r.ok)throw 0;const bl=await r.blob();
+    await importFile(new File([bl],'starter.zip',{type:'application/zip'}));await saveSetup({starter:true});
+    status={msg:'✓ 4 starter words added.'};view='step';setupKey='starter';render()}
+  catch(e){status={err:true,msg:'Couldn’t load the starter words. Check your connection and try again.'};render()}
+}
+function openStep(k){setupKey=k;status=null;view='step';render();window.scrollTo(0,0);if(k==='instr')loadInstr()}
+function goNextStep(){const nx=nextStep();if(nx&&nx.k!==setupKey)openStep(nx.k);else go('home')}
+
 /* ---------- views ---------- */
 function alertBanner(){
   if(!isKid()&&(S.instrVer===null||S.instrVer<INSTR)&&S.instrAck<INSTR)return `<button class="outdated" data-act="update"><span>${S.instrAck===-1?'⚠️ This deck used old instructions. Please update again.':'⚠️ New Claude instructions. Tap to update (1 min).'}</span>›</button>`;
@@ -690,8 +792,11 @@ function home(){
   const kid=isKid(), multi=PROFILES.length>1;
   let h=`<header class="top"><div class="mark"><span class="ar" lang="ar">كلمة</span><span class="lat">Kelma</span></div><div style="display:flex;gap:4px;align-items:center">${multi?`<button class="who-chip" data-act="who" aria-label="Switch profile">${esc(curProfile().name)} ⇄</button>`:''}${kid?'':`<a class="ghost" href="guide.html" style="text-decoration:none">Guide</a>`}<button class="ghost" data-act="settings" aria-label="Settings">⚙️</button></div></header>`;
   if(!S.ok)h+=`<div class="status err">This view can’t store cards. Open this page in Safari or the Claude app instead.</div>`;
+  const su=!setupComplete();
+  if(su&&!STANDALONE)return h+statusBox()+setupCard();
   if(!STANDALONE)h+=`<div class="hint"><b>Install it first.</b> In Safari tap Share, then Add to Home Screen. Open Kelma from the new icon and import your decks there. The icon and the Safari tab keep separate cards.</div>`;
   h+=statusBox();
+  if(su){h+=setupCard();if(!words)return h}
   if(!words&&kid){
     h+=`<section class="empty"><h2>No words yet</h2><p>Your words will show up here once they’re added.</p>
       <label class="btn primary" for="file">＋ Import deck file</label>
@@ -705,7 +810,7 @@ function home(){
       <p class="fine">New phone? <button class="linkbtn" data-act="settings">Restore a backup</button></p></section>`;
     return h;
   }
-  h+=alertBanner();
+  if(!su)h+=alertBanner();
   h+=progressPanel();
   if(kid){const more=c.due>0||c.ready>0;
     h+=`<section class="today" aria-label="Today">
@@ -754,6 +859,7 @@ function settingsPage(){
     ${row('✨','New words per day','',`<div class="stepper"><button class="btn small" data-act="newMinus" aria-label="Fewer">−</button><output>${S.settings.newPerDay}</output><button class="btn small" data-act="newPlus" aria-label="More">+</button></div>`)}
     ${row('💾','Backup',`Last: <b>${lb}</b> · once a week`,pend?`<button class="btn small primary" data-act="saveBackup">Save file</button>`:`<button class="btn small" data-act="backup">Back up</button>`)}
     ${row('📋','Claude instructions','Copy, then paste into your Claude project',`<button class="btn small" data-act="update">Copy</button>`)}
+    ${setupComplete()&&CUR==='main'?`<button class="srow slink" data-act="setupAll"><span class="sic" aria-hidden="true">🧭</span><div class="stxt"><b>Setup steps</b></div><span class="go" aria-hidden="true">›</span></button>`:''}
     <a class="srow slink" href="guide.html#help"><span class="sic" aria-hidden="true">❓</span><div class="stxt"><b>Help</b></div><span class="go" aria-hidden="true">›</span></a>
     </div>
     <details class="more"><summary>More</summary>
@@ -1095,7 +1201,7 @@ function done(){
   const summary=`<div class="summary"><div><b>${sess.answered}</b><span>cards</span></div><div><b>✨ ${sess.newWords||0}</b><span>new words</span></div><div><b>⬆️ ${up}</b><span>${up?[toG?toG+' to 🌿':'',toW?toW+' to 🌳':''].filter(Boolean).join(' · '):'moved up'}</span></div></div>`;
   return `<div class="done"><span class="big" aria-hidden="true">${met?'🔥':'✅'}</span><h3>Done for now</h3>${summary}${streakLine}<p class="fine">${tom} card${tom===1?' is':'s are'} due tomorrow.</p>${quoteHtml(quoteFor('done'))}<div class="row">${counts().ready?`<button class="btn primary" data-act="learnMore">＋ Learn ${Math.min(10,counts().ready)} more</button>`:''}<button class="btn${counts().ready?'':' primary'}" data-act="exit">Back home</button></div></div>`;
 }
-const needsName=()=>!isKid()&&(!curProfile().name||curProfile().name==='Me');
+const needsName=()=>STANDALONE&&!isKid()&&(!curProfile().name||curProfile().name==='Me');
 function namePage(){
   return `<div class="page"><div class="mark" style="display:flex;align-items:baseline;gap:10px"><span class="ar" lang="ar" style="font-family:var(--f-mark);font-size:30px;color:var(--accent)">كلمة</span><span class="lat" style="font-weight:700;letter-spacing:.08em;font-size:13px;color:var(--muted)">KELMA</span></div>
     <div class="dhead"><span class="ic" aria-hidden="true">👋</span><div><h1>What’s your name?</h1><p>It’s saved only on this phone and shows on pictures you share.</p></div></div>
@@ -1107,11 +1213,13 @@ async function saveMyName(){
   const v=((document.getElementById('my-name')||{}).value||'').trim().slice(0,24);
   if(!v||v.toLowerCase()==='me'){status={err:true,msg:'Type your name first.'};render();return}
   curProfile().name=v;try{await saveProfiles()}catch(e){}
-  status=null;view='home';render();window.scrollTo(0,0);
+  status=null;if(view==='step'){goNextStep();return}view='home';render();window.scrollTo(0,0);
 }
 function render(){
   if(needsName()&&!['who','profile','name','study'].includes(view))view='name';
   if(view==='name'){app.innerHTML=namePage();return}
+  if(view==='setup'){app.innerHTML=setupPage();return}
+  if(view==='step'){app.innerHTML=stepPage();return}
   if(view==='study'){if(!sess.queue.length&&sess.mode==='review')logCleared();app.innerHTML=sess.queue.length?study():done()}
   else if(view==='deck')app.innerHTML=deckPage();
   else if(view==='delete')app.innerHTML=deletePage();
@@ -1236,6 +1344,11 @@ app.addEventListener('click',e=>{
   else if(a==='copyInstr'){const out=document.getElementById('copy-ok');const ok=()=>{out.textContent='✓ Copied. Now paste it in Claude.'};const fail=()=>{out.textContent='Copy didn’t work. Use the box below.';const d=app.querySelector('details');if(d)d.open=true};
     if(S.instrText&&navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(S.instrText).then(ok,fail);else fail()}
   else if(a==='instrDone')instrDone();
+  else if(a==='setupStep')openStep(el.dataset.k);
+  else if(a==='setupTick'){const k=el.dataset.k;(async()=>{if(k==='instr'){try{await write(['meta'],t=>t.objectStore('meta').put(INSTR,'instrAck'))}catch(e){}S.instrAck=INSTR}await saveSetup({[k]:true});goNextStep()})()}
+  else if(a==='setupNext')goNextStep();
+  else if(a==='addStarter')addStarter();
+  else if(a==='setupAll'){status=null;go('setup')}
   else if(a==='rename'){renaming=true;render();const i=document.getElementById('deck-name');if(i){i.focus();i.select()}}
   else if(a==='cancelName'){renaming=false;render()}
   else if(a==='saveName')saveName(id);
