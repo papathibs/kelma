@@ -1269,7 +1269,7 @@ function orderPage(){
   if(!withNew.length)return h+`<p class="fine">No new words left in any deck.</p></div>`;
   h+=`<div class="liblist">${withNew.map((id,i)=>{const d=S.decks.find(x=>x.id===id),p=isPaused(id),n=freshLeft(id);
     return `<div class="librow ordrow${p?' paused':''}"><span class="ordn">${i+1}</span><div class="stxt"><b>${esc(d.name)}</b><span>${plural(n,'new word')} left${p?' · ⏸ paused':''}</span></div>
-    <button class="btn small" data-act="ordUp" data-id="${esc(id)}" ${i?'':'disabled'} aria-label="Move up">▲</button><button class="btn small" data-act="ordDown" data-id="${esc(id)}" ${i<withNew.length-1?'':'disabled'} aria-label="Move down">▼</button><button class="btn small" data-act="ordPause" data-id="${esc(id)}" aria-label="${p?'Resume':'Pause'}">${p?'▶':'⏸'}</button></div>`}).join('')}</div>
+    <button class="btn small" data-act="ordUp" data-id="${esc(id)}" ${i?'':'disabled'} aria-label="Move up">▲</button><button class="btn small" data-act="ordDown" data-id="${esc(id)}" ${i<withNew.length-1?'':'disabled'} aria-label="Move down">▼</button><button class="btn small" data-act="ordPause" data-id="${esc(id)}" aria-label="${p?'Resume':'Pause'}">${p?'▶️':'⏸️'}</button></div>`}).join('')}</div>
     <p class="fine">⏸ Paused decks give no new words. Their reviews still come. New decks you import join the bottom.${done?` ${plural(done,'deck')} with no new words left ${done===1?'isn’t':'aren’t'} shown.`:''}</p></div>`;
   return h;
 }
