@@ -379,7 +379,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=8, APP_VERSION=40;
+const INSTR=8, APP_VERSION=41;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['listening','recognition','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -1219,6 +1219,21 @@ function profileFormPage(){
     <button class="btn primary focus" data-act="saveProfile">${p?'Save':'＋ Add profile'}</button>
     ${p&&p.id!=='main'?`<button class="dangerlink" data-act="removeProfile">🗑️ Remove this profile</button>`:''}</section></div>`;
 }
+/* ---------- Updates: if the site has a newer version, reload into it (never mid-review) ---------- */
+let updBusy=false;
+async function updateCheck(){
+  if(updBusy||!navigator.onLine)return;updBusy=true;
+  try{const r=await fetch('sw.js?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const m=(await r.text()).match(/kelma-v(\d+)/);const v=m?+m[1]:0;
+    if(v>APP_VERSION){
+      try{const reg=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();if(reg)await reg.update()}catch(e){}
+      let tried='';try{tried=sessionStorage.getItem('kelma-upd')||''}catch(e){}
+      if(tried===String(v))return;
+      if(sess&&sess.queue&&sess.queue.length)return;
+      if(['card','profile','name','combine','pick','repeats'].includes(view))return;
+      try{sessionStorage.setItem('kelma-upd',String(v))}catch(e){}
+      location.reload()}}
+  catch(e){}finally{updBusy=false}}
+
 /* ---------- Library: published decks in library/index.json ---------- */
 let LIB=null,libErr=false,libBusy=null,fromLib=false;
 async function loadLibrary(){libErr=false;try{const r=await fetch('library/index.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw 0;LIB=await r.json()}catch(e){libErr=true}if(view==='library')render()}
@@ -1811,9 +1826,10 @@ async function deleteDeck(id){
     else await load();
     try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}}catch(e){S.ok=false}
   render();loadInstr();try{snapToday()}catch(e){}
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')newDayCheck()});
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){newDayCheck();updateCheck()}});
+  updateCheck();
   window.addEventListener('pageshow',newDayCheck);window.addEventListener('focus',newDayCheck);setInterval(newDayCheck,60000);
-  if('serviceWorker' in navigator&&location.protocol==='https:'){try{navigator.serviceWorker.register('sw.js')}catch(e){}}
+  if('serviceWorker' in navigator&&location.protocol==='https:'){try{navigator.serviceWorker.register('sw.js',{updateViaCache:'none'})}catch(e){}}
 })();
 })();
 </script>
