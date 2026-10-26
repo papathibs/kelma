@@ -135,6 +135,10 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .lessontip{display:flex;align-items:center;background:var(--surface);border:1.5px dashed var(--accent);border-radius:16px}
 .lessontip .lt-go{flex:1;background:none;border:none;text-align:left;padding:14px 16px;font:inherit;color:var(--ink);font-size:16px}
 .lessontip .lt-x{background:none;border:none;color:var(--muted);font-size:18px;padding:12px 16px;min-width:44px;min-height:44px}
+.rpgrp{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-top:10px}
+.rprow{display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid var(--line)}.rprow:first-child{border-top:none}
+.rptxt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.rptxt .ar{font-family:var(--f-ar);font-size:20px}
+.cnt{font-size:13px;font-weight:600;color:var(--muted);margin-left:6px}
 .slist{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
 .srow{display:flex;align-items:center;gap:12px;padding:14px;border-top:1px solid var(--line);color:var(--ink);text-decoration:none}
 .srow:first-child{border-top:none}
@@ -372,7 +376,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=8, APP_VERSION=38;
+const INSTR=8, APP_VERSION=39;
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['listening','recognition','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -1210,6 +1214,29 @@ function profileFormPage(){
     <button class="btn primary focus" data-act="saveProfile">${p?'Save':'＋ Add profile'}</button>
     ${p&&p.id!=='main'?`<button class="dangerlink" data-act="removeProfile">🗑️ Remove this profile</button>`:''}</section></div>`;
 }
+/* ---------- Find repeats (same Darija in one deck) + clear out hidden cards ---------- */
+function repeatGroups(did){const g=new Map();deckNotes(did).forEach(n=>{const k=normAr(n.word);if(!k)return;if(!g.has(k))g.set(k,[]);g.get(k).push(n)});return [...g.values()].filter(x=>x.length>1)}
+function noteScore(byNote,n){const cs=byNote.get(n.id)||[];const R={'':0,started:1,growing:2,well:3};return (n.hidden?-100:0)+R[stageOf(cs)]*1000+cs.reduce((a,c)=>a+(c.reps||0),0)}
+let delHiddenAsk=false;
+function repeatsPage(){
+  const d=S.decks.find(x=>x.id===deckId);if(!d){view='decks';return decksPage()}
+  const groups=repeatGroups(d.id),byNote=cardsByNote(),hidden=deckNotes(d.id).filter(n=>n.hidden);
+  const mark=n=>{const st=stageOf(byNote.get(n.id));return st?STAGES[st][0]+' '+STAGES[st][1]:'not started'};
+  let h=`<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="deck" data-id="${esc(d.id)}">‹ ${esc(d.name)}</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">🔍</span><div><h1>Find repeats</h1><p>${groups.length?`${plural(groups.length,'word')} found more than once`:'No repeats in this deck'}</p></div></div>${statusBox()}`;
+  if(groups.length)h+=`<p class="fine">Tap <b>Keep</b> on the one you want. The others are deleted. ⭐ = most progress.</p>`+groups.map(g=>{
+    let best=g.reduce((a,b)=>noteScore(byNote,b)>noteScore(byNote,a)?b:a);const tie=g.every(n=>noteScore(byNote,n)===noteScore(byNote,best));
+    const star=n=>n===best&&!tie;
+    return `<section class="rpgrp">${g.map(n=>`<div class="rprow"><div class="rptxt"><span class="ar" lang="ar" dir="rtl">${esc(n.word)}</span><span>${esc(n.meaning)}</span><span class="fine">${star(n)?'⭐ ':''}${n.hidden?'🙈 hidden · ':''}${mark(n)}</span></div>${n.audioKey?`<button class="btn small" data-act="playNote" data-id="${esc(n.id)}" aria-label="Play">▶</button>`:''}<button class="btn small${star(n)?' primary':''}" data-act="keepNote" data-id="${esc(n.id)}">Keep</button></div>`).join('')}</section>`}).join('');
+  h+=`<section class="sec" style="margin-top:14px"><h2>🙈 Hidden cards</h2>${hidden.length?`<p>${plural(hidden.length,'hidden card')} in this deck. Deleting them removes them from your phone for good.</p>
+    ${delHiddenAsk?`<div class="row"><button class="btn primary" data-act="delHidden">🗑️ Yes, delete ${hidden.length}</button><button class="btn" data-act="delHiddenNo">Cancel</button></div>`:`<button class="btn" data-act="delHiddenAsk">🗑️ Delete hidden cards</button>`}`:'<p class="fine">None.</p>'}</section></div>`;
+  return h;
+}
+async function deleteNotes(ns){const ids=new Set(ns.map(n=>n.id));const cids=S.allCards.filter(c=>ids.has(c.noteId)).map(c=>c.id);
+  await write(['notes','cards','audio'],t=>{ns.forEach(n=>{t.objectStore('notes').delete(n.id);if(n.audioKey)t.objectStore('audio').delete(n.audioKey)});cids.forEach(i=>t.objectStore('cards').delete(i))});await load()}
+async function keepNote(id){const n=S.notes.get(id);if(!n)return;const g=repeatGroups(n.deckId).find(x=>x.some(y=>y.id===id));if(!g)return;
+  const drop=g.filter(x=>x.id!==id);try{await deleteNotes(drop);status={msg:`✓ Kept one. ${plural(drop.length,'repeat')} deleted.`}}catch(e){status={err:true,msg:'Could not delete. Try again.'}}render()}
+async function playNote(id){const n=S.notes.get(id);if(!n||!n.audioKey)return;try{const b=await get('audio',n.audioKey);if(b){player.src=URL.createObjectURL(b);player.play().catch(()=>{})}}catch(e){}}
 function deckPage(){
   const d=S.decks.find(x=>x.id===deckId);if(!d){view='home';return home()}
   const ns=deckNotes(d.id), byNote=cardsByNote();
@@ -1221,6 +1248,7 @@ function deckPage(){
     ${S.pending&&S.pending.kind==='deck'&&S.pending.deckId===d.id?`<button class="btn primary focus" data-act="saveBackup">📤 Send file</button>`:`<button class="btn focus" data-act="shareDeck" data-id="${esc(d.id)}">📤 Share deck</button>`}
     <p class="fine">Shares the words and audio, not your progress.</p>
     ${S.decks.length>1?`<button class="btn focus" data-act="combine">🔗 Combine with other decks</button>`:''}
+    ${(()=>{const r=repeatGroups(d.id).length,hd=ns.filter(n=>n.hidden).length;return `<button class="btn focus" data-act="repeats">🔍 Find repeats${r||hd?` <span class="cnt">${[r?plural(r,'repeat'):'',hd?hd+' hidden':''].filter(Boolean).join(' · ')}</span>`:''}</button>`})()}
     <p class="fine">✏️ Tap a word to edit, hide or delete it.</p>
     <div class="words">`+ns.map(n=>`<button class="wrow${n.hidden?' hid':''}" data-act="card" data-id="${esc(n.id)}"><span class="en">${n.hidden?'🙈 ':TAGS[n.tag]?TAGS[n.tag][0]+' ':''}${esc(n.meaning)}</span><span class="ar" lang="ar"><span class="kw">${n.hidden?'':mark(n)}</span> ${esc(n.word)}</span></button>`).join('')+`</div>
     <p class="fine">🌱 started · 🌿 growing · 🌳 known well</p>
@@ -1533,6 +1561,7 @@ function render(){
   if(view==='lesson'){app.innerHTML=lessonPage();return}
   if(view==='claude'){app.innerHTML=claudePage();return}
   if(view==='recipes'){app.innerHTML=recipesPage();return}
+  if(view==='repeats'){app.innerHTML=repeatsPage();return}
   if(view==='help'){app.innerHTML=helpPage();if(helpOpen){const el=document.getElementById('h-'+helpOpen);if(el)setTimeout(()=>el.scrollIntoView({block:'center'}),0)}return}
   if(view==='study'){if(!sess.queue.length&&sess.mode==='review')logCleared();app.innerHTML=sess.queue.length?study():done()}
   else if(view==='deck')app.innerHTML=deckPage();
@@ -1669,6 +1698,12 @@ app.addEventListener('click',e=>{
   else if(a==='setupNext')goNextStep();
   else if(a==='addStarter')addStarter();
   else if(a==='installOpen'||a==='installBack'){installOpen=a==='installOpen';render();window.scrollTo(0,0)}
+  else if(a==='repeats'){delHiddenAsk=false;go('repeats')}
+  else if(a==='keepNote')keepNote(id);
+  else if(a==='playNote')playNote(id);
+  else if(a==='delHiddenAsk'){delHiddenAsk=true;render()}
+  else if(a==='delHiddenNo'){delHiddenAsk=false;render()}
+  else if(a==='delHidden'){(async()=>{const hd=deckNotes(deckId).filter(n=>n.hidden);try{await deleteNotes(hd);status={msg:`✓ ${plural(hd.length,'hidden card')} deleted.`}}catch(e){status={err:true,msg:'Could not delete. Try again.'}}delHiddenAsk=false;render()})()}
   else if(a==='closeLessonTip'){saveSetup({lessonTipClosed:true}).then(render)}
   else if(a==='setupAll'){status=null;go('setup')}
   else if(a==='lesson'){lessonI=0;lessonMode='wa';go('lesson')}
