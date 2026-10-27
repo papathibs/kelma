@@ -140,6 +140,13 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .librow{display:flex;align-items:center;gap:10px;padding:14px;border-top:1px solid var(--line)}.librow:first-child{border-top:none}
 .ordrow .ordn{font-weight:800;color:var(--muted);min-width:18px}.ordrow .btn.small{min-width:38px;padding:6px 8px}.ordrow.paused .stxt{opacity:.55}
 .libbtn+.libbtn{margin-top:8px}
+.tagpick{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}
+.tchip{display:inline-flex}.tchip input{position:absolute;opacity:0;width:1px;height:1px}
+.tchip span{border:1.5px solid var(--line);border-radius:999px;padding:7px 12px;font-size:15px;background:var(--surface);cursor:pointer}
+.tchip input:checked+span{background:var(--accent-soft);border-color:var(--accent);font-weight:700}
+.tchip input:focus-visible+span{outline:2px solid var(--accent)}
+.lbl2{display:block;font-size:14px;font-weight:700;color:var(--muted);margin-top:8px}
+.tagchips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
 .rpgrp{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-top:10px}
 .rprow{display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid var(--line)}.rprow:first-child{border-top:none}
 .rptxt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.rptxt .ar{font-family:var(--f-ar);font-size:20px}
@@ -381,7 +388,10 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=8, APP_VERSION=42;
+const INSTR=9, APP_VERSION=43;
+/* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
+const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
+const tagsOf=n=>n?(Array.isArray(n.tags)&&n.tags.length?n.tags:(n.tag?[n.tag]:[])):[];
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 const DAY=86400000, TYPES=['listening','recognition','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
@@ -546,13 +556,13 @@ async function importFile(file){
       if(f){const buf=await f.async('arraybuffer');const ext=(c.audio.split('.').pop()||'').toLowerCase();
         audio.push([id,new Blob([buf],{type:ext==='m4a'?'audio/mp4':ext==='wav'?'audio/wav':(ext==='ogg'||ext==='opus')?'audio/ogg':'audio/mpeg'})]);audioKey=id}
       else missing.push(num)}
-    notes.push({id,deckId:deck.deck_id,order:Number(num)||i+1,num:String(num),word:c.word,meaning:c.meaning,example:c.example||'',example_en:c.example_en||'',tag:TAGS[String(c.tag||'').toLowerCase()]?String(c.tag).toLowerCase():'',audioKey});
+    notes.push({id,deckId:deck.deck_id,order:Number(num)||i+1,num:String(num),word:c.word,meaning:c.meaning,example:c.example||'',example_en:c.example_en||'',tag:parseTags(c)[0]||'',tags:parseTags(c),audioKey});
   }
   const noAudio=!notes.some(n=>n.audioKey)&&!deck.cards.some(c=>c.audio), starter=deck.deck_id===STARTER;
   const kinds=noAudio?['recognition','production']:TYPES;
   /* Keep the person's own edits and hidden flags when a deck is re-imported */
   for(const n of notes){const old=S.notes.get(n.id);if(!old)continue;if(old.hidden)n.hidden=true;
-    if(old.edited){['word','meaning','example','example_en','tag','audioKey'].forEach(k=>n[k]=old[k]);n.edited=true;for(let i=audio.length-1;i>=0;i--)if(audio[i][0]===n.id)audio.splice(i,1)}}
+    if(old.edited){['word','meaning','example','example_en','tag','tags','audioKey'].forEach(k=>n[k]=old[k]);n.edited=true;for(let i=audio.length-1;i>=0;i--)if(audio[i][0]===n.id)audio.splice(i,1)}}
   const existing=new Set((S.allCards||S.cards).map(c=>c.id));let added=0,updated=0;const newCards=[];
   notes.forEach(n=>{let fresh=false;kinds.forEach(t=>{const id=n.id+':'+t;if(!existing.has(id)){fresh=true;newCards.push({id,noteId:n.id,type:t,state:'new',interval:0,ease:2.5,due:0,reps:0,lapses:0})}});fresh?added++:updated++});
   const prev=S.decks.find(d=>d.id===deck.deck_id);
@@ -595,7 +605,7 @@ async function shareDeck(id){
   if(!window.JSZip)return;const d=S.decks.find(x=>x.id===id);if(!d)return;
   status={msg:'Getting the deck ready…'};render();
   const zip=new JSZip(),cards=[];const extOf=t=>/mp4|m4a|aac/.test(t)?'m4a':/wav/.test(t)?'wav':/ogg/.test(t)?'ogg':'mp3';
-  for(const n of deckNotes(id).filter(n=>!n.hidden)){const c={num:Number(n.num)||n.order,word:n.word,meaning:n.meaning,example:n.example||'',example_en:n.example_en||'',tag:n.tag||''};
+  for(const n of deckNotes(id).filter(n=>!n.hidden)){const c={num:Number(n.num)||n.order,word:n.word,meaning:n.meaning,example:n.example||'',example_en:n.example_en||'',tag:tagsOf(n)[0]||'',tags:tagsOf(n)};
     if(n.audioKey){const b=await get('audio',n.audioKey);if(b){c.audio='audio/'+String(c.num).padStart(2,'0')+'.'+extOf(b.type||'');zip.file(c.audio,b)}}
     cards.push(c)}
   zip.file('deck.json',JSON.stringify({format:'kelma-deck-1',instructions_version:INSTR,deck_id:d.id,deck_name:d.name,cards},null,1));
@@ -1313,7 +1323,7 @@ function deckPage(){
     ${S.decks.length>1?`<button class="btn focus" data-act="combine">🔗 Combine with other decks</button>`:''}
     ${(()=>{const r=repeatGroups(d.id).length,hd=ns.filter(n=>n.hidden).length;return `<button class="btn focus" data-act="repeats">🔍 Find repeats${r||hd?` <span class="cnt">${[r?plural(r,'repeat'):'',hd?hd+' hidden':''].filter(Boolean).join(' · ')}</span>`:''}</button>`})()}
     <p class="fine">✏️ Tap a word to edit, hide or delete it.</p>
-    <div class="words">`+ns.map(n=>`<button class="wrow${n.hidden?' hid':''}" data-act="card" data-id="${esc(n.id)}"><span class="en">${n.hidden?'🙈 ':TAGS[n.tag]?TAGS[n.tag][0]+' ':''}${esc(n.meaning)}</span><span class="ar" lang="ar"><span class="kw">${n.hidden?'':mark(n)}</span> ${esc(n.word)}</span></button>`).join('')+`</div>
+    <div class="words">`+ns.map(n=>`<button class="wrow${n.hidden?' hid':''}" data-act="card" data-id="${esc(n.id)}"><span class="en">${n.hidden?'🙈 ':tagsOf(n).length?tagsOf(n).map(t=>TAGS[t][0]).join('')+' ':''}${esc(n.meaning)}</span><span class="ar" lang="ar"><span class="kw">${n.hidden?'':mark(n)}</span> ${esc(n.word)}</span></button>`).join('')+`</div>
     <p class="fine">🌱 started · 🌿 growing · 🌳 known well</p>
     <button class="dangerlink" data-act="askDelete">🗑️ Delete this deck</button></div>`;
   return h;
@@ -1425,7 +1435,7 @@ function shareWeek(){
 }
 function cardPage(){
   const n=S.notes.get(editId);if(!n){view='deck';return deckPage()}
-  const opts=`<option value="">— none —</option>`+Object.entries(TAGS).map(([k,v])=>`<option value="${k}" ${n.tag===k?'selected':''}>${v[0]} ${v[1]}</option>`).join('');
+  const cur=new Set(tagsOf(n));const opts=Object.entries(TAGS).map(([k,v])=>`<label class="tchip"><input type="checkbox" name="e-tags" value="${k}" ${cur.has(k)?'checked':''}><span>${v[0]} ${v[1]}</span></label>`).join('');
   return `<div class="page edit"><div class="top" style="display:flex">${editFrom==='study'?`<button class="ghost" data-act="backToStudy">‹ Back to review</button>`:`<button class="ghost" data-act="deck" data-id="${esc(n.deckId)}">‹ Back</button>`}</div>
     <div class="dhead"><span class="ic" aria-hidden="true">✏️</span><div><h1>Edit card</h1><p>${n.hidden?'🙈 Hidden from reviews and practice':'Changes keep your progress.'}</p></div></div>
     ${statusBox()}
@@ -1433,7 +1443,7 @@ function cardPage(){
     <label for="e-mean">English</label><textarea id="e-mean" rows="2">${esc(n.meaning)}</textarea>
     <label for="e-ex">Example (Darija, optional)</label><textarea id="e-ex" dir="rtl" lang="ar" rows="2">${esc(n.example||'')}</textarea>
     <label for="e-exen">Example (English, optional)</label><textarea id="e-exen" rows="2">${esc(n.example_en||'')}</textarea>
-    <label for="e-tag">Type</label><select id="e-tag">${opts}</select>
+    <span class="lbl2">Type <span class="fine">(tap all that fit)</span></span><div class="tagpick">${opts}</div>
     <div class="audiobox"><span class="lbl">🎤 Audio</span>
       ${editAudio?`<span class="ok">✓ New recording ready. Tap Save to keep it.</span>`:n.audioKey?`<button class="btn small" data-act="editPlay">▶ Play current</button>`:`<span class="fine">No audio yet</span>`}
       <label class="btn small" for="e-audio">${n.audioKey||editAudio?'Replace audio':'Add audio'}</label>
@@ -1456,7 +1466,7 @@ async function saveCardEdit(){
   const v=id=>(document.getElementById(id)||{}).value||'';
   const word=v('e-word').trim(),meaning=v('e-mean').trim();
   if(!word||!meaning){status={err:true,msg:'Darija and English can’t be empty.'};render();return}
-  const nn={...n,word,meaning,example:v('e-ex').trim(),example_en:v('e-exen').trim(),tag:TAGS[v('e-tag')]?v('e-tag'):''};
+  const nn={...n,word,meaning,example:v('e-ex').trim(),example_en:v('e-exen').trim(),tag:'',tags:[]};{const tg=[...document.querySelectorAll('input[name=e-tags]:checked')].map(x=>x.value).filter(k=>TAGS[k]);nn.tags=tg;nn.tag=tg[0]||''}
   nn.edited=true;if(editAudio)nn.audioKey=n.id;
   try{await write(['notes','audio'],t=>{t.objectStore('notes').put(nn);if(editAudio)t.objectStore('audio').put(editAudio,n.id)})}
   catch(e){status={err:true,msg:'Could not save. Your phone may be out of storage.'};render();return}
@@ -1535,12 +1545,12 @@ function deletePage(){
 }
 function pickCount(){
   const ids=pickAll?new Set(S.decks.map(d=>d.id)):(pickSel||new Set());
-  return S.cards.filter(c=>{const n=S.notes.get(c.noteId);return n&&ids.has(n.deckId)&&(!pickTypes.size||pickTypes.has(n.tag))}).length;
+  return S.cards.filter(c=>{const n=S.notes.get(c.noteId);return n&&ids.has(n.deckId)&&(!pickTypes.size||tagsOf(n).some(t=>pickTypes.has(t)))}).length;
 }
 function pickPage(){
   const ds=sortedDecks();
   if(!pickSel)pickSel=new Set(ds.slice(0,1).map(d=>d.id));
-  const used=Object.keys(TAGS).filter(k=>[...S.notes.values()].some(n=>n.tag===k));
+  const used=Object.keys(TAGS).filter(k=>[...S.notes.values()].some(n=>tagsOf(n).includes(k)));
   const n=pickCount();
   return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
     <div class="dhead"><span class="ic" aria-hidden="true">🎯</span><div><h1>Focus practice</h1><p>Doesn’t change your reviews.</p></div></div>
@@ -1569,7 +1579,7 @@ function cardHtml(c,n,shown){
   const ex=n.example?`<p class="ex" lang="ar" dir="rtl">${exHtml(n.example)}</p>`:'';
   const mean=`<p class="mean">${esc(n.meaning)}</p>`;
   const exen=n.example_en?`<p class="exen">${exHtml(n.example_en)}</p>`:'';
-  const tg=TAGS[n.tag]?`<span class="tagchip">${TAGS[n.tag][0]} ${TAGS[n.tag][1]}</span>`:'';
+  const tg=tagsOf(n).length?`<span class="tagchips">${tagsOf(n).map(t=>`<span class="tagchip">${TAGS[t][0]} ${TAGS[t][1]}</span>`).join('')}</span>`:'';
   let f='',b='';
   if(c.type==='recognition'){f=`<span class="chip">👁️ See it · read it, what does it mean?</span>${word}${ex}`;b=mean+exen+play()}
   else if(c.type==='listening'){f=`<span class="chip">👂 Hear it · what did you hear?</span>${play(true)}`;b=word+ex+mean+exen}
@@ -1659,7 +1669,7 @@ async function begin(q,mode,deckIds,types){
 }
 const startSession=()=>begin(buildQueue(null),'review');
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-function practiceQueue(ids,types){const set=new Set(ids),ts=new Set(types||[]);return shuffle(S.cards.filter(c=>{const n=S.notes.get(c.noteId);return n&&set.has(n.deckId)&&(!ts.size||ts.has(n.tag))}).map(c=>c.id))}
+function practiceQueue(ids,types){const set=new Set(ids),ts=new Set(types||[]);return shuffle(S.cards.filter(c=>{const n=S.notes.get(c.noteId);return n&&set.has(n.deckId)&&(!ts.size||tagsOf(n).some(t=>ts.has(t)))}).map(c=>c.id))}
 function startPractice(ids,types){if(sess)sess.urls.forEach(u=>URL.revokeObjectURL(u));begin(practiceQueue(ids,types),'practice',ids,types)}
 function grade(g){
   const c=S.cards.find(x=>x.id===sess.queue[0]);if(!c)return;
@@ -1810,11 +1820,11 @@ app.addEventListener('input',e=>{
 });
 app.addEventListener('change',async e=>{
   if(e.target.id==='e-audio'){const f=e.target.files&&e.target.files[0];if(!f)return;
-    const keep=['e-word','e-mean','e-ex','e-exen','e-tag'].map(i=>[i,(document.getElementById(i)||{}).value]);
+    const keep=['e-word','e-mean','e-ex','e-exen'].map(i=>[i,(document.getElementById(i)||{}).value]);const keepT=[...document.querySelectorAll('input[name=e-tags]')].map(x=>[x.value,x.checked]);
     const type=f.type||(/\.m4a$/i.test(f.name)?'audio/mp4':/\.mp3$/i.test(f.name)?'audio/mpeg':/\.wav$/i.test(f.name)?'audio/wav':'');
     const blob=new Blob([await f.arrayBuffer()],{type});
     if(!(await testAudio(blob))){status={err:true,msg:'This phone can’t play that file. Try an .m4a or .mp3 recording.'}}else{editAudio=blob;status=null}
-    render();keep.forEach(([i,v])=>{const el=document.getElementById(i);if(el&&v!=null)el.value=v});return}
+    render();keep.forEach(([i,v])=>{const el=document.getElementById(i);if(el&&v!=null)el.value=v});keepT.forEach(([k,c])=>{const el=document.querySelector(`input[name=e-tags][value=${k}]`);if(el)el.checked=c});return}
   const ds=e.target.dataset||{};
   if('pickall' in ds){pickAll=e.target.checked;render();return}
   if(ds.comb){const nm=document.getElementById('combine-name');const keep=nm?nm.value:null;e.target.checked?combineSel.add(ds.comb):combineSel.delete(ds.comb);render();const n2=document.getElementById('combine-name');if(n2&&keep!==null)n2.value=keep;return}
