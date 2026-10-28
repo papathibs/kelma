@@ -394,7 +394,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=9, APP_VERSION=44;
+const INSTR=9, APP_VERSION=45;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -1185,6 +1185,7 @@ function decksPage(){
     return `<button class="deckrow" data-act="deck" data-id="${esc(d.id)}" data-s="${esc(sx)}"><span class="ic" aria-hidden="true">${esc(deckIcon(d.id))}</span><span><span class="name">${esc(d.name)}</span><br><span class="meta">${plural(n.length,'word')}${isKid()?'':` · ${k.due} due`}</span></span><span class="go" aria-hidden="true">›</span></button>`};
   let h=`<div class="page"><div class="top" style="display:flex;justify-content:space-between;align-items:center"><button class="ghost" data-act="home">‹ Home</button><label class="btn small" for="file">＋ Import deck</label></div>
     <div class="dhead"><span class="ic" aria-hidden="true">📚</span><div><h1>Decks</h1><p>${plural(ds.length,'deck')} · ${plural(S.notes.size,'word')}</p></div></div>${statusBox()}`;
+  {const ut=[...S.notes.values()].filter(n=>!n.hidden&&!tagsOf(n).length).length;h+=`<button class="srow slink libbtn" data-act="tags"><span class="sic" aria-hidden="true">🏷️</span><div class="stxt"><b>Tag cards</b><span>${ut?plural(ut,'card')+' without a type':'Every card has a type'}</span></div><span class="go" aria-hidden="true">›</span></button>`}
   h+=`<button class="srow slink libbtn" data-act="order"><span class="sic" aria-hidden="true">↕️</span><div class="stxt"><b>Order for new words</b><span>Choose which deck comes first</span></div><span class="go" aria-hidden="true">›</span></button>`;
   h+=`<button class="srow slink libbtn" data-act="library"><span class="sic" aria-hidden="true">🌍</span><div class="stxt"><b>Library</b><span>Ready-made decks you can add</span></div><span class="go" aria-hidden="true">›</span></button>`;
   if(ds.length>15)h+=`<input class="search" id="deck-search" type="search" placeholder="🔍 Search decks and words" autocomplete="off">`;
@@ -1467,6 +1468,16 @@ Reply with only lines like:
 
 CARDS:
 ${ids.map((id,i)=>{const n=S.notes.get(id);return n?`${i+1}: ${n.word} — ${n.meaning}`:''}).filter(Boolean).join('\n')}`}
+function tagsPage(){
+  const D=wordsData(),untagged=D.notes.filter(n=>!tagsOf(n).length),job=(S.settings.tagJob||[]).filter(id=>S.notes.has(id));
+  let h=`<div class="page wordspage"><div class="top" style="display:flex"><button class="ghost" data-act="${tagsFrom}">‹ ${tagsFrom==='words'?'Your words':'Decks'}</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">🏷️</span><div><h1>Tag cards</h1><p>${untagged.length?plural(untagged.length,'card')+' without a type':'Every card has a type'}</p></div></div>${statusBox()}
+    <p class="fine">Types help Focus practice and Your words. New imports are tagged automatically where Kelma can tell.</p>
+    <section class="sec">`+(untagged.length||job.length?`${untagged.length?`<p class="fine">${plural(untagged.length,'card')} without a type.</p><div class="row"><button class="btn small" data-act="autoTagAll">⚡ Tag what Kelma can</button><button class="btn small" data-act="tagCopy">🤖 Tag the rest with Claude</button></div>`:''}
+      ${job.length?`<div class="tagjob"><p><b>Paste Claude’s reply</b> for the ${plural(job.length,'card')} you copied:</p><textarea id="tagpaste" rows="4" placeholder="1: verb&#10;2: noun, spiritual">${esc(tagPaste&&tagPaste.raw||'')}</textarea><div class="row"><button class="btn small" data-act="tagPasteBtn">📋 Paste</button><button class="btn small primary" data-act="tagPreview">Check</button><button class="btn small" data-act="tagCancel">Cancel</button></div>
+        ${tagPaste&&tagPaste.changes?`<div class="tprev">${tagPaste.changes.length?tagPaste.changes.slice(0,40).map(([id,t])=>{const n=S.notes.get(id);return `<div>${t.map(x=>TAGS[x][0]).join('')} <span lang="ar" dir="rtl">${esc(n.word)}</span> · ${esc(n.meaning)}</div>`}).join('')+(tagPaste.changes.length>40?`<div class="fine">+${tagPaste.changes.length-40} more</div>`:''):'<p class="fine">Nothing to apply. Check the reply has lines like “3: verb”.</p>'}</div>${tagPaste.changes.length?`<button class="btn primary" data-act="tagApply">✓ Apply to ${plural(tagPaste.changes.length,'card')}</button>`:''}`:''}</div>`:''}`:'<p>Nothing to do.</p>')+`</section></div>`;
+  return h}
+let tagsFrom='decks';
 function wordsPage(){
   const D=wordsData(),order=Object.keys(TAGS).filter(k=>D.per[k]),goals=(S.settings.goals||'').trim(),notes=worthLook(D);
   const untagged=D.notes.filter(n=>!tagsOf(n).length),job=(S.settings.tagJob||[]).filter(id=>S.notes.has(id));
@@ -1475,9 +1486,7 @@ function wordsPage(){
     <div class="dhead"><span class="ic" aria-hidden="true">🧭</span><div><h1>Your words</h1><p>${plural(D.notes.length,'card')} you study</p></div></div>${statusBox()}
     <section class="sec"><h2>🎯 Your goals</h2>${goalsEdit||!goals?`<p class="fine">What do you need to be able to do right now? A felt need is perfect, e.g. “pray with neighbors”, “handle the souk”, “talk with my landlord”.</p><textarea id="goals" rows="3">${esc(goals)}</textarea><button class="btn primary" data-act="saveGoals">Save</button>`:`<p class="goaltxt">${esc(goals)}</p><button class="btn small" data-act="editGoals">✏️ Edit</button>`}</section>
     <section class="sec"><h2>📚 What you have</h2>${order.length?`<div class="wtable">${order.map(k=>{const o=D.per[k];return `<div class="wtr"><span class="wt">${TAGS[k][0]} ${TAGS[k][1]}</span><b>${o.n}</b><span class="fine">🌳 ${o.well} · 🌿 ${o.growing} · 🌱 ${o.started}${o.fresh?` · new ${o.fresh}`:''}</span></div>`}).join('')}</div>`:'<p class="fine">No types yet.</p>'}
-      ${untagged.length?`<p class="fine">${plural(untagged.length,'card')} without a type.</p><div class="row"><button class="btn small" data-act="autoTagAll">⚡ Tag what Kelma can</button><button class="btn small" data-act="tagCopy">🤖 Tag the rest with Claude</button></div>`:''}
-      ${job.length?`<div class="tagjob"><p><b>Paste Claude’s reply</b> for the ${plural(job.length,'card')} you copied:</p><textarea id="tagpaste" rows="4" placeholder="1: verb&#10;2: noun, spiritual">${esc(tagPaste&&tagPaste.raw||'')}</textarea><div class="row"><button class="btn small" data-act="tagPasteBtn">📋 Paste</button><button class="btn small primary" data-act="tagPreview">Check</button><button class="btn small" data-act="tagCancel">Cancel</button></div>
-        ${tagPaste&&tagPaste.changes?`<div class="tprev">${tagPaste.changes.length?tagPaste.changes.slice(0,40).map(([id,t])=>{const n=S.notes.get(id);return `<div>${t.map(x=>TAGS[x][0]).join('')} <span lang="ar" dir="rtl">${esc(n.word)}</span> · ${esc(n.meaning)}</div>`}).join('')+(tagPaste.changes.length>40?`<div class="fine">+${tagPaste.changes.length-40} more</div>`:''):'<p class="fine">Nothing to apply. Check the reply has lines like “3: verb”.</p>'}</div>${tagPaste.changes.length?`<button class="btn primary" data-act="tagApply">✓ Apply to ${plural(tagPaste.changes.length,'card')}</button>`:''}`:''}</div>`:''}</section>`;
+      ${untagged.length?`<p class="fine">${plural(untagged.length,'card')} ${untagged.length===1?'has':'have'} no type yet, so this picture is partial. <button class="linkbtn" data-act="tags">Tag them ›</button></p>`:''}</section>`;
   if(!wordsRev)h+=`<p class="fine">Loading your answers…</p>`;
   else{const rows=order.map(k=>[k,pct(D.missT[k])]).filter(x=>x[1]),kinds=[['listening','👂 Hear it'],['recognition','👁️ See it'],['production','🗣️ Say it']].map(([k,l])=>[l,pct(D.missK[k])]).filter(x=>x[1]);
     h+=`<section class="sec"><h2>🔁 Where you miss most</h2><p class="fine">Share of “Again” in your reviews, last 90 days.</p>${rows.length||kinds.length?`<div class="wtable">${kinds.map(([l,v])=>`<div class="wtr"><span class="wt">${l}</span><b>${v}</b></div>`).join('')}${rows.map(([k,v])=>`<div class="wtr"><span class="wt">${TAGS[k][0]} ${TAGS[k][1]}</span><b>${v}</b></div>`).join('')}</div>`:'<p class="fine">Not enough reviews yet.</p>'}</section>`}
@@ -1715,6 +1724,7 @@ function render(){
   if(view==='lesson'){app.innerHTML=lessonPage();return}
   if(view==='claude'){app.innerHTML=claudePage();return}
   if(view==='recipes'){app.innerHTML=recipesPage();return}
+  if(view==='tags'){app.innerHTML=tagsPage();return}
   if(view==='words'){app.innerHTML=wordsPage();return}
   if(view==='order'){app.innerHTML=orderPage();return}
   if(view==='library'){app.innerHTML=libraryPage();return}
@@ -1856,6 +1866,7 @@ app.addEventListener('click',e=>{
   else if(a==='addStarter')addStarter();
   else if(a==='installOpen'||a==='installBack'){installOpen=a==='installOpen';render();window.scrollTo(0,0)}
   else if(a==='words'){status=null;goalsEdit=false;go('words');loadRev()}
+  else if(a==='tags'){tagsFrom=view==='words'?'words':'decks';status=null;go('tags')}
   else if(a==='editGoals'){goalsEdit=true;render()}
   else if(a==='saveGoals'){S.settings.goals=((document.getElementById('goals')||{}).value||'').trim().slice(0,600);saveMeta();goalsEdit=false;status={msg:'✓ Goals saved.'};render()}
   else if(a==='autoTagAll'){(async()=>{const ch=[...S.notes.values()].filter(n=>!tagsOf(n).length).map(n=>[n.id,autoTags(n)]).filter(x=>x[1].length);try{await saveNotesTags(ch);status={msg:`✓ Kelma tagged ${plural(ch.length,'card')}.`}}catch(e){status={err:true,msg:'Could not save. Try again.'}}render()})()}
