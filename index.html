@@ -394,7 +394,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=9, APP_VERSION=45;
+const INSTR=10, APP_VERSION=46;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -408,6 +408,17 @@ function autoTags(n){const w=String(n.word||'').trim(),m=String(n.meaning||'').t
   return t}
 const tagsOf=n=>n?(Array.isArray(n.tags)&&n.tags.length?n.tags:(n.tag?[n.tag]:[])):[];
 const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
+/* Topics: what a card is about (separate from its type). Up to 2 per card. */
+const TOPICS={greetings:['👋','Greetings & courtesy'],me:['🧍','About me'],family:['👨‍👩‍👧','Family & people'],numbers:['🔢','Numbers & time'],food:['🍲','Food & drink'],shopping:['🛒','Shopping & money'],clothing:['👕','Clothing & colours'],health:['🩺','Body & health'],home:['🏠','Home'],travel:['🚕','Getting around'],daily:['☀️','Daily life'],safety:['🛡️','Safety'],faith:['🙏','Faith'],other:['💬','Other']};
+const TOPIC_ALIAS={greeting:'greetings',courtesy:'greetings',about:'me',aboutme:'me',people:'family',number:'numbers',time:'numbers',drink:'food',money:'shopping',clothes:'clothing',colours:'clothing',colors:'clothing',body:'health',travel:'travel',getting:'travel',around:'travel',life:'daily'};
+const parseTopics=v=>{let t=Array.isArray(v)?v:String(v||'').split(/[,/+;&]+/);t=t.map(x=>{x=String(x).toLowerCase().trim().replace(/[^a-z ]/g,'').trim();if(TOPICS[x])return x;const w=x.split(/\s+/).find(y=>TOPICS[y]||TOPIC_ALIAS[y]);return w?(TOPICS[w]?w:TOPIC_ALIAS[w]):''}).filter(Boolean);return [...new Set(t)].slice(0,2)};
+const topicsOf=n=>n&&Array.isArray(n.topics)?n.topics:[];
+/* English keyword lists, built from the Peace Corps Morocco textbook's units plus faith words. */
+const TOPIC_WORDS={greetings:'bye congratulation congratulations excuse goodbye hello hi pardon peace repeat thank thanks welcome',me:'american british canadian engaged job married nationality profession tourist volunteer work',family:'aunt baby boy brother child children cousin dad daughter divorced family father friend girl grandchild grandfather grandmother husband kid man marriage mom mother neighbor neighbour nephew niece parent relative sibling sister son twin uncle wedding wife woman',numbers:'afternoon april evening morning august billion birthday calendar clock date dawn day december eight eighteen eighth eighty eleven eleventh february fifteen fifty five forty four fourteen fourth hour hundred january july june march midnight million minute monday month night nine nineteen ninety ninth november number october quarter season september seven seventeen seventh seventy six sixteen sixth sixty spring summer sunday ten tenth third thirteen thirty thousand three thursday time tuesday twelfth twelve twenty two wednesday week weekend winter year',food:'absinthe apple apricot artichoke ate avocado bake banana basil bastila bean beef beet berry bone bread breakfast butcher cabbage cake carrot cauliflower celery cherry chick chicken cinnamon clove coffee cook cooking coriander couscous cucumber cumin deliciou dessert dinner drink eat eating egg eggplant fava fish food fruit garlic ginger goat gourd grape hungry juice kiwi lamb lemon lentil liver lunch meal meat menu milk mint mulberry nutmeg okra olive onion orange oregano paprika parsley pasta pea peache pear pepper pineapple pizza plum pomegranate potatoe pumpkin quince radish rice saffron salad salt shake soup spice squash steamed sugar tagine tajine tea thirsty tomatoe turmeric turnip vegetable verbena vermicelli waiter water watermelon zucchini',shopping:'bleach bottle box butter buy candy card change cheap cheese chocolate cigarette cooky detergent dirham envelope expensive express glue gum jam kleenex letter liter market money oil package paid paper pay peanut post postman price razor receipt receive registered ryal seal sell send shampoo shop soda sold souk stamp store tobacco yogurt',clothing:'bead belt blue boot bra brown cap chain clothes clothing coat color djellaba dress earring faded gandoura glove golden grey hat headscarf jacket jean jeans knit necklace pajama pink purple sandal scarf shirt shoe skirt sleeved slipper sneaker sock suit sweater tie tight trouser umbrella underpant undershirt vest wear wearing white yellow',health:'ache ail allergic allergy arm back beard belly blood body breast burnt cheek chest chin clinic cold constipated cough dizzy doctor ear elbow eye eyebrow face fever finger foot forehead hair head headache heart hospital hurt injured jaw knee leg lip medicine moustache mouth nail nose nurse pain pharmacy pill shoulder sick sore stomach teeth thigh throat toe tongue tooth toothache vomit',home:'apartment balcony bathroom bedroom blender bowl brazier broom building bulb candle carpet chair clean cooker cord couch curtain dish dishes door electric elevator faucet floor fork frying furniture garden grill heater house kettle key kitchen knife ladle laundry mat outlet oven pan pillow pitcher plate pot pressure radio recorder refrigerator rent rental roof room rug saucepan sheet sifter sofa spoon squeegee stair strainer sweep switch teapot television tray wall wash window',travel:'airport alley avenue bag baggage bank bu bus caf car center city cyber depot drive driver driving east far flight hotel left map meter north oujda plane reception restaurant right road seat sleeper south stand station stop straight street taker taxi terminu ticket train travel trip trunk weekly west',daily:'bath brush chore class cooked hammam homework lesson office read routine school shower study swim taste teach teacher wake walk write',safety:'attack attacked attention bar bothering butaga butane careful certificate closest court cracked cursed danger dangerou detector emergency file fire follow followed forgive ga gasket gazelle gendarme grabbed harass harassment hardware hashish help hit hose human inspector insulted latch lawyer lock locking medical odor passport police regulator report safe sexual slapped sliding snatched spit statement steal stole stolen summon tank testimony theft thief tire torn wallet welder windshield witness',faith:'amen bible bless blessed blessing christ christmas church cross easter eid faith fasting feast god gospel grace heaven holy islamic jesus lord messiah mosque pray prayer praying prays ramadan repent savior saviour sin sins spirit worship'};
+const TOPIC_KW=(()=>{const m=new Map();Object.entries(TOPIC_WORDS).forEach(([t,ws])=>ws.split(' ').forEach(w=>m.set(w,t)));return m})();
+function autoTopics(n){const sc={};String(n.meaning||'').toLowerCase().replace(/\(.*?\)/g,' ').split(/[^a-z]+/).forEach(w=>{if(w.length<2)return;w=w.replace(/ies$/,'y').replace(/([^s])s$/,'$1');const t=TOPIC_KW.get(w);if(t)sc[t]=(sc[t]||0)+1});
+  if(SPIRIT.test(String(n.meaning||'')))sc.faith=(sc.faith||0)+2;
+  const r=Object.entries(sc).sort((a,b)=>b[1]-a[1]);if(!r.length)return [];return r.filter(x=>x[1]===r[0][1]).slice(0,2).map(x=>x[0])}
 const DAY=86400000, TYPES=['listening','recognition','production'];
 const app=document.getElementById('app'), fileIn=document.getElementById('file'), player=document.getElementById('player');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -452,6 +463,9 @@ async function load(){
    if(add.length){try{await write(['cards'],t=>{const st=t.objectStore('cards');add.forEach(c=>st.put(c))});S.allCards.push(...add)}catch(e){}}}
   S.cards=S.allCards.filter(c=>{const n=S.notes.get(c.noteId);return !(n&&n.hidden)});
   S.settings=(await get('meta','settings'))||{newPerDay:15};
+  /* v46: cards from before topics existed get Kelma's guess once, from the English. The rest wait for Tag cards. */
+  if(!S.settings.topicsGuessed){const up=[];S.notes.forEach(n=>{if(!topicsOf(n).length){const tp=autoTopics(n);if(tp.length){n.topics=tp;up.push(n)}}});
+    try{if(up.length)await write(['notes'],t=>{const st=t.objectStore('notes');up.forEach(n=>st.put(n))});S.settings.topicsGuessed=true;await write(['meta'],t=>t.objectStore('meta').put(S.settings,'settings'))}catch(e){}}
   S.newDone=(await get('meta','newDone'))||{day:'',count:0};
   S.log=(await get('meta','log'))||{};
   const iv=await get('meta','instrVer');S.instrVer=(typeof iv==='number')?iv:null;
@@ -572,14 +586,17 @@ async function importFile(file){
         audio.push([id,new Blob([buf],{type:ext==='m4a'?'audio/mp4':ext==='wav'?'audio/wav':(ext==='ogg'||ext==='opus')?'audio/ogg':'audio/mpeg'})]);audioKey=id}
       else missing.push(num)}
     {const _pt=parseTags(c);if(!_pt.length){const _at=autoTags({word:c.word,meaning:c.meaning});if(_at.length){c.tags=_at}}}
-    notes.push({id,deckId:deck.deck_id,order:Number(num)||i+1,num:String(num),word:c.word,meaning:c.meaning,example:c.example||'',example_en:c.example_en||'',tag:parseTags(c)[0]||'',tags:parseTags(c),audioKey});
+    let _tp=parseTopics(c.topics);if(!_tp.length)_tp=autoTopics({meaning:c.meaning});
+    notes.push({id,deckId:deck.deck_id,order:Number(num)||i+1,num:String(num),word:c.word,meaning:c.meaning,example:c.example||'',example_en:c.example_en||'',tag:parseTags(c)[0]||'',tags:parseTags(c),topics:_tp,audioKey});
   }
   const noAudio=!notes.some(n=>n.audioKey)&&!deck.cards.some(c=>c.audio), starter=deck.deck_id===STARTER;
   const kinds=noAudio?['recognition','production']:TYPES;
   /* Keep the person's own edits and hidden flags when a deck is re-imported */
   for(const n of notes){const old=S.notes.get(n.id);if(!old)continue;if(old.hidden)n.hidden=true;
     if(!(n.tags||[]).length&&tagsOf(old).length){n.tags=tagsOf(old).slice();n.tag=n.tags[0]}
-    if(old.edited){['word','meaning','example','example_en','tag','tags','audioKey'].forEach(k=>n[k]=old[k]);n.edited=true;for(let i=audio.length-1;i>=0;i--)if(audio[i][0]===n.id)audio.splice(i,1)}}
+    if(topicsOf(old).length&&(old.topicsSet||!n.topics.length))n.topics=topicsOf(old).slice();
+    if(old.topicsSet)n.topicsSet=true;
+    if(old.edited){['word','meaning','example','example_en','tag','tags','topics','audioKey'].forEach(k=>n[k]=old[k]);n.edited=true;for(let i=audio.length-1;i>=0;i--)if(audio[i][0]===n.id)audio.splice(i,1)}}
   const existing=new Set((S.allCards||S.cards).map(c=>c.id));let added=0,updated=0;const newCards=[];
   notes.forEach(n=>{let fresh=false;kinds.forEach(t=>{const id=n.id+':'+t;if(!existing.has(id)){fresh=true;newCards.push({id,noteId:n.id,type:t,state:'new',interval:0,ease:2.5,due:0,reps:0,lapses:0})}});fresh?added++:updated++});
   const prev=S.decks.find(d=>d.id===deck.deck_id);
@@ -622,7 +639,7 @@ async function shareDeck(id){
   if(!window.JSZip)return;const d=S.decks.find(x=>x.id===id);if(!d)return;
   status={msg:'Getting the deck ready…'};render();
   const zip=new JSZip(),cards=[];const extOf=t=>/mp4|m4a|aac/.test(t)?'m4a':/wav/.test(t)?'wav':/ogg/.test(t)?'ogg':'mp3';
-  for(const n of deckNotes(id).filter(n=>!n.hidden)){const c={num:Number(n.num)||n.order,word:n.word,meaning:n.meaning,example:n.example||'',example_en:n.example_en||'',tag:tagsOf(n)[0]||'',tags:tagsOf(n)};
+  for(const n of deckNotes(id).filter(n=>!n.hidden)){const c={num:Number(n.num)||n.order,word:n.word,meaning:n.meaning,example:n.example||'',example_en:n.example_en||'',tag:tagsOf(n)[0]||'',tags:tagsOf(n),topics:topicsOf(n)};
     if(n.audioKey){const b=await get('audio',n.audioKey);if(b){c.audio='audio/'+String(c.num).padStart(2,'0')+'.'+extOf(b.type||'');zip.file(c.audio,b)}}
     cards.push(c)}
   zip.file('deck.json',JSON.stringify({format:'kelma-deck-1',instructions_version:INSTR,deck_id:d.id,deck_name:d.name,cards},null,1));
@@ -1185,7 +1202,7 @@ function decksPage(){
     return `<button class="deckrow" data-act="deck" data-id="${esc(d.id)}" data-s="${esc(sx)}"><span class="ic" aria-hidden="true">${esc(deckIcon(d.id))}</span><span><span class="name">${esc(d.name)}</span><br><span class="meta">${plural(n.length,'word')}${isKid()?'':` · ${k.due} due`}</span></span><span class="go" aria-hidden="true">›</span></button>`};
   let h=`<div class="page"><div class="top" style="display:flex;justify-content:space-between;align-items:center"><button class="ghost" data-act="home">‹ Home</button><label class="btn small" for="file">＋ Import deck</label></div>
     <div class="dhead"><span class="ic" aria-hidden="true">📚</span><div><h1>Decks</h1><p>${plural(ds.length,'deck')} · ${plural(S.notes.size,'word')}</p></div></div>${statusBox()}`;
-  {const ut=[...S.notes.values()].filter(n=>!n.hidden&&!tagsOf(n).length).length;h+=`<button class="srow slink libbtn" data-act="tags"><span class="sic" aria-hidden="true">🏷️</span><div class="stxt"><b>Tag cards</b><span>${ut?plural(ut,'card')+' without a type':'Every card has a type'}</span></div><span class="go" aria-hidden="true">›</span></button>`}
+  {const ut=[...S.notes.values()].filter(needsTag).length;h+=`<button class="srow slink libbtn" data-act="tags"><span class="sic" aria-hidden="true">🏷️</span><div class="stxt"><b>Tag cards</b><span>${ut?plural(ut,'card')+' to tag':'Every card has a type and a topic'}</span></div><span class="go" aria-hidden="true">›</span></button>`}
   h+=`<button class="srow slink libbtn" data-act="order"><span class="sic" aria-hidden="true">↕️</span><div class="stxt"><b>Order for new words</b><span>Choose which deck comes first</span></div><span class="go" aria-hidden="true">›</span></button>`;
   h+=`<button class="srow slink libbtn" data-act="library"><span class="sic" aria-hidden="true">🌍</span><div class="stxt"><b>Library</b><span>Ready-made decks you can add</span></div><span class="go" aria-hidden="true">›</span></button>`;
   if(ds.length>15)h+=`<input class="search" id="deck-search" type="search" placeholder="🔍 Search decks and words" autocomplete="off">`;
@@ -1430,23 +1447,24 @@ let wordsRev=null,goalsEdit=false,tagPaste=null;
 async function loadRev(){try{wordsRev=await getAll('revlog')}catch(e){wordsRev=[]}if(view==='words')render()}
 function wordsData(){
   const byNote=cardsByNote(),notes=[...S.notes.values()].filter(n=>!n.hidden&&(byNote.get(n.id)||[]).length);
-  const tagged=notes.filter(n=>tagsOf(n).length),per={};
-  notes.forEach(n=>tagsOf(n).forEach(t=>{const o=per[t]||(per[t]={n:0,well:0,growing:0,started:0,fresh:0});o.n++;const st=stageOf(byNote.get(n.id));o[st==='well'?'well':st==='growing'?'growing':st==='started'?'started':'fresh']++}));
-  const since=Date.now()-90*DAY,cardNote=new Map(S.cards.map(c=>[c.id,c]));const missT={},missK={};
+  const tagged=notes.filter(n=>tagsOf(n).length),topicked=notes.filter(n=>topicsOf(n).length),per={},perT={};
+  const add=(o,n)=>{o.n++;const st=stageOf(byNote.get(n.id));o[st==='well'?'well':st==='growing'?'growing':st==='started'?'started':'fresh']++};
+  const mk=()=>({n:0,well:0,growing:0,started:0,fresh:0});
+  notes.forEach(n=>{tagsOf(n).forEach(t=>add(per[t]||(per[t]=mk()),n));topicsOf(n).forEach(t=>add(perT[t]||(perT[t]=mk()),n))});
+  const since=Date.now()-90*DAY,cardNote=new Map(S.cards.map(c=>[c.id,c]));const missT={},missK={},missP={};
   (wordsRev||[]).forEach(r=>{if(r.mode!=='review'||r.t<since)return;const c=cardNote.get(r.card);if(!c)return;const n=S.notes.get(c.noteId);if(!n)return;const bad=r.g===0?1:0;
-    const k=missK[c.type]||(missK[c.type]={a:0,b:0});k.a++;k.b+=bad;tagsOf(n).forEach(t=>{const o=missT[t]||(missT[t]={a:0,b:0});o.a++;o.b+=bad})});
+    const k=missK[c.type]||(missK[c.type]={a:0,b:0});k.a++;k.b+=bad;tagsOf(n).forEach(t=>{const o=missT[t]||(missT[t]={a:0,b:0});o.a++;o.b+=bad});topicsOf(n).forEach(t=>{const o=missP[t]||(missP[t]={a:0,b:0});o.a++;o.b+=bad})});
   const missN=new Map();(wordsRev||[]).forEach(r=>{if(r.mode==='review'&&r.g===0){const c=cardNote.get(r.card);if(c)missN.set(c.noteId,(missN.get(c.noteId)||0)+1)}});
-  return {byNote,notes,tagged,per,missT,missK,missN}}
+  return {byNote,notes,tagged,topicked,per,perT,missT,missK,missP,missN}}
 function worthLook(D){const out=[],T=D.tagged.length,p=k=>(D.per[k]||{n:0}).n;
-  const untag=D.notes.length-T;if(D.notes.length&&untag/D.notes.length>0.3)out.push(`${plural(untag,'card')} ${untag===1?'has':'have'} no type yet, so this picture is incomplete.`);
   if(T>=50&&p('connector')/T<0.03)out.push(`Only ${p('connector')} connector${p('connector')===1?'':'s'} (and, but, because…). They join words into sentences.`);
   if(T>=50&&p('question')/T<0.05)out.push(`Only ${p('question')} question${p('question')===1?'':'s'}. Questions keep a conversation going.`);
   const say=D.missK.production,see=D.missK.recognition;if(say&&see&&say.a>=20&&see.a>=20){const rs=say.b/say.a,re=see.b/see.a;if(re>0&&rs/re>=1.5)out.push(`🗣️ Say-it cards are missed ${(rs/re).toFixed(1)}× as often as 👁️ see-it cards. Recognizing a word comes before saying it.`)}
   return out.slice(0,3)}
 function claudeSummary(D){
   const goals=(S.settings.goals||'').trim(),stN={well:'known well',growing:'growing',started:'started',fresh:'not started'};
-  const lines=D.notes.map(n=>{const st=stageOf(D.byNote.get(n.id))||'fresh',m=D.missN.get(n.id)||0;return `${n.word} — ${n.meaning}${tagsOf(n).length?' ['+tagsOf(n).join(', ')+']':''} (${stN[st]}${m?`, missed ${m}×`:''})`});
-  const counts=Object.entries(D.per).map(([k,o])=>`${TAGS[k][1]}: ${o.n} (${o.well} known well)`).join('; ');
+  const lines=D.notes.map(n=>{const st=stageOf(D.byNote.get(n.id))||'fresh',m=D.missN.get(n.id)||0,lb=[...topicsOf(n).map(t=>TOPICS[t][1]),...tagsOf(n)];return `${n.word} — ${n.meaning}${lb.length?' ['+lb.join(', ')+']':''} (${stN[st]}${m?`, missed ${m}×`:''})`});
+  const counts=Object.entries(D.perT).map(([k,o])=>`${TOPICS[k][1]}: ${o.n} (${o.well} known well)`).join('; ')+(Object.keys(D.per).length?'. Types: '+Object.entries(D.per).map(([k,o])=>`${TAGS[k][1]} ${o.n}`).join(', '):'');
   return `I'm learning Moroccan Darija. Below are my goals and the flashcards I study in Kelma, with how well I know each one.
 
 Please help me think about what to learn next. Don't give me one plan. Instead:
@@ -1457,44 +1475,51 @@ If I pick an option, you can help with a list of things to ask my language helpe
 
 MY GOALS: ${goals||'(not written yet)'}
 
-SUMMARY: ${D.notes.length} cards. ${counts||'No types yet.'} Untagged: ${D.notes.length-D.tagged.length}.
+SUMMARY: ${D.notes.length} cards. ${counts||'No topics yet.'} No topic yet: ${D.notes.length-D.topicked.length}.
 
 MY CARDS:
 ${lines.join('\n')}`}
-function tagRequest(ids){return `Give each card one or more types from this list: noun, verb, adjective, connector, question, phrase, proverb, verse, spiritual.
-Most cards have one type. Add a second only when it clearly fits (e.g. a prayer verb: verb, spiritual).
+const needsTag=n=>!n.hidden&&(!tagsOf(n).length||!topicsOf(n).length);
+function tagRequest(ids){return `For each card, give its type(s) and its topic(s).
+Types: noun, verb, adjective, connector, question, phrase, proverb, verse, spiritual. Most cards have one type. Add a second only when it clearly fits (e.g. a prayer verb: verb, spiritual).
+Topics: greetings, me, family, numbers, food, shopping, clothing, health, home, travel, daily, safety, faith, other. Give one topic, or two if both clearly fit.
+(greetings = greetings & courtesy · me = about me · family = family & people · numbers = numbers & time · food = food & drink · shopping = shopping & money · clothing = clothing & colours · health = body & health · travel = getting around · daily = daily life · other = anything that doesn't fit)
 Reply with only lines like:
-12: verb, spiritual
+12: verb, spiritual | faith
 
 CARDS:
 ${ids.map((id,i)=>{const n=S.notes.get(id);return n?`${i+1}: ${n.word} — ${n.meaning}`:''}).filter(Boolean).join('\n')}`}
 function tagsPage(){
-  const D=wordsData(),untagged=D.notes.filter(n=>!tagsOf(n).length),job=(S.settings.tagJob||[]).filter(id=>S.notes.has(id));
+  const all=[...S.notes.values()].filter(n=>!n.hidden),need=all.filter(needsTag),noType=all.filter(n=>!tagsOf(n).length).length,noTopic=all.filter(n=>!topicsOf(n).length).length,job=(S.settings.tagJob||[]).filter(id=>S.notes.has(id));
+  const chips=(tg,tp)=>(tg||[]).map(x=>TAGS[x][0]).join('')+((tg||[]).length&&(tp||[]).length?' · ':'')+(tp||[]).map(x=>TOPICS[x][0]).join('');
   let h=`<div class="page wordspage"><div class="top" style="display:flex"><button class="ghost" data-act="${tagsFrom}">‹ ${tagsFrom==='words'?'Your words':'Decks'}</button></div>
-    <div class="dhead"><span class="ic" aria-hidden="true">🏷️</span><div><h1>Tag cards</h1><p>${untagged.length?plural(untagged.length,'card')+' without a type':'Every card has a type'}</p></div></div>${statusBox()}
-    <p class="fine">Types help Focus practice and Your words. New imports are tagged automatically where Kelma can tell.</p>
-    <section class="sec">`+(untagged.length||job.length?`${untagged.length?`<p class="fine">${plural(untagged.length,'card')} without a type.</p><div class="row"><button class="btn small" data-act="autoTagAll">⚡ Tag what Kelma can</button><button class="btn small" data-act="tagCopy">🤖 Tag the rest with Claude</button></div>`:''}
-      ${job.length?`<div class="tagjob"><p><b>Paste Claude’s reply</b> for the ${plural(job.length,'card')} you copied:</p><textarea id="tagpaste" rows="4" placeholder="1: verb&#10;2: noun, spiritual">${esc(tagPaste&&tagPaste.raw||'')}</textarea><div class="row"><button class="btn small" data-act="tagPasteBtn">📋 Paste</button><button class="btn small primary" data-act="tagPreview">Check</button><button class="btn small" data-act="tagCancel">Cancel</button></div>
-        ${tagPaste&&tagPaste.changes?`<div class="tprev">${tagPaste.changes.length?tagPaste.changes.slice(0,40).map(([id,t])=>{const n=S.notes.get(id);return `<div>${t.map(x=>TAGS[x][0]).join('')} <span lang="ar" dir="rtl">${esc(n.word)}</span> · ${esc(n.meaning)}</div>`}).join('')+(tagPaste.changes.length>40?`<div class="fine">+${tagPaste.changes.length-40} more</div>`:''):'<p class="fine">Nothing to apply. Check the reply has lines like “3: verb”.</p>'}</div>${tagPaste.changes.length?`<button class="btn primary" data-act="tagApply">✓ Apply to ${plural(tagPaste.changes.length,'card')}</button>`:''}`:''}</div>`:''}`:'<p>Nothing to do.</p>')+`</section></div>`;
+    <div class="dhead"><span class="ic" aria-hidden="true">🏷️</span><div><h1>Tag cards</h1><p>${need.length?plural(need.length,'card')+' to tag':'Every card has a type and a topic'}</p></div></div>${statusBox()}
+    <p class="fine">Topics show what you have in Your words. Types help Focus practice. New imports are tagged automatically where Kelma can tell.</p>
+    <section class="sec">`+(need.length||job.length?`${need.length&&!job.length?`<div class="wtable"><div class="wtr"><span class="wt">No topic yet</span><b>${noTopic}</b></div><div class="wtr"><span class="wt">No type yet</span><b>${noType}</b></div></div>
+      <p class="fine"><b>1.</b> Let Kelma tag what it can from the English.</p><button class="btn small" data-act="autoTagAll">⚡ Tag what Kelma can</button>
+      <p class="fine"><b>2.</b> Ask Claude for the rest, ${need.length>100?'100 cards at a time':'all at once'}.</p><button class="btn small" data-act="tagCopy">🤖 Copy ${plural(Math.min(100,need.length),'card')} for Claude</button>`:''}
+      ${job.length?`<div class="tagjob"><p><b>Paste Claude’s reply</b> for the ${plural(job.length,'card')} you copied:</p><textarea id="tagpaste" rows="4" placeholder="1: verb | daily&#10;2: noun | food">${esc(tagPaste&&tagPaste.raw||'')}</textarea><div class="row"><button class="btn small" data-act="tagPasteBtn">📋 Paste</button><button class="btn small primary" data-act="tagPreview">Check</button><button class="btn small" data-act="tagCancel">Cancel</button></div>
+        ${tagPaste&&tagPaste.changes?`<div class="tprev">${tagPaste.changes.length?tagPaste.changes.slice(0,40).map(([id,tg,tp])=>{const n=S.notes.get(id);return `<div>${chips(tg,tp)} <span lang="ar" dir="rtl">${esc(n.word)}</span> · ${esc(n.meaning)}</div>`}).join('')+(tagPaste.changes.length>40?`<div class="fine">+${tagPaste.changes.length-40} more</div>`:''):'<p class="fine">Nothing to apply. Check the reply has lines like “3: verb | food”.</p>'}</div>${tagPaste.changes.length?`<button class="btn primary" data-act="tagApply">✓ Apply to ${plural(tagPaste.changes.length,'card')}</button>`:''}`:''}</div>`:''}`:'<p>Nothing to do.</p>')+`</section></div>`;
   return h}
 let tagsFrom='decks';
 function wordsPage(){
-  const D=wordsData(),order=Object.keys(TAGS).filter(k=>D.per[k]),goals=(S.settings.goals||'').trim(),notes=worthLook(D);
-  const untagged=D.notes.filter(n=>!tagsOf(n).length),job=(S.settings.tagJob||[]).filter(id=>S.notes.has(id));
+  const D=wordsData(),order=Object.keys(TOPICS).filter(k=>D.perT[k]).sort((a,b)=>D.perT[b].n-D.perT[a].n),goals=(S.settings.goals||'').trim(),notes=worthLook(D);
+  const untop=D.notes.filter(n=>!topicsOf(n).length);
   const pct=(o)=>o&&o.a>=10?Math.round(100*o.b/o.a)+'%':null;
+  const parts=o=>[[o.well,'known well'],[o.growing,'growing'],[o.started,'started'],[o.fresh,'not started']].filter(x=>x[0]).map(([v,l])=>`${v} ${l}`).join(' · ');
   let h=`<div class="page wordspage"><div class="top" style="display:flex"><button class="ghost" data-act="progress">‹ Progress</button></div>
     <div class="dhead"><span class="ic" aria-hidden="true">🧭</span><div><h1>Your words</h1><p>${plural(D.notes.length,'card')} you study</p></div></div>${statusBox()}
     <section class="sec"><h2>🎯 Your goals</h2>${goalsEdit||!goals?`<p class="fine">What do you need to be able to do right now? A felt need is perfect, e.g. “pray with neighbors”, “handle the souk”, “talk with my landlord”.</p><textarea id="goals" rows="3">${esc(goals)}</textarea><button class="btn primary" data-act="saveGoals">Save</button>`:`<p class="goaltxt">${esc(goals)}</p><button class="btn small" data-act="editGoals">✏️ Edit</button>`}</section>
-    <section class="sec"><h2>📚 What you have</h2>${order.length?`<div class="wtable">${order.map(k=>{const o=D.per[k];return `<div class="wtr"><span class="wt">${TAGS[k][0]} ${TAGS[k][1]}</span><b>${o.n}</b><span class="fine">🌳 ${o.well} · 🌿 ${o.growing} · 🌱 ${o.started}${o.fresh?` · new ${o.fresh}`:''}</span></div>`}).join('')}</div>`:'<p class="fine">No types yet.</p>'}
-      ${untagged.length?`<p class="fine">${plural(untagged.length,'card')} ${untagged.length===1?'has':'have'} no type yet, so this picture is partial. <button class="linkbtn" data-act="tags">Tag them ›</button></p>`:''}</section>`;
+    <section class="sec"><h2>📚 What you have</h2>${order.length?`<div class="wtable">${order.map(k=>{const o=D.perT[k];return `<div class="wtr tline"><span class="wt">${TOPICS[k][0]} ${TOPICS[k][1]}</span><b>${plural(o.n,'card')}</b><span class="fine">${parts(o)}</span></div>`}).join('')}</div>`:'<p class="fine">No topics yet.</p>'}
+      ${untop.length?`<p class="fine">${plural(untop.length,'card')} ${untop.length===1?'has':'have'} no topic yet. <button class="linkbtn" data-act="tags">Add topics ›</button></p>`:''}</section>`;
   if(!wordsRev)h+=`<p class="fine">Loading your answers…</p>`;
-  else{const rows=order.map(k=>[k,pct(D.missT[k])]).filter(x=>x[1]),kinds=[['listening','👂 Hear it'],['recognition','👁️ See it'],['production','🗣️ Say it']].map(([k,l])=>[l,pct(D.missK[k])]).filter(x=>x[1]);
-    h+=`<section class="sec"><h2>🔁 Where you miss most</h2><p class="fine">Share of “Again” in your reviews, last 90 days.</p>${rows.length||kinds.length?`<div class="wtable">${kinds.map(([l,v])=>`<div class="wtr"><span class="wt">${l}</span><b>${v}</b></div>`).join('')}${rows.map(([k,v])=>`<div class="wtr"><span class="wt">${TAGS[k][0]} ${TAGS[k][1]}</span><b>${v}</b></div>`).join('')}</div>`:'<p class="fine">Not enough reviews yet.</p>'}</section>`}
-  if(notes.length)h+=`<section class="sec"><h2>👀 Worth a look</h2><ul class="mini">${notes.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p class="fine">Observations, not instructions. You know your situation best.</p></section>`;
+  else{const rows=order.map(k=>[k,pct(D.missP[k])]).filter(x=>x[1]),kinds=[['listening','👂 Hear it'],['recognition','👁️ See it'],['production','🗣️ Say it']].map(([k,l])=>[l,pct(D.missK[k])]).filter(x=>x[1]);
+    h+=`<section class="sec"><h2>🔁 Where you miss most</h2><p class="fine">Share of “Again” in your reviews, last 90 days.</p>${rows.length||kinds.length?`<div class="wtable">${kinds.map(([l,v])=>`<div class="wtr"><span class="wt">${l}</span><b>${v}</b></div>`).join('')}${rows.map(([k,v])=>`<div class="wtr"><span class="wt">${TOPICS[k][0]} ${TOPICS[k][1]}</span><b>${v}</b></div>`).join('')}</div>`:'<p class="fine">Not enough reviews yet.</p>'}</section>`}
+  if(notes.length)h+=`<section class="sec"><h2>👀 Worth a look</h2><ul class="mini">${notes.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></section>`;
   h+=`<section class="sec"><h2>🤖 Think it through with Claude</h2><p class="fine">Copies your goals and cards, with a request for a few options and questions, not a plan. Paste it into any Claude chat.</p><button class="btn primary" data-act="claudeThink">📋 Copy for Claude</button><span class="ok" id="think-ok" role="status"></span></section></div>`;
   return h}
 async function copyText(t,okId,okMsg){try{await navigator.clipboard.writeText(t);const o=document.getElementById(okId);if(o)o.textContent=okMsg;return true}catch(e){status={err:true,msg:'Copy didn’t work on this phone.'};render();return false}}
-async function saveNotesTags(list){await write(['notes'],t=>{list.forEach(([id,tg])=>{const n=S.notes.get(id);if(n){n.tags=tg;n.tag=tg[0]||'';t.objectStore('notes').put(n)}})})}
+async function saveNotesTags(list){await write(['notes'],t=>{list.forEach(([id,tg,tp])=>{const n=S.notes.get(id);if(!n)return;if(tg&&tg.length){n.tags=tg;n.tag=tg[0]||''}if(tp&&tp.length){n.topics=[...tp];if(tp.fromClaude)n.topicsSet=true}t.objectStore('notes').put(n)})})}
 
 function milestonesPage(){
   const m=metrics(),got=earnedSet();let total=0;
@@ -1525,6 +1550,7 @@ function shareWeek(){
 }
 function cardPage(){
   const n=S.notes.get(editId);if(!n){view='deck';return deckPage()}
+  const curT=new Set(topicsOf(n)),topts=Object.entries(TOPICS).map(([k,v])=>`<label class="tchip"><input type="checkbox" name="e-topics" value="${k}" ${curT.has(k)?'checked':''}><span>${v[0]} ${v[1]}</span></label>`).join('');
   const cur=new Set(tagsOf(n));const opts=Object.entries(TAGS).map(([k,v])=>`<label class="tchip"><input type="checkbox" name="e-tags" value="${k}" ${cur.has(k)?'checked':''}><span>${v[0]} ${v[1]}</span></label>`).join('');
   return `<div class="page edit"><div class="top" style="display:flex">${editFrom==='study'?`<button class="ghost" data-act="backToStudy">‹ Back to review</button>`:`<button class="ghost" data-act="deck" data-id="${esc(n.deckId)}">‹ Back</button>`}</div>
     <div class="dhead"><span class="ic" aria-hidden="true">✏️</span><div><h1>Edit card</h1><p>${n.hidden?'🙈 Hidden from reviews and practice':'Changes keep your progress.'}</p></div></div>
@@ -1533,6 +1559,7 @@ function cardPage(){
     <label for="e-mean">English</label><textarea id="e-mean" rows="2">${esc(n.meaning)}</textarea>
     <label for="e-ex">Example (Darija, optional)</label><textarea id="e-ex" dir="rtl" lang="ar" rows="2">${esc(n.example||'')}</textarea>
     <label for="e-exen">Example (English, optional)</label><textarea id="e-exen" rows="2">${esc(n.example_en||'')}</textarea>
+    <span class="lbl2">Topic <span class="fine">(up to 2)</span></span><div class="tagpick">${topts}</div>
     <span class="lbl2">Type <span class="fine">(tap all that fit)</span></span><div class="tagpick">${opts}</div>
     <div class="audiobox"><span class="lbl">🎤 Audio</span>
       ${editAudio?`<span class="ok">✓ New recording ready. Tap Save to keep it.</span>`:n.audioKey?`<button class="btn small" data-act="editPlay">▶ Play current</button>`:`<span class="fine">No audio yet</span>`}
@@ -1557,6 +1584,7 @@ async function saveCardEdit(){
   const word=v('e-word').trim(),meaning=v('e-mean').trim();
   if(!word||!meaning){status={err:true,msg:'Darija and English can’t be empty.'};render();return}
   const nn={...n,word,meaning,example:v('e-ex').trim(),example_en:v('e-exen').trim(),tag:'',tags:[]};{const tg=[...document.querySelectorAll('input[name=e-tags]:checked')].map(x=>x.value).filter(k=>TAGS[k]);nn.tags=tg;nn.tag=tg[0]||''}
+  {const tp=[...document.querySelectorAll('input[name=e-topics]:checked')].map(x=>x.value).filter(k=>TOPICS[k]).slice(0,2);if(tp.join()!==topicsOf(n).join()){nn.topics=tp;nn.topicsSet=true}}
   nn.edited=true;if(editAudio)nn.audioKey=n.id;
   try{await write(['notes','audio'],t=>{t.objectStore('notes').put(nn);if(editAudio)t.objectStore('audio').put(editAudio,n.id)})}
   catch(e){status={err:true,msg:'Could not save. Your phone may be out of storage.'};render();return}
@@ -1869,11 +1897,11 @@ app.addEventListener('click',e=>{
   else if(a==='tags'){tagsFrom=view==='words'?'words':'decks';status=null;go('tags')}
   else if(a==='editGoals'){goalsEdit=true;render()}
   else if(a==='saveGoals'){S.settings.goals=((document.getElementById('goals')||{}).value||'').trim().slice(0,600);saveMeta();goalsEdit=false;status={msg:'✓ Goals saved.'};render()}
-  else if(a==='autoTagAll'){(async()=>{const ch=[...S.notes.values()].filter(n=>!tagsOf(n).length).map(n=>[n.id,autoTags(n)]).filter(x=>x[1].length);try{await saveNotesTags(ch);status={msg:`✓ Kelma tagged ${plural(ch.length,'card')}.`}}catch(e){status={err:true,msg:'Could not save. Try again.'}}render()})()}
-  else if(a==='tagCopy'){(async()=>{const ids=[...S.notes.values()].filter(n=>!n.hidden&&!tagsOf(n).length).map(n=>n.id).slice(0,400);S.settings.tagJob=ids;saveMeta();tagPaste=null;if(await copyText(tagRequest(ids),'x','')){status={msg:`✓ Copied ${plural(ids.length,'card')}. Paste into Claude, copy its reply, then come back here.`};render()}})()}
+  else if(a==='autoTagAll'){(async()=>{let nt=0,np=0;const ch=[...S.notes.values()].filter(needsTag).map(n=>{const tg=tagsOf(n).length?null:autoTags(n),tp=topicsOf(n).length?null:autoTopics(n);if(tg&&tg.length)nt++;if(tp&&tp.length)np++;return [n.id,tg,tp]}).filter(x=>(x[1]&&x[1].length)||(x[2]&&x[2].length));try{await saveNotesTags(ch);const left=[...S.notes.values()].filter(needsTag).length;status={msg:`✓ Kelma added ${plural(np,'topic')} and ${plural(nt,'type')}.${left?` ${plural(left,'card')} left for Claude.`:''}`}}catch(e){status={err:true,msg:'Could not save. Try again.'}}render()})()}
+  else if(a==='tagCopy'){(async()=>{const ids=[...S.notes.values()].filter(needsTag).map(n=>n.id).slice(0,100);S.settings.tagJob=ids;saveMeta();tagPaste=null;if(await copyText(tagRequest(ids),'x','')){status={msg:`✓ Copied ${plural(ids.length,'card')}. Paste into Claude, copy its reply, then come back here.`};render()}})()}
   else if(a==='tagPasteBtn'){(async()=>{try{const t=await navigator.clipboard.readText();tagPaste={raw:t};render()}catch(e){status={err:true,msg:'Paste it into the box instead (press and hold → Paste).'};render()}})()}
-  else if(a==='tagPreview'){const raw=(document.getElementById('tagpaste')||{}).value||'',job=S.settings.tagJob||[],ch=[];raw.split(/\n/).forEach(l=>{const m=l.match(/^\s*\**\s*(\d+)\s*[:.)\-–]\s*(.+)$/);if(!m)return;const id=job[+m[1]-1],n=id&&S.notes.get(id);if(!n||tagsOf(n).length)return;const tg=parseTags({tags:m[2]});if(tg.length)ch.push([id,tg])});tagPaste={raw,changes:ch};render()}
-  else if(a==='tagApply'){(async()=>{const ch=(tagPaste&&tagPaste.changes)||[];try{await saveNotesTags(ch);S.settings.tagJob=[];saveMeta();tagPaste=null;status={msg:`✓ Tagged ${plural(ch.length,'card')}.`}}catch(e){status={err:true,msg:'Could not save. Try again.'}}render()})()}
+  else if(a==='tagPreview'){const raw=(document.getElementById('tagpaste')||{}).value||'',job=S.settings.tagJob||[],ch=[];raw.split(/\n/).forEach(l=>{const m=l.match(/^\s*\**\s*(\d+)\s*[:.)\-–]\s*(.+)$/);if(!m)return;const id=job[+m[1]-1],n=id&&S.notes.get(id);if(!n)return;const [L,R]=m[2].includes('|')?m[2].split('|'):[m[2],m[2]];const tg=tagsOf(n).length?null:parseTags({tags:L}),tp=topicsOf(n).length?null:parseTopics(R);if(tp)tp.fromClaude=true;if((tg&&tg.length)||(tp&&tp.length))ch.push([id,tg&&tg.length?tg:null,tp&&tp.length?tp:null])});tagPaste={raw,changes:ch};render()}
+  else if(a==='tagApply'){(async()=>{const ch=(tagPaste&&tagPaste.changes)||[];try{await saveNotesTags(ch);S.settings.tagJob=[];saveMeta();tagPaste=null;const left=[...S.notes.values()].filter(needsTag).length;status={msg:`✓ Tagged ${plural(ch.length,'card')}.${left?` ${plural(left,'card')} left. Copy the next ones when you’re ready.`:''}`}}catch(e){status={err:true,msg:'Could not save. Try again.'}}render()})()}
   else if(a==='tagCancel'){S.settings.tagJob=[];saveMeta();tagPaste=null;render()}
   else if(a==='claudeThink'){copyText(claudeSummary(wordsData()),'think-ok','✓ Copied. Open Claude, start a chat, and paste.')}
   else if(a==='order'){status=null;go('order')}
@@ -1923,11 +1951,12 @@ app.addEventListener('input',e=>{
 });
 app.addEventListener('change',async e=>{
   if(e.target.id==='e-audio'){const f=e.target.files&&e.target.files[0];if(!f)return;
-    const keep=['e-word','e-mean','e-ex','e-exen'].map(i=>[i,(document.getElementById(i)||{}).value]);const keepT=[...document.querySelectorAll('input[name=e-tags]')].map(x=>[x.value,x.checked]);
+    const keep=['e-word','e-mean','e-ex','e-exen'].map(i=>[i,(document.getElementById(i)||{}).value]);const keepT=[...document.querySelectorAll('input[name=e-tags],input[name=e-topics]')].map(x=>[x.name,x.value,x.checked]);
     const type=f.type||(/\.m4a$/i.test(f.name)?'audio/mp4':/\.mp3$/i.test(f.name)?'audio/mpeg':/\.wav$/i.test(f.name)?'audio/wav':'');
     const blob=new Blob([await f.arrayBuffer()],{type});
     if(!(await testAudio(blob))){status={err:true,msg:'This phone can’t play that file. Try an .m4a or .mp3 recording.'}}else{editAudio=blob;status=null}
-    render();keep.forEach(([i,v])=>{const el=document.getElementById(i);if(el&&v!=null)el.value=v});keepT.forEach(([k,c])=>{const el=document.querySelector(`input[name=e-tags][value=${k}]`);if(el)el.checked=c});return}
+    render();keep.forEach(([i,v])=>{const el=document.getElementById(i);if(el&&v!=null)el.value=v});keepT.forEach(([nm,k,c])=>{const el=document.querySelector(`input[name=${nm}][value=${k}]`);if(el)el.checked=c});return}
+  if(e.target.name==='e-topics'&&e.target.checked){const on=[...document.querySelectorAll('input[name=e-topics]:checked')];if(on.length>2)on.filter(x=>x!==e.target)[0].checked=false}
   const ds=e.target.dataset||{};
   if('pickall' in ds){pickAll=e.target.checked;render();return}
   if(ds.comb){const nm=document.getElementById('combine-name');const keep=nm?nm.value:null;e.target.checked?combineSel.add(ds.comb):combineSel.delete(ds.comb);render();const n2=document.getElementById('combine-name');if(n2&&keep!==null)n2.value=keep;return}
