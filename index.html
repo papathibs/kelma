@@ -140,6 +140,7 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .librow{display:flex;align-items:center;gap:10px;padding:14px;border-top:1px solid var(--line)}.librow:first-child{border-top:none}
 .ordrow .ordn{font-weight:800;color:var(--muted);min-width:18px}.ordrow .btn.small{min-width:38px;padding:6px 8px}.ordrow.paused .stxt{opacity:.55}
 .libbtn+.libbtn{margin-top:8px}
+.wsteps{margin:6px 0 10px 20px;padding:0}.wsteps li{margin:4px 0}
 .tagpick{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}
 .tchip{display:inline-flex}.tchip input{position:absolute;opacity:0;width:1px;height:1px}
 .tchip span{border:1.5px solid var(--line);border-radius:999px;padding:7px 12px;font-size:15px;background:var(--surface);cursor:pointer}
@@ -394,7 +395,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=10, APP_VERSION=46;
+const INSTR=10, APP_VERSION=47;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -1112,6 +1113,7 @@ const HELP=[
   ['paused','New words stopped coming','More than 100 reviews are waiting, so new words pause until you catch up. Keep doing your 15 minutes a day.'],
   ['sound','No sound','Tap ▶ on the card. Phones sometimes block the first sound until you tap.']]],
  ['Lessons',[
+  ['ways','Ideas for practicing with my helper','A few ideas to try with your helper, out and about, or on your own. Pick any, or none.','<button class="btn small" data-act="waysOpen" data-from="help">🧩 Ways to practice</button>'],
   ['lesson','How do I add a lesson?','Export your WhatsApp lesson chat and import it in Kelma.','<button class="btn" data-act="lesson">📝 Add a lesson</button>'],
   ['recipes','What should I ask my helper for?','Arabic, English and a voice note for every card, and a bit more for verbs, nouns and adjectives.','<button class="btn" data-act="recipes">📖 Card recipes</button>'],
   ['group','How do I make the lesson group?','In WhatsApp, tap <b>New group</b>, add your helper, and call it “Darija lessons”. Use it only for lessons, so clearing it never touches your other chats.'],
@@ -1136,6 +1138,55 @@ const HELP=[
   ['gone','My cards are gone','Open Kelma from the home screen icon, not Safari. They keep separate cards. Still gone? ⚙️ Settings → More → <b>Restore a backup</b>.'],
   ['newphone','New phone','On the old phone, make a backup and save it to iCloud Drive or send it to yourself. On the new phone, add Kelma to the home screen, then ⚙️ Settings → More → <b>Restore a backup</b>.']]]];
 let helpOpen=null;
+/* Ways to practice: options, never assignments. Ideas adapted from PILAT (Program In Language Acquisition Techniques), in our own words. */
+const PRACTICE=[
+ ['With your helper',[
+  ['routine','🔁','Talk through a routine','Six to eight short lines about something you do every day, said as you do it.','15–20 min',
+   ['Pick a routine: making tea, getting dressed, leaving the house.','Do it slowly while your helper says each step in Darija: “I take the teapot. I fill it with water…”','Act it out together until you can say the lines while doing it.'],
+   'Each line becomes a card. Use the same order every time.'],
+  ['story','🧍','Your story','A short piece about you: family, work, why you’re here, or your faith.','20–30 min',
+   ['Write 5–8 simple sentences in English.','Your helper says them in Darija, the way people would really say it.','Learn them so you can use them, not just recite them.'],
+   'One sentence per card. Use it the next time someone asks about you.'],
+  ['asked','❓','Questions people ask you','The questions you hear all the time, with your own answers.','15–20 min',
+   ['List the questions you get: where from, married, kids, why Morocco, do you like it.','Your helper gives each question and your real answer in Darija.','Practice: your helper asks, you answer.'],
+   'Question and answer can share a card: question in Darija, answer as the example.'],
+  ['ways','🔀','One sentence, many ways','Take one sentence and change it a few ways.','10–15 min',
+   ['Pick a simple sentence you already know, e.g. “I went to the market.”','Ask your helper for the question, the “no”, and another person or time.','Say each one out loud, then switch.'],
+   'Each version becomes a card. Seeing them side by side shows the pattern.'],
+  ['happened','🎉','Tell me what happened','Your helper tells a short story about a real event.','15–20 min',
+   ['Ask about something they did: a wedding, Eid, a trip to the souk.','Record it. Listen a few times, even if you catch only a little.','Ask about the parts you missed. Pick lines you want to keep.'],
+   'The lines you pick become cards. Keep the whole recording to listen to again.']]],
+ ['Out and about',[
+  ['known','🧭','Ask what you already know','Learn how something is usually described, then ask people about it.','10 min, often',
+   ['Learn a short description with your helper: how to get to the souk, how to make mint tea.','Ask a shopkeeper or neighbor the question that brings it out.','Notice how much you understand. You already know the answer.'],
+   'The description becomes a small deck. Add any new words you hear.'],
+  ['numbers','🔢','Numbers out loud','Someone reads numbers to you and you write them down.','10 min',
+   ['Write prices, times, dates and phone numbers on paper, one per line.','Ask your helper, or a friendly shopkeeper, to read them aloud.','Write what you hear, then check together.'],
+   'Numbers you miss become cards, e.g. prices you hear at the market.']]],
+ ['On your own',[
+  ['again','🎧','Listen again','Go back to old decks and just listen.','10 min',
+   ['Open 🎯 Focus practice and pick decks you already know.','On each card, close your eyes and listen before you look.','Listen for how it flows, not just the words.'],
+   'No new cards. This keeps old words fresh.']]]];
+function practicePlan(id){const it=PRACTICE.flatMap(g=>g[1]).find(x=>x[0]===id);if(!it)return '';const D=wordsData(),goals=(S.settings.goals||'').trim();
+  const tops=Object.entries(D.perT).sort((a,b)=>b[1].n-a[1].n).map(([k,o])=>`${TOPICS[k][1]} ${o.n}`).join(', ');
+  return `I'm learning Moroccan Darija with a language helper and Kelma flashcards. I'd like to try this practice idea:
+
+${it[2]}: ${it[3]}
+Steps: ${it[5].join(' ')}
+
+MY GOALS: ${goals||'(not written yet)'}
+MY TOPICS SO FAR: ${tops||'(none yet)'}
+
+Please help me plan it:
+1. Suggest 2–3 ways to do it that fit my goals, and ask me which I want.
+2. Then give me a short list, in English only, of what to ask my helper (lines, questions or sentences).
+Never write Darija yourself. My helper will give me the Darija.`}
+function practicePage(){
+  return `<div class="page wordspage"><div class="top" style="display:flex"><button class="ghost" data-act="${waysFrom}">‹ ${waysFrom==='help'?'Help':'Your words'}</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">🧩</span><div><h1>Ways to practice</h1><p>Ideas to try. Pick any, or none.</p></div></div>${statusBox()}
+    ${PRACTICE.map(([g,items])=>`<section class="hgrp"><h2>${esc(g)}</h2><div class="hlist">${items.map(([id,em,name,what,time,steps,cards])=>`<details class="hq" id="w-${id}" ${waysOpen===id?'open':''}><summary>${em} ${esc(name)}</summary><div class="ha"><p>${esc(what)} <span class="fine">· ${esc(time)}</span></p><ol class="wsteps">${steps.map(x=>`<li>${esc(x)}</li>`).join('')}</ol><p><b>Make it cards:</b> ${esc(cards)}${id==='again'?'':' '+esc('Your helper sends each line with a voice note in your lesson chat, as usual. Then add it like any lesson.')}</p>${id==='again'?'':`<button class="btn small" data-act="wayClaude" data-w="${id}">🤖 Plan it with Claude</button><span class="ok" id="way-ok-${id}" role="status"></span>`}</div></details>`).join('')}</div></section>`).join('')}
+    <p class="fine">Ideas adapted from PILAT (Program In Language Acquisition Techniques).</p></div>`}
+let waysFrom='words', waysOpen=null;
 function helpPage(){
   return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
     <div class="dhead"><span class="ic" aria-hidden="true">❓</span><div><h1>Help</h1><p>Tap a question</p></div></div>
@@ -1512,6 +1563,7 @@ function wordsPage(){
     <section class="sec"><h2>🎯 Your goals</h2>${goalsEdit||!goals?`<p class="fine">What do you need to be able to do right now? A felt need is perfect, e.g. “pray with neighbors”, “handle the souk”, “talk with my landlord”.</p><textarea id="goals" rows="3">${esc(goals)}</textarea><button class="btn primary" data-act="saveGoals">Save</button>`:`<p class="goaltxt">${esc(goals)}</p><button class="btn small" data-act="editGoals">✏️ Edit</button>`}</section>
     <section class="sec"><h2>📚 What you have</h2>${order.length?`<div class="wtable">${order.map(k=>{const o=D.perT[k];return `<div class="wtr tline"><span class="wt">${TOPICS[k][0]} ${TOPICS[k][1]}</span><b>${plural(o.n,'card')}</b><span class="fine">${parts(o)}</span></div>`}).join('')}</div>`:'<p class="fine">No topics yet.</p>'}
       ${untop.length?`<p class="fine">${plural(untop.length,'card')} ${untop.length===1?'has':'have'} no topic yet. <button class="linkbtn" data-act="tags">Add topics ›</button></p>`:''}</section>`;
+  h+=`<button class="srow slink libbtn" data-act="waysOpen" data-from="words"><span class="sic" aria-hidden="true">🧩</span><div class="stxt"><b>Ways to practice</b><span>Ideas to try with your helper</span></div><span class="go" aria-hidden="true">›</span></button>`;
   if(!wordsRev)h+=`<p class="fine">Loading your answers…</p>`;
   else{const rows=order.map(k=>[k,pct(D.missP[k])]).filter(x=>x[1]),kinds=[['listening','👂 Hear it'],['recognition','👁️ See it'],['production','🗣️ Say it']].map(([k,l])=>[l,pct(D.missK[k])]).filter(x=>x[1]);
     h+=`<section class="sec"><h2>🔁 Where you miss most</h2><p class="fine">Share of “Again” in your reviews, last 90 days.</p>${rows.length||kinds.length?`<div class="wtable">${kinds.map(([l,v])=>`<div class="wtr"><span class="wt">${l}</span><b>${v}</b></div>`).join('')}${rows.map(([k,v])=>`<div class="wtr"><span class="wt">${TOPICS[k][0]} ${TOPICS[k][1]}</span><b>${v}</b></div>`).join('')}</div>`:'<p class="fine">Not enough reviews yet.</p>'}</section>`}
@@ -1754,6 +1806,7 @@ function render(){
   if(view==='recipes'){app.innerHTML=recipesPage();return}
   if(view==='tags'){app.innerHTML=tagsPage();return}
   if(view==='words'){app.innerHTML=wordsPage();return}
+  if(view==='ways'){app.innerHTML=practicePage();if(waysOpen){const el=document.getElementById('w-'+waysOpen);if(el)setTimeout(()=>el.scrollIntoView({block:'center'}),0)}return}
   if(view==='order'){app.innerHTML=orderPage();return}
   if(view==='library'){app.innerHTML=libraryPage();return}
   if(view==='repeats'){app.innerHTML=repeatsPage();return}
@@ -1903,6 +1956,8 @@ app.addEventListener('click',e=>{
   else if(a==='tagPreview'){const raw=(document.getElementById('tagpaste')||{}).value||'',job=S.settings.tagJob||[],ch=[];raw.split(/\n/).forEach(l=>{const m=l.match(/^\s*\**\s*(\d+)\s*[:.)\-–]\s*(.+)$/);if(!m)return;const id=job[+m[1]-1],n=id&&S.notes.get(id);if(!n)return;const [L,R]=m[2].includes('|')?m[2].split('|'):[m[2],m[2]];const tg=tagsOf(n).length?null:parseTags({tags:L}),tp=topicsOf(n).length?null:parseTopics(R);if(tp)tp.fromClaude=true;if((tg&&tg.length)||(tp&&tp.length))ch.push([id,tg&&tg.length?tg:null,tp&&tp.length?tp:null])});tagPaste={raw,changes:ch};render()}
   else if(a==='tagApply'){(async()=>{const ch=(tagPaste&&tagPaste.changes)||[];try{await saveNotesTags(ch);S.settings.tagJob=[];saveMeta();tagPaste=null;const left=[...S.notes.values()].filter(needsTag).length;status={msg:`✓ Tagged ${plural(ch.length,'card')}.${left?` ${plural(left,'card')} left. Copy the next ones when you’re ready.`:''}`}}catch(e){status={err:true,msg:'Could not save. Try again.'}}render()})()}
   else if(a==='tagCancel'){S.settings.tagJob=[];saveMeta();tagPaste=null;render()}
+  else if(a==='waysOpen'){waysFrom=el.dataset.from==='help'?'help':'words';waysOpen=null;go('ways')}
+  else if(a==='wayClaude'){const w=el.dataset.w;waysOpen=w;copyText(practicePlan(w),'way-ok-'+w,'✓ Copied. Open Claude, start a chat, and paste.')}
   else if(a==='claudeThink'){copyText(claudeSummary(wordsData()),'think-ok','✓ Copied. Open Claude, start a chat, and paste.')}
   else if(a==='order'){status=null;go('order')}
   else if(a==='ordUp')ordMove(id,-1);
