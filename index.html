@@ -143,6 +143,19 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .wsteps{margin:6px 0 10px 20px;padding:0}.wsteps li{margin:4px 0}
 .grip{touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;font-size:20px;padding:10px 8px;margin:-6px 0 -6px -6px;color:var(--muted,#6b7a72)}
 .ordrow.dragging{position:relative;z-index:5;box-shadow:0 8px 24px rgba(0,0,0,.18);background:var(--card,#fff);transition:none}
+.tuttip{background:var(--surface);border:1px dashed var(--accent);border-radius:12px;padding:10px 12px;margin:10px 0;font-size:15px}
+.jcard{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;text-align:center;margin:10px 0 18px}.jcard .ar{font-size:30px}.jcard .en{color:var(--muted)}
+.jtl{margin-left:20px;border-left:3px solid var(--line)}
+.jst{position:relative;padding:0 0 18px 30px;opacity:0;animation:jin .5s ease forwards}
+.jdot{position:absolute;left:-19px;top:-2px;width:34px;height:34px;border-radius:50%;background:var(--surface);border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:17px}
+.jday{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}.jbig{font-size:21px}
+.jst p{margin:2px 0 0;color:var(--muted);font-size:14px}
+.jgap{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.jgap span{background:var(--surface);border:1px solid var(--line);border-radius:999px;font-size:12px;padding:2px 8px;color:var(--muted)}
+.jnote{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px;color:var(--muted);margin:4px 0 14px;opacity:0;animation:jin .5s ease forwards}
+@keyframes jin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.jst,.jnote{animation:none;opacity:1}}
+.p3{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:8px 0}.p3r{display:flex;align-items:center;gap:8px;margin:4px 0}.p3r>span:first-child{flex:1}.p3 .p3r .btn.small{width:auto!important;flex:0 0 auto;margin:0!important;padding:6px 12px;display:inline-flex}.p3r .ok{min-width:14px}.p3r .ar{font-size:22px}
+.tutdone{text-align:center}.tutdone .big{font-size:48px}.tutdone ul{text-align:left}
 .tagpick{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}
 .tchip{display:inline-flex}.tchip input{position:absolute;opacity:0;width:1px;height:1px}
 .tchip span{border:1.5px solid var(--line);border-radius:999px;padding:7px 12px;font-size:15px;background:var(--surface);cursor:pointer}
@@ -397,7 +410,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=10, APP_VERSION=48;
+const INSTR=10, APP_VERSION=49;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -779,6 +792,7 @@ async function waImport(){
   out.file('deck.json',JSON.stringify({format:'kelma-deck-1',instructions_version:INSTR,source:'whatsapp',deck_id:ymd+'-wa-'+rnd,deck_name:name,cards}));
   await importFile(new File([await out.generateAsync({type:'blob'})],'whatsapp.zip',{type:'application/zip'}));
   if(replaced&&status&&!status.err){status.msg+=` ${replaced} older card${replaced===1?'':'s'} got the new audio.`;render()}
+  if(tutS().t2&&!tutPassed(2)&&tutOwnNew()){tutL=2;tutI=5;view='tut';render();window.scrollTo(0,0)}
 }
 
 /* ---------- study log + progress ---------- */
@@ -971,8 +985,8 @@ function safariWelcome(){
 async function autoStarter(){
   const st=S.setup||{};if(!STANDALONE||CUR!=='main'||st.starter||S.decks.length)return;
   try{const r=await fetch('setup/starter.zip');if(!r.ok)return;const bl=await r.blob();
-    await importFile(new File([bl],'starter.zip',{type:'application/zip'}));await saveSetup({starter:true,complete:true});
-    status={msg:'👋 Here are 4 starter words to try. Tap Start review.'};view='home';render()}catch(e){}
+    await importFile(new File([bl],'starter.zip',{type:'application/zip'}));await saveSetup({starter:true,complete:true,tutOn:true});
+    status=null;view='home';render()}catch(e){}
 }
 function setupCard(){
   const nx=nextStep();if(!nx)return '';
@@ -1052,7 +1066,7 @@ const LESSON=[
     <ul class="mini"><li>⚡ <b>Verb:</b> he did + he does</li><li>🏷️ <b>Noun:</b> one + many</li><li>🎨 <b>Adjective:</b> masculine + feminine + plural</li><li>✍️ A sentence for each, when you can</li></ul>
     <button class="btn" data-act="recipes">📖 See the recipes</button>`},
   {em:'🗣️',t:'During the lesson',b:()=>`<p>Use a <b>WhatsApp group with just you and your helper</b>, e.g. “Darija lessons”. Your helper sends each word like this: <b>Arabic</b>, then <b>English</b>, then a <b>voice note</b>. Then the next word.</p>
-    <div class="wachat">${wa('حاول، كيحاول','10:02')}${wa('to try','10:02')}${wv('0:03')}<div class="wagap"></div>${wa('خدمة، خدمات','10:04')}${wa('job, jobs','10:04')}${wv('0:02')}</div>
+    <div class="wachat">${wa('حاول، كيحاول','10:02')}${wa('to try','10:02')}${wv('0:03')}<div class="wagap"></div>${wa('طبلة، طبالي','10:04')}${wa('table, tables','10:04')}${wv('0:02')}</div>
     <p class="fine">The Darija must be in Arabic letters. Each word, English and voice note is its own message.</p>
     <button class="btn" data-act="help" data-q="group">👥 How to make the lesson group</button>`},
   {em:'📤',t:'Send it to Claude',b:()=>`<div class="shots"><figure>${shot('x1-group.jpg','Tap the group name')}<figcaption>1. In the lesson group, tap the <b>group name</b></figcaption></figure>
@@ -1089,10 +1103,10 @@ function lessonPage(){
     <div class="lnav">${i?`<button class="btn" data-act="lessonGo" data-i="${i-1}">‹ Back</button>`:'<span></span>'}${i<L.length-1?`<button class="btn primary" data-act="lessonGo" data-i="${i+1}">Next ›</button>`:`<button class="btn primary" data-act="home">Done ›</button>`}</div></div>`;
 }
 const RECIPES=[
-  {tag:'verb',ask:'He did + he does, and a sentence',word:'حاول، كيحاول',mean:'to try',ex:'**حاول** تجي بكري باش تكمل لخدمة فنهار واحد',exen:'**Try** to come early to finish the work in one day.'},
-  {tag:'noun',ask:'One + many, and a sentence',word:'خدمة، خدمات',mean:'job, jobs'},
-  {tag:'adjective',ask:'Masculine + feminine + plural, and a sentence',word:'ثقيل \\ ثقيلة \\ ثقال',mean:'heavy (m, f, pl)'},
-  {tag:'phrase',ask:'Everything else: the whole phrase or sentence',word:'واش ممكن تعرفني على راسك؟',mean:'Can you tell me about yourself?'}];
+  {tag:'verb',ask:'He did + he does, and a sentence',word:'حاول، كيحاول',mean:'to try',ex:'خاصك ديما تبقى **تحاول** حتى تنجح',exen:'You need to always keep **trying** until you succeed.'},
+  {tag:'noun',ask:'One + many, and a sentence',word:'طبلة، طبالي',mean:'table, tables',ex:'حطيت ستيلو فوق **طبلة**',exen:'I put the pen on the **table**.'},
+  {tag:'adjective',ask:'Masculine + feminine + plural, and a sentence',word:'خفيف \\ خفيفة \\ خفاف',mean:'light (weight) (m, f, pl)',ex:'طبلة تقيلة. طبالي **خفاف**',exen:'Heavy table. **Light** tables.'},
+  {tag:'phrase',ask:'Everything else: the whole phrase or sentence',word:'واش ممكن تعاود هادشي لي گلتي دابا؟',mean:'Can you repeat what you just said?'}];
 function recipesPage(){
   const card=r=>`<div class="rcard"><span class="tagchip">${TAGS[r.tag][0]} ${TAGS[r.tag][1]}</span><p class="rword" lang="ar" dir="rtl">${esc(r.word)}</p><p class="rmean">${esc(r.mean)}</p>${r.ex?`<p class="rex" lang="ar" dir="rtl">${exHtml(r.ex)}</p><p class="rexen">${exHtml(r.exen)}</p>`:(r.tag!=='phrase'?`<p class="radd">＋ add a sentence when you can</p>`:'')}</div>`;
   return `<div class="page step"><div class="top" style="display:flex"><button class="ghost" data-act="${view==='recipes'&&recipesFrom==='lesson'?'lessonBack':'home'}">‹ ${recipesFrom==='lesson'?'Add a lesson':'Home'}</button></div>
@@ -1104,7 +1118,108 @@ function recipesPage(){
 let recipesFrom='home';
 
 /* ---------- Help ---------- */
+/* ---------- Tutorial: 3 short levels (practice, import, back up). Shown on Home for new users; redo any time from Help. ---------- */
+const TUT=[{n:1,em:'🎯',t:'Practice',time:'5 min'},{n:2,em:'📥',t:'Import a lesson',time:'10 min'},{n:3,em:'💾',t:'Back up',time:'3 min'}];
+const PRACTICE3=[['شكرا','thank you'],['ما فهمتش','I don’t understand'],['بشحال؟','how much?']];
+let tutL=1,tutI=0;
+const tutS=()=>(S.setup&&S.setup.tut)||{};
+const tutPassed=n=>{const v=tutS()['l'+n];return v==='done'||(n===2&&v==='skip')};
+const tutAllDone=()=>[1,2,3].every(tutPassed);
+async function tutSave(patch){await saveSetup({tut:Object.assign({},tutS(),patch)})}
+function tutCard(){
+  const st=S.setup||{};if(!st.tutOn||st.tutHide||isKid()||tutAllDone())return '';
+  const cur=TUT.find(x=>!tutPassed(x.n)),nDone=TUT.filter(x=>tutPassed(x.n)).length,s=tutS();
+  const dots=TUT.map((x,i)=>{const dn=tutPassed(x.n);return (i?`<i class="sl${dn?' dn':''}"></i>`:'')+`<button class="sdot${dn?' dn':''}${x===cur?' cur':''}" data-act="tutGo" data-l="${x.n}" aria-label="Level ${x.n}: ${esc(x.t)}${dn?', done':''}">${dn?'✓':x.em}</button>`}).join('');
+  const tomorrow=s.l1==='done'&&s.l1day===iso(Date.now());
+  return `<section class="setupcard tutcard" aria-label="Tutorial"><div class="sh"><b>${nDone?'Learn Kelma':'Learn Kelma in 3 steps'}</b><span>${nDone} of 3</span></div>
+    ${nDone?'':`<p class="sintro">Three short levels and you’re up and running. Start with your 4 practice words.</p>`}
+    <div class="spath">${dots}</div>
+    <button class="btn primary" data-act="tutGo" data-l="${cur.n}">${cur.n===2&&s.t2?'Continue':'Start'} Level ${cur.n}: ${cur.em} ${esc(cur.t)} ›</button>
+    ${tomorrow?`<p class="fine">Come back tomorrow: your practice words return as 👁️ see-it cards.</p>`:''}
+    <p class="fine"><button class="linkbtn" data-act="tutHide">Hide this</button> · You can find it again in Help.</p></section>`;
+}
+function tutListPage(){
+  return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="help">‹ Help</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">🎓</span><div><h1>Tutorial</h1><p>Do any level again. Your cards don’t change.</p></div></div>
+    <div class="svlist">${TUT.map(x=>{const dn=tutPassed(x.n);return `<button class="svrow" data-act="tutGo" data-l="${x.n}"><span class="sdot${dn?' dn':''}">${dn?'✓':x.em}</span><span>Level ${x.n}: ${esc(x.t)} <span class="fine">· ${x.time}</span></span><span class="go" aria-hidden="true">›</span></button>`}).join('')}</div>
+    <button class="btn" data-act="tutClaude">🤖 Extra: use Claude</button></div>`;
+}
+const tutOwnNew=()=>{const t=(tutS().t2||{}).at||0;return ownDecks().filter(d=>(d.importedAt||0)>=t).sort((a,b)=>b.importedAt-a.importedAt)[0]};
+function tutJourney(){
+  const st=S.decks.find(d=>d.id===STARTER),n=st&&deckNotes(st.id).find(x=>tagsOf(x).includes('verb'));
+  const w=n?n.word:'حاول، كيحاول',m=n?n.meaning:'to try';
+  const rows=[['👂','Day 1','You hear it',' 🌱','Started. Every word begins here.'],['👁️','Day 2','You see it','','Read it, then check the meaning.'],['🗣️','Day 3','You say it',' 🌿','Growing. All its cards are right.'],
+    ['🔁','Then','It comes back less often','','Each time you get it right, the gap grows.',`<div class="jgap"><span>3 days</span><span>1 week</span><span>2 weeks</span><span>1 month</span></div>`],['🌳','About 1–2 months','Known well',' 🌳','It can wait 3 weeks or more between reviews.']];
+  return `<p>This is what will happen to the words you just practiced.</p>
+    <div class="jcard"><div class="ar" lang="ar" dir="rtl">${esc(w)}</div><div class="en">${esc(m)}</div></div>
+    <div class="jtl">${rows.map((r,i)=>`<div class="jst" style="animation-delay:${0.25+i*0.7}s"><span class="jdot">${r[0]}</span><div class="jday">${r[1]}</div><b>${r[2]}</b><span class="jbig">${r[3]}</span><p>${r[4]}</p>${r[5]||''}</div>`).join('')}</div>
+    <div class="jnote" style="animation-delay:${0.25+5*0.7}s">Miss it? It just comes back sooner. That’s normal, and it’s how words stick.</div>`;
+}
+const TUTSTEPS={
+ 1:[
+  {t:'Practice with 4 words',b:()=>{const c=counts(),any=c.due+c.newToday>0;return `<p>Kelma gives you a few cards each day. Each word comes as 👂 hear it, 👁️ see it and 🗣️ say it, one a day.</p>
+     <p>Try your 4 practice words now. They also show what a good card looks like: a verb, a noun, an adjective and a phrase.</p>
+     ${any?`<button class="btn primary focus" data-act="tutReview">▶️ Start review</button>`:`<p class="fine">Nothing is due right now, so there’s nothing to review. You can still see what happens to a word.</p><button class="btn primary focus" data-act="tutNext">Next ›</button>`}`},nav:false},
+  {t:'One word’s journey',b:()=>tutJourney()+`<button class="btn primary focus jbtn" data-act="tutFinish" data-l="1">Got it ✓</button>`,nav:false}],
+ 2:[
+  {t:'How a lesson works',b:()=>`<p>Your helper sends each word as 3 messages in WhatsApp: <b>Arabic</b>, then <b>English</b>, then a <b>voice note</b>.</p>
+     <div class="wachat">${wa('طبلة، طبالي','10:02')}${wa('table, tables','10:02')}${wv('0:03')}</div>
+     <p>After the lesson, you export the chat and Kelma turns it into cards. Let’s try it once.</p>`},
+  {t:'Who sends the words?',b:()=>`<button class="btn primary" data-act="tutMode" data-m="helper">👥 My helper, or a workshop</button>
+     <button class="btn" data-act="tutMode" data-m="solo">🧍 Practice on my own</button>
+     <p class="fine">On your own, you send 3 words to yourself and record your own voice. It’s the same routine.</p>
+     <button class="btn" data-act="tutSkip">Skip for now</button>`,nav:'back'},
+  {t:()=>(tutS().t2||{}).mode==='solo'?'Send 3 words to yourself':'Get the words',b:()=>(tutS().t2||{}).mode==='solo'?`
+     <ol class="steps"><li>Open WhatsApp. Find the chat with your own name, marked <b>(You)</b>. Not there? Tap ✏️ for a new chat and pick yourself at the top.</li>
+     <li>For each word below: send the Arabic, send the English, then hold 🎤 and say the word.</li></ol>
+     ${PRACTICE3.map(([a,e],i)=>`<div class="p3"><div class="p3r"><span lang="ar" dir="rtl" class="ar">${esc(a)}</span><button class="btn small" data-act="tutCopy" data-t="${esc(a)}" data-o="p3a${i}">📋 Copy</button><span class="ok" id="p3a${i}"></span></div><div class="p3r"><span>${esc(e)}</span><button class="btn small" data-act="tutCopy" data-t="${esc(e)}" data-o="p3e${i}">📋 Copy</button><span class="ok" id="p3e${i}"></span></div><div class="p3r fine">🎤 Then a voice note saying it</div></div>`).join('')}`:`
+     <p>Your helper (or the workshop leader) sends a few words in your lesson chat: Arabic, English, voice note for each.</p>
+     <p class="fine">At a workshop, everyone is in the same group. That’s fine: Kelma uses only the messages from whoever sends the voice notes.</p>
+     <button class="btn" data-act="help" data-q="group">👥 How to make a lesson group</button>`},
+  {t:'Export the chat',b:()=>`<div class="shots"><figure>${shot('x1-group.jpg','Tap the name at the top of the chat')}<figcaption>1. In the chat, tap the <b>name at the top</b></figcaption></figure>
+     <figure>${shot('x2-export.jpg','Tap Export chat')}<figcaption>2. Scroll down, tap <b>Export chat</b></figcaption></figure>
+     <figure>${shot('x3-allmedia.jpg','Tap Attach media')}<figcaption>3. Tap <b>Attach media</b></figcaption></figure></div>
+     <p>4. Tap <b>Save to Files</b>, then <b>Save</b>.</p>`},
+  {t:'Import it',b:()=>{const d=tutOwnNew();return d?`<p class="okline">✓ Your deck is in: <b>${esc(d.name)}</b></p>`:`<ol class="steps"><li>Tap <b>Import</b> below.</li><li>Pick the chat file you just saved.</li><li>Check the list, then tap <b>Import</b>.</li></ol>
+     <label class="btn primary focus" for="file">📥 Import</label>`}},
+  {t:'Your decks',b:()=>{const d=tutOwnNew(),solo=(tutS().t2||{}).mode==='solo';return `<ul class="mini"><li>Every lesson becomes a deck in <b>📚 Decks</b>.</li>
+     <li>New words come from the top deck first. To change the order: Decks → <b>↕️ Order for new words</b>, then drag ☰.</li>
+     <li>After a real lesson, clear the chat in WhatsApp, so the next export only has the new lesson.</li></ul>
+     ${solo&&d?`<button class="btn" data-act="tutDelPractice" data-id="${esc(d.id)}">🗑️ Delete the practice deck</button><p class="fine">Or keep it. It’s yours either way.</p>`:''}
+     <button class="btn primary focus" data-act="tutFinish" data-l="2">Finish Level 2 ✓</button>`},nav:'back'}],
+ 3:[
+  {t:'Why back up',b:()=>`<p>Your cards live <b>only on this phone</b>. If it’s lost, reset or replaced, a backup brings them back, with your progress and audio.</p><p>It takes a minute, once a week.</p>`},
+  {t:'Make a backup folder',b:()=>`<ol class="steps"><li>Open the <b>Files</b> app.</li><li>Tap <b>Browse</b>, then <b>iCloud Drive</b>.</li><li>Tap <b>⋯</b> at the top right, then <b>New Folder</b>.</li><li>Name it <b>Kelma backups</b>.</li></ol>
+     <p class="fine">Android: in the Files app, make a folder called Kelma backups.</p>`},
+  {t:'Save your first backup',b:()=>{const t=(tutS().t3||{}).at||0;if(S.lastBackup&&S.lastBackup>=t)return `<p class="okline">✓ Backed up.</p>`;
+     return S.pending&&S.pending.kind==='backup'?`<button class="btn primary focus" data-act="saveBackup">💾 Save file</button><p>Choose <b>Save to Files</b>, then the <b>Kelma backups</b> folder, then <b>Save</b>.</p>`:`<button class="btn primary focus" data-act="backup">💾 Make a backup</button><p class="fine">Then you’ll choose where to save it.</p>`}},
+  {t:'Once a week',b:()=>`<p>When it’s been 7 days, a <b>💾 Back up</b> line appears on Home. Tap it and save to the same folder.</p>
+     <p class="fine">New phone? Help → New phone shows how to bring your cards back.</p>
+     <button class="btn primary focus" data-act="tutFinish" data-l="3">Finish Level 3 ✓</button>`,nav:'back'}]};
+function tutPage(){
+  if(tutL===4)return `<div class="page step"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
+    <div class="tutdone"><span class="big" aria-hidden="true">🎉</span><h1>You’re set up</h1>
+    <ul class="mini"><li>🎯 You know how reviews work, and what 🌱 🌿 🌳 mean.</li><li>📥 You can turn a lesson into a deck.</li><li>💾 Your cards are backed up.</li></ul>
+    <button class="btn primary focus" data-act="home">Home ›</button>
+    <p class="fine">Want more? Claude can make cards from a photo of a list or a Bible passage.</p><button class="btn" data-act="tutClaude">🤖 Extra: use Claude</button></div></div>`;
+  const L=TUTSTEPS[tutL],i=Math.max(0,Math.min(tutI,L.length-1)),x=L[i],lv=TUT[tutL-1];
+  const t=typeof x.t==='function'?x.t():x.t;
+  const nav=x.nav===false?'':`<div class="lnav">${i?`<button class="btn" data-act="tutPrev">‹ Back</button>`:'<span></span>'}${x.nav==='back'||i>=L.length-1?'':`<button class="btn primary" data-act="tutNext">Next ›</button>`}</div>`;
+  return `<div class="page step"><div class="top" style="display:flex;justify-content:space-between;align-items:center"><button class="ghost" data-act="home">‹ Home</button><span class="fine">Level ${tutL} · step ${i+1} of ${L.length}</span></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">${lv.em}</span><div><h1>${esc(t)}</h1><p>Level ${tutL}: ${esc(lv.t)}</p></div></div>${statusBox()}
+    <div class="stepbody">${x.b()}</div>${nav}</div>`;
+}
+async function tutGo(l){l=+l||1;tutL=l;tutI=0;status=null;
+  if(l===2){const t2=tutS().t2;if(t2&&!tutPassed(2))tutI=tutOwnNew()?5:(t2.mode?2:1);else await tutSave({t2:{at:Date.now()}})}
+  if(l===3)await tutSave({t3:{at:Date.now()}});
+  view='tut';render();window.scrollTo(0,0)}
+async function tutFinish(l){l=+l;const p={['l'+l]:'done'};if(l===1)p.l1day=iso(Date.now());if(l===2)p.t2=null;await tutSave(p);
+  if(l===1){go('home');status={msg:'✓ Level 1 done. Your practice words come back tomorrow as 👁️ see-it cards.'};render();return}
+  if(tutAllDone()){tutL=4;view='tut';status=null;render();window.scrollTo(0,0);return}
+  go('home');status={msg:`✓ Level ${l} done.`};render()}
 const HELP=[
+ ['Tutorial',[
+  ['tutorial','Go through the tutorial again','Three short levels: 🎯 practice, 📥 import a lesson, 💾 back up. Do any of them again. Your cards don’t change.','<button class="btn small" data-act="tutList">🎓 Open the tutorial</button>']]],
  ['Daily review',[
   ['streak','What counts for my streak?','A day counts when you do <b>15 minutes of review</b>, or clear everything due. One missed day a week is forgiven. 🎯 Focus practice is extra and doesn’t count.'],
   ['today','Too many cards today','Stop at 15 minutes. Kelma tells you when you get there. Leftover cards wait for tomorrow. Have more time? Tap <b>Keep going</b>.'],
@@ -1215,6 +1330,7 @@ function home(){
   if(!STANDALONE)h+=`<div class="hint"><b>Install it first.</b> In Safari tap Share, then Add to Home Screen. Open Kelma from the new icon and import your decks there. The icon and the Safari tab keep separate cards.</div>`;
   h+=statusBox();
   if(su){h+=setupCard();if(!words)return h}
+  if(STANDALONE)h+=tutCard();
   if(!words&&kid){
     h+=`<section class="empty"><h2>No words yet</h2><p>Your words will show up here once they’re added.</p>
       <label class="btn primary" for="file">＋ Import deck file</label>
@@ -1782,6 +1898,7 @@ function study(){
   const doneN=sess.answered, pct=Math.round(100*doneN/Math.max(1,doneN+sess.queue.length));
   let h=`<div class="study"><div class="bar"><button class="ghost" data-act="exit">← Home</button>${sess.mode==='practice'?'<span class="mode">🎯 Practice</span>':''}<div class="prog" aria-hidden="true"><i style="width:${pct}%"></i></div><span class="left">${sess.queue.length} left</span>${isKid()?'':`<button class="ghost editbtn" data-act="editCurrent" aria-label="Edit this card">✏️</button>`}</div>`;
   h+=cardHtml(c,n,sess.shown);
+  if(sess.tut&&!sess.answered)h+=`<p class="tuttip">${sess.shown?'Did you know it? <b>Again</b> = not yet · <b>Good</b> = yes · <b>Easy</b> = right away. Kelma brings it back based on your answer.':'👀 Look at the card (or listen). Think of the meaning, then tap <b>Show answer</b>.'}</p>`;
   if(!sess.shown)h+=`<button class="btn primary reveal" data-act="reveal">Show answer</button>`;
   else if(sess.mode==='practice')h+=`<div class="pgrades"><button class="btn" data-act="pgrade" data-g="0"><span class="g0">↺ Again</span></button><button class="btn" data-act="pgrade" data-g="1"><span class="g1">✓ Got it</span></button></div>`;
   else h+=`<div class="grades"><button class="btn" data-act="grade" data-g="0"><span class="g0">Again</span><small>${fmtIv(0)}</small></button><button class="btn" data-act="grade" data-g="1"><span class="g1">Good</span><small>${fmtIv(nextIv(c,1))}</small></button><button class="btn" data-act="grade" data-g="2"><span class="g2">Easy</span><small>${fmtIv(nextIv(c,2))}</small></button></div>`;
@@ -1799,6 +1916,8 @@ function done(){
   const R={'':0,started:1,growing:2,well:3},by=cardsByNote();let up=0,toG=0,toW=0;
   (sess.before||new Map()).forEach((st,nid)=>{const now=stageOf(by.get(nid));if(R[now]>R[st]&&R[now]>=2){up++;if(now==='growing')toG++;else toW++}});
   const summary=`<div class="summary"><div><b>${sess.answered}</b><span>cards</span></div><div><b>✨ ${sess.newWords||0}</b><span>new words</span></div><div><b>⬆️ ${up}</b><span>${up?[toG?toG+' to 🌿':'',toW?toW+' to 🌳':''].filter(Boolean).join(' · '):'moved up'}</span></div></div>`;
+  if(sess.tut){if(!(S.badges||{})['first-review']){const got={...(S.badges||{}),'first-review':iso(Date.now())};S.badges=got;write(['meta'],t=>t.objectStore('meta').put(got,'badges')).catch(()=>{});setTimeout(()=>celebrate('🏅','First review done',quoteFor('badge')),300)}
+    return `<div class="done"><span class="big" aria-hidden="true">✅</span><h3>Done for now</h3>${summary}${quoteHtml(quoteFor('done'))}<p class="fine">Your milestones and progress live in 📈 Progress.</p><div class="row"><button class="btn primary" data-act="tutJourney">Next: one word’s journey ›</button></div></div>`}
   return `<div class="done"><span class="big" aria-hidden="true">${met?'🔥':'✅'}</span><h3>Done for now</h3>${summary}${streakLine}<p class="fine">${tom} card${tom===1?' is':'s are'} due tomorrow.</p>${quoteHtml(quoteFor('done'))}<div class="row">${counts().ready?`<button class="btn primary" data-act="learnMore">＋ Learn ${Math.min(10,counts().ready)} more</button>`:''}<button class="btn${counts().ready?'':' primary'}" data-act="exit">Back home</button></div></div>`;
 }
 const needsName=()=>STANDALONE&&!isKid()&&(!curProfile().name||curProfile().name==='Me');
@@ -1826,6 +1945,8 @@ function render(){
   if(view==='recipes'){app.innerHTML=recipesPage();return}
   if(view==='tags'){app.innerHTML=tagsPage();return}
   if(view==='words'){app.innerHTML=wordsPage();return}
+  if(view==='tut'){app.innerHTML=tutPage();return}
+  if(view==='tutlist'){app.innerHTML=tutListPage();return}
   if(view==='ways'){app.innerHTML=practicePage();if(waysOpen){const el=document.getElementById('w-'+waysOpen);if(el)setTimeout(()=>el.scrollIntoView({block:'center'}),0)}return}
   if(view==='order'){app.innerHTML=orderPage();return}
   if(view==='library'){app.innerHTML=libraryPage();return}
@@ -1976,6 +2097,19 @@ app.addEventListener('click',e=>{
   else if(a==='tagPreview'){const raw=(document.getElementById('tagpaste')||{}).value||'',job=S.settings.tagJob||[],ch=[];raw.split(/\n/).forEach(l=>{const m=l.match(/^\s*\**\s*(\d+)\s*[:.)\-–]\s*(.+)$/);if(!m)return;const id=job[+m[1]-1],n=id&&S.notes.get(id);if(!n)return;const [L,R]=m[2].includes('|')?m[2].split('|'):[m[2],m[2]];const tg=tagsOf(n).length?null:parseTags({tags:L}),tp=topicsOf(n).length?null:parseTopics(R);if(tp)tp.fromClaude=true;if((tg&&tg.length)||(tp&&tp.length))ch.push([id,tg&&tg.length?tg:null,tp&&tp.length?tp:null])});tagPaste={raw,changes:ch};render()}
   else if(a==='tagApply'){(async()=>{const ch=(tagPaste&&tagPaste.changes)||[];try{await saveNotesTags(ch);S.settings.tagJob=[];saveMeta();tagPaste=null;const left=[...S.notes.values()].filter(needsTag).length;status={msg:`✓ Tagged ${plural(ch.length,'card')}.${left?` ${plural(left,'card')} left. Copy the next ones when you’re ready.`:''}`}}catch(e){status={err:true,msg:'Could not save. Try again.'}}render()})()}
   else if(a==='tagCancel'){S.settings.tagJob=[];saveMeta();tagPaste=null;render()}
+  else if(a==='tutGo')tutGo(el.dataset.l);
+  else if(a==='tutList')go('tutlist');
+  else if(a==='tutNext'){tutI++;status=null;render();window.scrollTo(0,0)}
+  else if(a==='tutPrev'){tutI=Math.max(0,tutI-1);status=null;render();window.scrollTo(0,0)}
+  else if(a==='tutFinish')tutFinish(el.dataset.l);
+  else if(a==='tutHide'){saveSetup({tutHide:true}).then(()=>{status={msg:'Tutorial hidden. Find it any time in ❓ Help.'};render()})}
+  else if(a==='tutReview'){(async()=>{await startSession();if(sess)sess.tut=1;render()})()}
+  else if(a==='tutJourney'){exitQuiet();tutL=1;tutI=1;view='tut';status=null;render();window.scrollTo(0,0)}
+  else if(a==='tutMode'){tutSave({t2:{...(tutS().t2||{at:Date.now()}),mode:el.dataset.m}}).then(()=>{tutI=2;render();window.scrollTo(0,0)})}
+  else if(a==='tutSkip'){tutSave({l2:'skip',t2:null}).then(()=>{go('home');status={msg:'Level 2 skipped. Do it after your first lesson, from ❓ Help → Tutorial.'};render()})}
+  else if(a==='tutCopy')copyText(el.dataset.t,el.dataset.o,'✓');
+  else if(a==='tutDelPractice'){(async()=>{await deleteDeck(el.dataset.id);tutL=2;tutI=5;view='tut';status={msg:'Practice deck deleted.'};render()})()}
+  else if(a==='tutClaude')go('claude');
   else if(a==='waysOpen'){waysFrom=el.dataset.from==='help'?'help':'words';waysOpen=null;go('ways')}
   else if(a==='wayClaude'){const w=el.dataset.w;waysOpen=w;copyText(practicePlan(w),'way-ok-'+w,'✓ Copied. Open Claude, start a chat, and paste.')}
   else if(a==='claudeThink'){copyText(claudeSummary(wordsData()),'think-ok','✓ Copied. Open Claude, start a chat, and paste.')}
