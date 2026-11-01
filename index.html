@@ -156,6 +156,9 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 @media (prefers-reduced-motion:reduce){.jst,.jnote{animation:none;opacity:1}}
 .p3{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:8px 0}.p3r{display:flex;align-items:center;gap:8px;margin:4px 0}.p3r>span:first-child{flex:1}.p3 .p3r .btn.small{width:auto!important;flex:0 0 auto;margin:0!important;padding:6px 12px;display:inline-flex}.p3r .ok{min-width:14px}.p3r .ar{font-size:22px}
 .tutdone{text-align:center}.tutdone .big{font-size:48px}.tutdone ul{text-align:left}
+.btn.copied{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}
+#toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-weight:700;font-size:15px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:100}
+#toast.on{opacity:1;transform:translate(-50%,0)}
 .tagpick{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}
 .tchip{display:inline-flex}.tchip input{position:absolute;opacity:0;width:1px;height:1px}
 .tchip span{border:1.5px solid var(--line);border-radius:999px;padding:7px 12px;font-size:15px;background:var(--surface);cursor:pointer}
@@ -410,7 +413,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=10, APP_VERSION=49;
+const INSTR=10, APP_VERSION=50;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -1706,7 +1709,14 @@ function wordsPage(){
   if(notes.length)h+=`<section class="sec"><h2>👀 Worth a look</h2><ul class="mini">${notes.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></section>`;
   h+=`<section class="sec"><h2>🤖 Think it through with Claude</h2><p class="fine">Copies your goals and cards, with a request for a few options and questions, not a plan. Paste it into any Claude chat.</p><button class="btn primary" data-act="claudeThink">📋 Copy for Claude</button><span class="ok" id="think-ok" role="status"></span></section></div>`;
   return h}
-async function copyText(t,okId,okMsg){try{await navigator.clipboard.writeText(t);const o=document.getElementById(okId);if(o)o.textContent=okMsg;return true}catch(e){status={err:true,msg:'Copy didn’t work on this phone.'};render();return false}}
+/* Clear copy feedback: the tapped button turns into ✓ Copied for 2 s, and a small bubble shows at the bottom. */
+let clickEl=null,toastT=null;
+function copiedFx(btn){
+  if(btn&&btn.isConnected&&!btn.dataset.was){btn.dataset.was=btn.innerHTML;btn.innerHTML='✓ Copied';btn.classList.add('copied');
+    setTimeout(()=>{if(btn.isConnected){btn.innerHTML=btn.dataset.was;btn.classList.remove('copied')}delete btn.dataset.was},2000)}
+  let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';t.setAttribute('role','status');document.body.appendChild(t)}
+  t.textContent='✓ Copied';t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),1600)}
+async function copyText(t,okId,okMsg){try{await navigator.clipboard.writeText(t);copiedFx(clickEl);const o=document.getElementById(okId);if(o&&okMsg)o.textContent=okMsg;return true}catch(e){status={err:true,msg:'Copy didn’t work on this phone.'};render();return false}}
 async function saveNotesTags(list){await write(['notes'],t=>{list.forEach(([id,tg,tp])=>{const n=S.notes.get(id);if(!n)return;if(tg&&tg.length){n.tags=tg;n.tag=tg[0]||''}if(tp&&tp.length){n.topics=[...tp];if(tp.fromClaude)n.topicsSet=true}t.objectStore('notes').put(n)})})}
 
 function milestonesPage(){
@@ -2038,7 +2048,7 @@ function exit(){if(sess)sess.urls.forEach(u=>URL.revokeObjectURL(u));sess=null;p
 
 /* ---------- events ---------- */
 app.addEventListener('click',e=>{
-  const el=e.target.closest('[data-act]');if(!el||el.disabled)return;const a=el.dataset.act,id=el.dataset.id;
+  const el=e.target.closest('[data-act]');if(!el||el.disabled)return;clickEl=el;const a=el.dataset.act,id=el.dataset.id;
   if(a==='study')startSession();
   else if(a==='learnMore'){S.newDone.extra=(S.newDone.extra||0)+10;saveMeta();if(sess)sess.urls.forEach(u=>URL.revokeObjectURL(u));startSession()}
   else if(a==='pick'){pickSel=null;pickAll=false;pickTypes=new Set();go('pick')}
@@ -2079,7 +2089,7 @@ app.addEventListener('click',e=>{
   else if(a==='stageTip'){stageTip=stageTip===el.dataset.k?'':el.dataset.k;render()}
   else if(a==='settings')go('settings');
   else if(a==='update'){loadInstr();go('update')}
-  else if(a==='copyInstr'){const out=document.getElementById('copy-ok');const ok=()=>{out.textContent='✓ Copied. Now paste it in Claude.'};const fail=()=>{out.textContent='Copy didn’t work. Use the box below.';const d=app.querySelector('details');if(d)d.open=true};
+  else if(a==='copyInstr'){const out=document.getElementById('copy-ok'),b=el;const ok=()=>{copiedFx(b);out.textContent='✓ Copied. Now paste it in Claude.'};const fail=()=>{out.textContent='Copy didn’t work. Use the box below.';const d=app.querySelector('details');if(d)d.open=true};
     if(S.instrText&&navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(S.instrText).then(ok,fail);else fail()}
   else if(a==='instrDone')instrDone();
   else if(a==='setupStep')openStep(el.dataset.k);
@@ -2107,7 +2117,7 @@ app.addEventListener('click',e=>{
   else if(a==='tutJourney'){exitQuiet();tutL=1;tutI=1;view='tut';status=null;render();window.scrollTo(0,0)}
   else if(a==='tutMode'){tutSave({t2:{...(tutS().t2||{at:Date.now()}),mode:el.dataset.m}}).then(()=>{tutI=2;render();window.scrollTo(0,0)})}
   else if(a==='tutSkip'){tutSave({l2:'skip',t2:null}).then(()=>{go('home');status={msg:'Level 2 skipped. Do it after your first lesson, from ❓ Help → Tutorial.'};render()})}
-  else if(a==='tutCopy')copyText(el.dataset.t,el.dataset.o,'✓');
+  else if(a==='tutCopy')copyText(el.dataset.t,el.dataset.o,'');
   else if(a==='tutDelPractice'){(async()=>{await deleteDeck(el.dataset.id);tutL=2;tutI=5;view='tut';status={msg:'Practice deck deleted.'};render()})()}
   else if(a==='tutClaude')go('claude');
   else if(a==='waysOpen'){waysFrom=el.dataset.from==='help'?'help':'words';waysOpen=null;go('ways')}
