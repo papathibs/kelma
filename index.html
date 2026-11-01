@@ -413,7 +413,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=10, APP_VERSION=50;
+const INSTR=10, APP_VERSION=51;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -795,7 +795,7 @@ async function waImport(){
   out.file('deck.json',JSON.stringify({format:'kelma-deck-1',instructions_version:INSTR,source:'whatsapp',deck_id:ymd+'-wa-'+rnd,deck_name:name,cards}));
   await importFile(new File([await out.generateAsync({type:'blob'})],'whatsapp.zip',{type:'application/zip'}));
   if(replaced&&status&&!status.err){status.msg+=` ${replaced} older card${replaced===1?'':'s'} got the new audio.`;render()}
-  if(tutS().t2&&!tutPassed(2)&&tutOwnNew()){tutL=2;tutI=5;view='tut';render();window.scrollTo(0,0)}
+  if(tutS().t2&&!tutPassed(2)&&tutOwnNew()){tutL=2;tutI=tutIdx(2,'decks');view='tut';render();window.scrollTo(0,0)}
 }
 
 /* ---------- study log + progress ---------- */
@@ -1090,8 +1090,8 @@ const LESSON_WA=[LESSON[0],LESSON[1],
   {em:'📤',t:'Export the chat',b:()=>`<div class="shots"><figure>${shot('x1-group.jpg','Tap the group name')}<figcaption>1. In the lesson group, tap the <b>group name</b></figcaption></figure>
     <figure>${shot('x2-export.jpg','Tap Export chat')}<figcaption>2. Tap <b>Export chat</b></figcaption></figure>
     <figure>${shot('x3-allmedia.jpg','Tap With all media')}<figcaption>3. Tap <b>With all media</b></figcaption></figure></div>
-    <p>4. Tap <b>Save to Files</b>.</p>`},
-  {em:'📥',t:'Import into Kelma',b:()=>`<ol class="steps"><li>In Kelma, tap <b>📥 Import</b> at the bottom of Home.</li><li>Pick the chat file you saved.</li><li>Check the list. Words you already have are skipped. Tap <b>Import</b>.</li></ol><p>✨ Your new words show up in your next review.</p>
+    <p>4. Tap <b>Save to Files</b>, pick your <b>Kelma</b> folder, then tap <b>Save</b>.</p>`},
+  {em:'📥',t:'Import into Kelma',b:()=>`<ol class="steps"><li>In Kelma, tap <b>📥 Import</b> at the bottom of Home.</li><li>Your chat file is at the top of <b>Recents</b>, or in your <b>Kelma</b> folder.</li><li>Check the list. Words you already have are skipped. Tap <b>Import</b>.</li></ol><p>✨ Your new words show up in your next review.</p>
     <label class="btn primary" for="file">📥 Import</label>`},
   LESSON[5]];
 let lessonMode='wa';
@@ -1165,47 +1165,51 @@ const TUTSTEPS={
      ${any?`<button class="btn primary focus" data-act="tutReview">▶️ Start review</button>`:`<p class="fine">Nothing is due right now, so there’s nothing to review. You can still see what happens to a word.</p><button class="btn primary focus" data-act="tutNext">Next ›</button>`}`},nav:false},
   {t:'One word’s journey',b:()=>tutJourney()+`<button class="btn primary focus jbtn" data-act="tutFinish" data-l="1">Got it ✓</button>`,nav:false}],
  2:[
-  {t:'How a lesson works',b:()=>`<p>Your helper sends each word as 3 messages in WhatsApp: <b>Arabic</b>, then <b>English</b>, then a <b>voice note</b>.</p>
+  {k:'how',t:'How a lesson works',b:()=>`<p>Your helper sends each word as 3 messages in WhatsApp: <b>Arabic</b>, then <b>English</b>, then a <b>voice note</b>.</p>
      <div class="wachat">${wa('طبلة، طبالي','10:02')}${wa('table, tables','10:02')}${wv('0:03')}</div>
      <p>After the lesson, you export the chat and Kelma turns it into cards. Let’s try it once.</p>`},
-  {t:'Who sends the words?',b:()=>`<button class="btn primary" data-act="tutMode" data-m="helper">👥 My helper, or a workshop</button>
+  {k:'who',t:'Who sends the words?',b:()=>`<button class="btn primary" data-act="tutMode" data-m="helper">👥 My helper, or a workshop</button>
      <button class="btn" data-act="tutMode" data-m="solo">🧍 Practice on my own</button>
      <p class="fine">On your own, you send 3 words to yourself and record your own voice. It’s the same routine.</p>
      <button class="btn" data-act="tutSkip">Skip for now</button>`,nav:'back'},
-  {t:()=>(tutS().t2||{}).mode==='solo'?'Send 3 words to yourself':'Get the words',b:()=>(tutS().t2||{}).mode==='solo'?`
-     <ol class="steps"><li>Open WhatsApp. Find the chat with your own name, marked <b>(You)</b>. Not there? Tap ✏️ for a new chat and pick yourself at the top.</li>
+  {k:'group',m:'helper',t:'Make your lesson group',b:()=>`<ol class="steps"><li>In WhatsApp, tap <b>New group</b>.</li><li>Add your helper.</li><li>Name it <b>Darija lessons</b>.</li></ol>
+     <p class="fine">Use it only for lessons, so clearing it never touches your other chats.<br><b>At a workshop?</b> Skip this. You’ll use the group everyone is in.</p>`},
+  {k:'words',m:'helper',t:'Get the words',b:()=>`<p>Your helper (or the workshop leader) sends a few words in the group: Arabic, English and a voice note for each.</p>
+     <p class="fine">At a workshop, everyone is in the same group. That’s fine: Kelma uses only the messages from whoever sends the voice notes.</p>`},
+  {k:'send3',m:'solo',t:'Send 3 words to yourself',b:()=>`<ol class="steps"><li>Open WhatsApp. Find the chat with your own name, marked <b>(You)</b>. Not there? Tap ✏️ for a new chat and pick yourself at the top.</li>
      <li>For each word below: send the Arabic, send the English, then hold 🎤 and say the word.</li></ol>
-     ${PRACTICE3.map(([a,e],i)=>`<div class="p3"><div class="p3r"><span lang="ar" dir="rtl" class="ar">${esc(a)}</span><button class="btn small" data-act="tutCopy" data-t="${esc(a)}" data-o="p3a${i}">📋 Copy</button><span class="ok" id="p3a${i}"></span></div><div class="p3r"><span>${esc(e)}</span><button class="btn small" data-act="tutCopy" data-t="${esc(e)}" data-o="p3e${i}">📋 Copy</button><span class="ok" id="p3e${i}"></span></div><div class="p3r fine">🎤 Then a voice note saying it</div></div>`).join('')}`:`
-     <p>Your helper (or the workshop leader) sends a few words in your lesson chat: Arabic, English, voice note for each.</p>
-     <p class="fine">At a workshop, everyone is in the same group. That’s fine: Kelma uses only the messages from whoever sends the voice notes.</p>
-     <button class="btn" data-act="help" data-q="group">👥 How to make a lesson group</button>`},
-  {t:'Export the chat',b:()=>`<div class="shots"><figure>${shot('x1-group.jpg','Tap the name at the top of the chat')}<figcaption>1. In the chat, tap the <b>name at the top</b></figcaption></figure>
+     ${PRACTICE3.map(([a,e],i)=>`<div class="p3"><div class="p3r"><span lang="ar" dir="rtl" class="ar">${esc(a)}</span><button class="btn small" data-act="tutCopy" data-t="${esc(a)}" data-o="p3a${i}">📋 Copy</button></div><div class="p3r"><span>${esc(e)}</span><button class="btn small" data-act="tutCopy" data-t="${esc(e)}" data-o="p3e${i}">📋 Copy</button></div><div class="p3r fine">🎤 Then a voice note saying it</div></div>`).join('')}`},
+  {k:'folder',t:'Make a Kelma folder',b:()=>`<p>One place for your lesson files and backups, so you never have to decide where to save.</p>
+     <ol class="steps"><li>Open the <b>Files</b> app.</li><li>Tap <b>Browse</b>, then <b>iCloud Drive</b>.</li><li>Tap <b>⋯</b> at the top right, then <b>New Folder</b>.</li><li>Name it <b>Kelma</b>.</li></ol>
+     <p class="fine">Already have it? Tap Next.<br>Android: in the Files app, make a folder called Kelma.</p>`},
+  {k:'export',t:'Export the chat',b:()=>`<div class="shots"><figure>${shot('x1-group.jpg','Tap the name at the top of the chat')}<figcaption>1. In the chat, tap the <b>name at the top</b></figcaption></figure>
      <figure>${shot('x2-export.jpg','Tap Export chat')}<figcaption>2. Scroll down, tap <b>Export chat</b></figcaption></figure>
-     <figure>${shot('x3-allmedia.jpg','Tap Attach media')}<figcaption>3. Tap <b>Attach media</b></figcaption></figure></div>
-     <p>4. Tap <b>Save to Files</b>, then <b>Save</b>.</p>`},
-  {t:'Import it',b:()=>{const d=tutOwnNew();return d?`<p class="okline">✓ Your deck is in: <b>${esc(d.name)}</b></p>`:`<ol class="steps"><li>Tap <b>Import</b> below.</li><li>Pick the chat file you just saved.</li><li>Check the list, then tap <b>Import</b>.</li></ol>
+     <figure>${shot('x3-allmedia.jpg','Tap With all media')}<figcaption>3. Tap <b>With all media</b></figcaption></figure></div>
+     <p>4. Tap <b>Save to Files</b>, pick your <b>Kelma</b> folder, then tap <b>Save</b>.</p>`},
+  {k:'import',t:'Import it',b:()=>{const d=tutOwnNew();return d?`<p class="okline">✓ Your deck is in: <b>${esc(d.name)}</b></p>`:`<ol class="steps"><li>Tap <b>Import</b> below.</li><li>Your chat file is at the top of <b>Recents</b>, or in your <b>Kelma</b> folder. Tap it.</li><li>Check the list, then tap <b>Import</b>.</li></ol>
      <label class="btn primary focus" for="file">📥 Import</label>`}},
-  {t:'Your decks',b:()=>{const d=tutOwnNew(),solo=(tutS().t2||{}).mode==='solo';return `<ul class="mini"><li>Every lesson becomes a deck in <b>📚 Decks</b>.</li>
+  {k:'decks',t:'Your decks',b:()=>{const d=tutOwnNew(),solo=(tutS().t2||{}).mode==='solo';return `<ul class="mini"><li>Every lesson becomes a deck in <b>📚 Decks</b>.</li>
      <li>New words come from the top deck first. To change the order: Decks → <b>↕️ Order for new words</b>, then drag ☰.</li>
      <li>After a real lesson, clear the chat in WhatsApp, so the next export only has the new lesson.</li></ul>
      ${solo&&d?`<button class="btn" data-act="tutDelPractice" data-id="${esc(d.id)}">🗑️ Delete the practice deck</button><p class="fine">Or keep it. It’s yours either way.</p>`:''}
+     ${solo?`<div class="tuttip"><b>Before your next lesson:</b> make a WhatsApp group with your helper, named <b>Darija lessons</b>. <button class="linkbtn" data-act="help" data-q="group">How ›</button></div>`:''}
      <button class="btn primary focus" data-act="tutFinish" data-l="2">Finish Level 2 ✓</button>`},nav:'back'}],
  3:[
   {t:'Why back up',b:()=>`<p>Your cards live <b>only on this phone</b>. If it’s lost, reset or replaced, a backup brings them back, with your progress and audio.</p><p>It takes a minute, once a week.</p>`},
-  {t:'Make a backup folder',b:()=>`<ol class="steps"><li>Open the <b>Files</b> app.</li><li>Tap <b>Browse</b>, then <b>iCloud Drive</b>.</li><li>Tap <b>⋯</b> at the top right, then <b>New Folder</b>.</li><li>Name it <b>Kelma backups</b>.</li></ol>
-     <p class="fine">Android: in the Files app, make a folder called Kelma backups.</p>`},
   {t:'Save your first backup',b:()=>{const t=(tutS().t3||{}).at||0;if(S.lastBackup&&S.lastBackup>=t)return `<p class="okline">✓ Backed up.</p>`;
-     return S.pending&&S.pending.kind==='backup'?`<button class="btn primary focus" data-act="saveBackup">💾 Save file</button><p>Choose <b>Save to Files</b>, then the <b>Kelma backups</b> folder, then <b>Save</b>.</p>`:`<button class="btn primary focus" data-act="backup">💾 Make a backup</button><p class="fine">Then you’ll choose where to save it.</p>`}},
-  {t:'Once a week',b:()=>`<p>When it’s been 7 days, a <b>💾 Back up</b> line appears on Home. Tap it and save to the same folder.</p>
+     return S.pending&&S.pending.kind==='backup'?`<button class="btn primary focus" data-act="saveBackup">💾 Save file</button><p>Choose <b>Save to Files</b>, then your <b>Kelma</b> folder, then <b>Save</b>.</p><p class="fine">No Kelma folder yet? In the Files app: Browse → iCloud Drive → ⋯ → New Folder → <b>Kelma</b>.</p>`:`<button class="btn primary focus" data-act="backup">💾 Make a backup</button><p class="fine">Then you’ll choose where to save it.</p>`}},
+  {t:'Once a week',b:()=>`<p>When it’s been 7 days, a <b>💾 Back up</b> line appears on Home. Tap it and save to your Kelma folder again.</p>
      <p class="fine">New phone? Help → New phone shows how to bring your cards back.</p>
      <button class="btn primary focus" data-act="tutFinish" data-l="3">Finish Level 3 ✓</button>`,nav:'back'}]};
+const tutSteps=l=>{if(l!==2)return TUTSTEPS[l];const m=(tutS().t2||{}).mode;return TUTSTEPS[2].filter(x=>!x.m||!m||x.m===m)};
+const tutIdx=(l,k)=>tutSteps(l).findIndex(x=>x.k===k);
 function tutPage(){
   if(tutL===4)return `<div class="page step"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
     <div class="tutdone"><span class="big" aria-hidden="true">🎉</span><h1>You’re set up</h1>
     <ul class="mini"><li>🎯 You know how reviews work, and what 🌱 🌿 🌳 mean.</li><li>📥 You can turn a lesson into a deck.</li><li>💾 Your cards are backed up.</li></ul>
     <button class="btn primary focus" data-act="home">Home ›</button>
     <p class="fine">Want more? Claude can make cards from a photo of a list or a Bible passage.</p><button class="btn" data-act="tutClaude">🤖 Extra: use Claude</button></div></div>`;
-  const L=TUTSTEPS[tutL],i=Math.max(0,Math.min(tutI,L.length-1)),x=L[i],lv=TUT[tutL-1];
+  const L=tutSteps(tutL),i=Math.max(0,Math.min(tutI,L.length-1)),x=L[i],lv=TUT[tutL-1];
   const t=typeof x.t==='function'?x.t():x.t;
   const nav=x.nav===false?'':`<div class="lnav">${i?`<button class="btn" data-act="tutPrev">‹ Back</button>`:'<span></span>'}${x.nav==='back'||i>=L.length-1?'':`<button class="btn primary" data-act="tutNext">Next ›</button>`}</div>`;
   return `<div class="page step"><div class="top" style="display:flex;justify-content:space-between;align-items:center"><button class="ghost" data-act="home">‹ Home</button><span class="fine">Level ${tutL} · step ${i+1} of ${L.length}</span></div>
@@ -1213,7 +1217,7 @@ function tutPage(){
     <div class="stepbody">${x.b()}</div>${nav}</div>`;
 }
 async function tutGo(l){l=+l||1;tutL=l;tutI=0;status=null;
-  if(l===2){const t2=tutS().t2;if(t2&&!tutPassed(2))tutI=tutOwnNew()?5:(t2.mode?2:1);else await tutSave({t2:{at:Date.now()}})}
+  if(l===2){const t2=tutS().t2;if(t2&&!tutPassed(2))tutI=tutOwnNew()?tutIdx(2,'decks'):(t2.mode?2:1);else await tutSave({t2:{at:Date.now()}})}
   if(l===3)await tutSave({t3:{at:Date.now()}});
   view='tut';render();window.scrollTo(0,0)}
 async function tutFinish(l){l=+l;const p={['l'+l]:'done'};if(l===1)p.l1day=iso(Date.now());if(l===2)p.t2=null;await tutSave(p);
@@ -2118,7 +2122,7 @@ app.addEventListener('click',e=>{
   else if(a==='tutMode'){tutSave({t2:{...(tutS().t2||{at:Date.now()}),mode:el.dataset.m}}).then(()=>{tutI=2;render();window.scrollTo(0,0)})}
   else if(a==='tutSkip'){tutSave({l2:'skip',t2:null}).then(()=>{go('home');status={msg:'Level 2 skipped. Do it after your first lesson, from ❓ Help → Tutorial.'};render()})}
   else if(a==='tutCopy')copyText(el.dataset.t,el.dataset.o,'');
-  else if(a==='tutDelPractice'){(async()=>{await deleteDeck(el.dataset.id);tutL=2;tutI=5;view='tut';status={msg:'Practice deck deleted.'};render()})()}
+  else if(a==='tutDelPractice'){(async()=>{await deleteDeck(el.dataset.id);tutL=2;tutI=tutIdx(2,'decks');view='tut';status={msg:'Practice deck deleted.'};render()})()}
   else if(a==='tutClaude')go('claude');
   else if(a==='waysOpen'){waysFrom=el.dataset.from==='help'?'help':'words';waysOpen=null;go('ways')}
   else if(a==='wayClaude'){const w=el.dataset.w;waysOpen=w;copyText(practicePlan(w),'way-ok-'+w,'✓ Copied. Open Claude, start a chat, and paste.')}
