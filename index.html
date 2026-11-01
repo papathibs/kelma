@@ -418,7 +418,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=10, APP_VERSION=52;
+const INSTR=10, APP_VERSION=53;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -1170,9 +1170,11 @@ const TUTSTEPS={
      ${any?`<button class="btn primary focus" data-act="tutReview">▶️ Start review</button>`:`<p class="fine">Nothing is due right now, so there’s nothing to review. You can still see what happens to a word.</p><button class="btn primary focus" data-act="tutNext">Next ›</button>`}`},nav:false},
   {t:'One word’s journey',b:()=>tutJourney()+nextTime('review')+`<button class="btn primary focus jbtn" data-act="tutFinish" data-l="1">Got it ✓</button>`,nav:false}],
  2:[
-  {k:'how',t:'How a lesson works',b:()=>`<p>Your helper sends each word as 3 messages in WhatsApp: <b>Arabic</b>, then <b>English</b>, then a <b>voice note</b>.</p>
-     <div class="wachat">${wa('طبلة، طبالي','10:02')}${wa('table, tables','10:02')}${wv('0:03')}</div>
-     <p>After the lesson, you export the chat and Kelma turns it into cards. Let’s try it once.</p>`},
+  {k:'how',t:'How a lesson works',b:()=>`<ol class="steps howl"><li>🗣️ <b>Have your lesson</b> with your helper, as usual. Talk, learn, ask questions.</li>
+     <li>✍️ <b>At the end, capture what you want to keep.</b> For each word or phrase, your helper sends 3 messages in WhatsApp: <b>Arabic</b>, then <b>English</b>, then a <b>voice note</b>.
+     <div class="wachat">${wa('طبلة، طبالي','10:02')}${wa('table, tables','10:02')}${wv('0:03')}</div></li>
+     <li>📥 <b>Export the chat and import it into Kelma.</b> You’ll have flashcards from that lesson in under 2 minutes, before your helper is out of the room.</li></ol>
+     <p>Let’s try it once.</p>`},
   {k:'who',t:'Who sends the words?',b:()=>`<button class="btn primary" data-act="tutMode" data-m="helper">👥 My helper, or a workshop</button>
      <button class="btn" data-act="tutMode" data-m="solo">🧍 Practice on my own</button>
      <p class="fine">On your own, you send 3 words to yourself and record your own voice. It’s the same routine.</p>
@@ -1225,7 +1227,7 @@ function tutPage(){
   const L=tutSteps(tutL),i=Math.max(0,Math.min(tutI,L.length-1)),x=L[i],lv=TUT[tutL-1];
   const t=typeof x.t==='function'?x.t():x.t;
   const nav=x.nav===false?'':`<div class="lnav">${i?`<button class="btn" data-act="tutPrev">‹ Back</button>`:'<span></span>'}${x.nav==='back'||i>=L.length-1?'':`<button class="btn primary" data-act="tutNext">Next ›</button>`}</div>`;
-  return `<div class="page step"><div class="top" style="display:flex;justify-content:space-between;align-items:center"><button class="ghost" data-act="home">‹ Home</button><span class="fine">Level ${tutL} · step ${i+1} of ${L.length}</span></div>
+  return `<div class="page step"><div class="top" style="display:flex;justify-content:space-between;align-items:center"><button class="ghost" data-act="home">‹ Home</button><span class="fine">Level ${tutL} · step ${i+1}${tutL===2&&!(tutS().t2||{}).mode?'':' of '+L.length}</span></div>
     <div class="dhead"><span class="ic" aria-hidden="true">${lv.em}</span><div><h1>${esc(t)}</h1><p>Level ${tutL}: ${esc(lv.t)}</p></div></div>${statusBox()}
     <div class="stepbody">${x.b()}</div>${nav}</div>`;
 }
