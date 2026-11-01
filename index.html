@@ -141,6 +141,8 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .ordrow .ordn{font-weight:800;color:var(--muted);min-width:18px}.ordrow .btn.small{min-width:38px;padding:6px 8px}.ordrow.paused .stxt{opacity:.55}
 .libbtn+.libbtn{margin-top:8px}
 .wsteps{margin:6px 0 10px 20px;padding:0}.wsteps li{margin:4px 0}
+.grip{touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;font-size:20px;padding:10px 8px;margin:-6px 0 -6px -6px;color:var(--muted,#6b7a72)}
+.ordrow.dragging{position:relative;z-index:5;box-shadow:0 8px 24px rgba(0,0,0,.18);background:var(--card,#fff);transition:none}
 .tagpick{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}
 .tchip{display:inline-flex}.tchip input{position:absolute;opacity:0;width:1px;height:1px}
 .tchip span{border:1.5px solid var(--line);border-radius:999px;padding:7px 12px;font-size:15px;background:var(--surface);cursor:pointer}
@@ -395,7 +397,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=10, APP_VERSION=47;
+const INSTR=10, APP_VERSION=48;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -1364,13 +1366,31 @@ function orderPage(){
     <div class="dhead"><span class="ic" aria-hidden="true">↕️</span><div><h1>Order for new words</h1><p>New words come from the top deck first</p></div></div>${statusBox()}`;
   if(!withNew.length)return h+`<p class="fine">No new words left in any deck.</p></div>`;
   h+=`<div class="liblist">${withNew.map((id,i)=>{const d=S.decks.find(x=>x.id===id),p=isPaused(id),n=freshLeft(id);
-    return `<div class="librow ordrow${p?' paused':''}"><span class="ordn">${i+1}</span><div class="stxt"><b>${esc(d.name)}</b><span>${plural(n,'new word')} left${p?' · ⏸ paused':''}</span></div>
-    <button class="btn small" data-act="ordUp" data-id="${esc(id)}" ${i?'':'disabled'} aria-label="Move up">▲</button><button class="btn small" data-act="ordDown" data-id="${esc(id)}" ${i<withNew.length-1?'':'disabled'} aria-label="Move down">▼</button><button class="btn small" data-act="ordPause" data-id="${esc(id)}" aria-label="${p?'Resume':'Pause'}">${p?'▶️':'⏸️'}</button></div>`}).join('')}</div>
-    <p class="fine">⏸ Paused decks give no new words. Their reviews still come. New decks you import join the bottom.${done?` ${plural(done,'deck')} with no new words left ${done===1?'isn’t':'aren’t'} shown.`:''}</p></div>`;
+    return `<div class="librow ordrow${p?' paused':''}" data-oid="${esc(id)}"><span class="grip" aria-label="Drag to move" role="button">☰</span><span class="ordn">${i+1}</span><div class="stxt"><b>${esc(d.name)}</b><span>${plural(n,'new word')} left${p?' · ⏸ paused':''}</span></div>
+    <button class="btn small" data-act="ordPause" data-id="${esc(id)}" aria-label="${p?'Resume':'Pause'}">${p?'▶️':'⏸️'}</button></div>`}).join('')}</div>
+    <p class="fine">Hold ☰ and drag to move a deck. ⏸ Paused decks give no new words. Their reviews still come. New decks you import join the bottom.${done?` ${plural(done,'deck')} with no new words left ${done===1?'isn’t':'aren’t'} shown.`:''}</p></div>`;
   return h;
 }
 async function ordMove(id,dir){const ids=newOrder(),withNew=ids.filter(x=>freshLeft(x)>0);const i=withNew.indexOf(id),j=i+dir;if(i<0||j<0||j>=withNew.length)return;
   [withNew[i],withNew[j]]=[withNew[j],withNew[i]];const rest=ids.filter(x=>!withNew.includes(x));S.settings.deckOrder=[...withNew,...rest];saveMeta();render()}
+/* Drag to reorder: hold the ☰ grip. The row follows the finger; the list reorders as it passes other rows. */
+let odrag=null;
+function ordDragStart(e){const g=e.target.closest('.grip');if(!g)return;const row=g.closest('.ordrow');if(!row)return;e.preventDefault();
+  try{g.setPointerCapture(e.pointerId)}catch(_){}odrag={row,list:row.parentNode,y0:e.clientY+scrollY,g};row.classList.add('dragging')}
+function ordDragMove(e){if(!odrag)return;e.preventDefault();const {row,list}=odrag,y=e.clientY+scrollY;
+  if(e.clientY<70)scrollBy(0,-10);else if(e.clientY>innerHeight-70)scrollBy(0,10);
+  row.style.transform=`translateY(${y-odrag.y0}px)`;
+  const r=row.getBoundingClientRect(),mid=r.top+r.height/2,prev=row.previousElementSibling,next=row.nextElementSibling;let tgt=null,before=true;
+  if(prev&&prev.classList.contains('ordrow')){const q=prev.getBoundingClientRect();if(mid<q.top+q.height/2){tgt=prev;before=true}}
+  if(!tgt&&next&&next.classList.contains('ordrow')){const q=next.getBoundingClientRect();if(mid>q.top+q.height/2){tgt=next;before=false}}
+  if(tgt){const vis=r.top;row.style.transform='';list.insertBefore(row,before?tgt:tgt.nextSibling);const nat=row.getBoundingClientRect().top;odrag.y0=y-(vis-nat);row.style.transform=`translateY(${vis-nat}px)`;
+    [...list.querySelectorAll('.ordrow')].forEach((x,i)=>{const n=x.querySelector('.ordn');if(n)n.textContent=i+1})}}
+function ordDragEnd(){if(!odrag)return;const {row,list}=odrag;odrag=null;row.classList.remove('dragging');row.style.transform='';
+  const dom=[...list.querySelectorAll('.ordrow')].map(x=>x.dataset.oid),ids=newOrder(),rest=ids.filter(x=>!dom.includes(x));
+  if(dom.join()!==ids.filter(x=>dom.includes(x)).join()){S.settings.deckOrder=[...dom,...rest];saveMeta()}render()}
+app.addEventListener('pointerdown',e=>{if(view==='order')ordDragStart(e)});
+app.addEventListener('pointermove',ordDragMove,{passive:false});
+app.addEventListener('pointerup',ordDragEnd);app.addEventListener('pointercancel',ordDragEnd);
 function ordPause(id){const p=new Set(S.settings.pausedDecks||[]);p.has(id)?p.delete(id):p.add(id);S.settings.pausedDecks=[...p];saveMeta();render()}
 
 /* ---------- Find repeats (same Darija in one deck) + clear out hidden cards ---------- */
