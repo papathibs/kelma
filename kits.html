@@ -217,7 +217,7 @@ Rules:
 - English only. Never write Darija words or sentences.
 - Never give me English phrases to translate. Only questions that help me discover what is actually said.
 - Keep it to one screen.`},
-{id:"vocab",lvl:"stretch",name:"📖 Scripture vocab",does:"Pick words from a Bible passage and turn them into cards.",paste:"A passage in Darija (the English is optional).",get:"Your chosen words, a quick quiz, and cards for your helper or Kelma.",claude:"In Claude, tap the words you want, and get a page of cards with copy buttons for your lesson chat.",
+{id:"vocab",lvl:"stretch",name:"📖 Scripture vocab",does:"Pick words from a Bible passage and turn them into cards.",paste:"A passage in Darija (the English is optional).",get:"Your chosen words, a quick quiz, and one-tap cards to paste for your helper.",claude:"In Claude, tap the words you want, and get a page of cards with copy buttons for your lesson chat.",
 text:`You help me learn Moroccan Darija vocabulary from Bible passages. You do clerical work only: never write new Darija sentences.
 
 MY LEVEL: beginner   (change to intermediate or advanced)
@@ -237,16 +237,30 @@ I paste a Darija passage (sometimes with the English). List 10–15 words or phr
 
 2. QUIZ (optional)
 Ask "Quick quiz first?" If yes: up to 5 multiple-choice questions, one at a time ("What does ___ mean?"), with English options.
-- After each answer, FIRST write the result as normal text in your reply, so it stays visible above any next question: "✓ Q1: ___ = ___" or "✗ Q1: ___ = ___ (you picked ___)". No explanations. Only then show the next question.
-- After the last question, show a short scorecard: every question on its own line with ✓ or ✗ and the right answer, then "Score: 4/5".
+- After each answer, FIRST write the result as a normal sentence in your reply: "✓ Q1: ___ = ___" or "✗ Q1: ___ = ___ (you picked ___)". Only then ask the next question. Never ask the next question without writing the result first.
+- If your question pop-ups hide earlier messages, ask the questions as plain text with numbered options instead.
+- After the last question, show a scorecard: every question on its own line with ✓ or ✗ and the right answer, then "Score: 4/5".
 
 3. MY CARDS
-For each word I picked: the word as it appears in the passage, a short English meaning, and the exact phrase from the passage that contains it, with its English.
-Then ask how I want them:
-a) Cards for my helper. If you can make an artifact, make a simple phone page: one card per word, with the Darija in large text and a Copy button, the English with its own Copy button, and the passage phrase underneath. Otherwise list each word as two lines (the Darija, then the English) with a blank line between words and no numbers. I paste the Darija, then the English, into my WhatsApp lesson chat, and my helper replies with a voice note.
-b) A Kelma deck file without audio. Only if you can create files: make a .zip containing deck.json:
-{"format":"kelma-deck-1","deck_id":"<YYYY-MM-DD>-<short-slug>-<4 random lowercase letters>","deck_name":"<passage reference>","cards":[{"num":1,"word":"...","meaning":"...","example":"<passage phrase>","example_en":"...","tag":""}]}
-Reply with the file and: "Save it to Files, then in Kelma tap Import." If you can't create files, say so and offer (a).
+Make one card for each word I picked, with exactly three lines:
+Line 1: the word in flashcard form:
+  - verb: he did / he does (masculine), e.g. حاول / كيحاول
+  - noun: one / many, e.g. خدمة / خدمات
+  - adjective: masculine / feminine / plural, e.g. ثقيل / ثقيلة / ثقال
+  - anything else: as written in the passage
+  Mark any form that isn't in the passage with (?). My helper will check it.
+Line 2: the English meaning, in the same order, e.g. "power, ability / powers" or "changed / changes (he)"
+Line 3: 📖 then the exact phrase from the passage that contains the word, unchanged.
+
+How to show the cards:
+- If you can make an artifact, make a simple phone page: each card shown large, with ONE Copy button that copies all three lines together. A tapped Copy button changes to "✓ Copied".
+- Otherwise, put each card in its own code block, so each can be copied in one tap.
+Then say: "Paste each card into your WhatsApp lesson chat. Your helper reads the Arabic and sends a voice note after each card."
+
+4. KELMA DECK FILE (only if I ask, and only if you can create files)
+Make a .zip containing deck.json, with no audio:
+{"format":"kelma-deck-1","deck_id":"<YYYY-MM-DD>-<short-slug>-<4 random lowercase letters>","deck_name":"<passage reference>","cards":[{"num":1,"word":"<line 1>","meaning":"<line 2>","example":"<line 3 without 📖>","example_en":"","tag":""}]}
+Reply with the file and: "Save it to Files, then in Kelma tap Import."
 
 If I say "grammar", list up to 5 patterns from the passage, one line each in English, with an example from the text.`},
 {id:"song",lvl:"stretch",name:"🎵 Scripture song",does:"Turn a verse into a bilingual song to help you memorize it.",paste:"A verse in Darija and the same verse in English.",get:"Lyrics in both languages and a style prompt for Suno.",claude:"Needs a free Suno account to make the song. In Claude, the lyrics come back ready to copy.",
