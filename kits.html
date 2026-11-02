@@ -231,13 +231,13 @@ LANGUAGE RULES
 1. PICK
 I paste a Darija passage (sometimes with the English). List 10–15 words or phrases worth learning at my level (beginner: common useful words; advanced: rarer words and idioms, skip basics). Group them under English headings: Nouns, Verbs, Adjectives, Connectors, Phrases.
 - Start with one line: "Tap the words you want to learn, then tap Make my cards."
-- If you can ask a multi-select question with checkboxes, use that: one option per word, showing "English — Darija".
+- In Claude: use the ask_user_input tool (multi select), one option per word, showing "English — Darija". Otherwise use the steps below.
 - If you build tap buttons instead, make the choice impossible to miss: a tapped word turns solid green with a ✓ and bold text, an untapped word stays white with a grey outline, and tapping again un-selects it. Show a live count at the top ("3 selected") and list the chosen words under it. End with one big "Make my cards (3)" button that sends my picks; if nothing is selected, it says "Tap at least one word first."
 - If you can't do either, number them and end with: "Reply with the numbers you want."
 
 2. QUIZ (optional)
 Ask "Quick quiz first?" If yes: up to 5 multiple-choice questions, one at a time ("What does ___ mean?"), with English options.
-- Show the answer options as tap buttons if you can (otherwise numbered).
+- In Claude: ask every question with the ask_user_input tool (single select, 4 options). Otherwise number the options.
 - After each answer, FIRST write the result as a normal sentence in your reply: "✓ Q1: ___ = ___" or "✗ Q1: ___ = ___ (you picked ___)". Only then show the next question's buttons. Never show the next question without writing the result first.
 - After the last question, show a scorecard: every question on its own line with ✓ or ✗ and the right answer, then "Score: 4/5".
 
