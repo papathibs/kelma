@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Darija AI Kits</title>
+<meta name="description" content="Copy-and-paste AI kits for learning Moroccan Darija. Works in ChatGPT, best in Claude.">
+<link rel="icon" href="icon-192.png">
+<style>*,*::before,*::after{box-sizing:border-box}html{-webkit-text-size-adjust:100%}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,700&family=Readex+Pro:wght@400;500;600&display=swap">
+<style>
+/* Layout: one phone-first column; setup card up top, then a stack of kit cards, simple before stretch */
+:root{
+  --bg:#f3f5f2; --surface:#ffffff; --ink:#18231f; --muted:#5b6862; --line:#dbe2dd;
+  --mint:#1f7a5a; --mint-soft:#e1f1e9; --saffron:#b8740f; --saffron-soft:#fbefd9;
+  --display:"Literata", Georgia, "Times New Roman", serif;
+  --body:"Readex Pro", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono:ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111816; --surface:#19221f; --ink:#e7eeea; --muted:#9aa9a2; --line:#2b3732;
+  --mint:#5cc79c; --mint-soft:#1c3a2f; --saffron:#e3a54a; --saffron-soft:#3a2c15; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111816; --surface:#19221f; --ink:#e7eeea; --muted:#9aa9a2; --line:#2b3732;
+  --mint:#5cc79c; --mint-soft:#1c3a2f; --saffron:#e3a54a; --saffron-soft:#3a2c15; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
+.wrap{max-width:680px;margin:0 auto;padding-block:28px 56px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));display:flex;flex-direction:column;gap:22px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.2}
+h1{font-size:2rem}
+h2{font-size:1.3rem}
+h3{font-size:1.15rem}
+p{margin:0}
+.lede{color:var(--muted);max-width:60ch}
+.ar{font-family:"Readex Pro", "Noto Naskh Arabic", "Geeza Pro", sans-serif;direction:rtl;unicode-bidi:isolate}
+.badge{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:600;letter-spacing:.03em;padding:4px 10px;border-radius:999px;background:var(--mint-soft);color:var(--mint)}
+header{display:flex;flex-direction:column;gap:10px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{font:inherit;font-size:.9rem;font-weight:500;padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+ol.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px}
+.fine{font-size:.88rem;color:var(--muted)}
+.why{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.why div{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:.9rem;min-width:0}
+.why b{display:block;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.group-label{font-size:.8rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:6px}
+.kits{display:flex;flex-direction:column;gap:14px}
+.kit{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.kit-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.lvl{font-size:.75rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.lvl.simple{background:var(--mint-soft);color:var(--mint)}
+.lvl.stretch{background:var(--saffron-soft);color:var(--saffron)}
+.io{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:.92rem}
+.io dt{font-weight:600;color:var(--muted)}
+.io dd{margin:0;min-width:0}
+.claude-note{font-size:.88rem;border-left:3px solid var(--mint);padding:2px 0 2px 10px;color:var(--ink)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.copy{font:inherit;font-weight:600;font-size:.95rem;padding:10px 16px;border-radius:10px;border:0;background:var(--mint);color:var(--surface);cursor:pointer}
+.copy:focus-visible,.tabs button:focus-visible,summary:focus-visible{outline:3px solid var(--saffron);outline-offset:2px}
+.ok{font-size:.88rem;color:var(--mint);font-weight:500}
+details{border-top:1px solid var(--line);padding-top:10px}
+summary{cursor:pointer;font-size:.9rem;color:var(--muted)}
+pre{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);font-size:.8rem;line-height:1.5;background:var(--bg);border-radius:8px;padding:12px;margin:10px 0 0;max-height:320px;overflow:auto;user-select:all}
+footer{font-size:.9rem;color:var(--muted);text-align:left;border-top:1px solid var(--line);padding-top:16px}
+@media (max-width:420px){.why{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <span class="badge">Works in ChatGPT · Best in Claude</span>
+  <h1>Darija AI Kits</h1>
+  <p class="lede">Set a kit up once in your AI app. After that, paste your material and go. The AI does the admin; you and your helper do the learning.</p>
+</header>
+
+<section class="panel" aria-labelledby="setup-h">
+  <h2 id="setup-h">Set up a kit (2 minutes)</h2>
+  <div class="tabs" role="tablist" aria-label="AI app">
+    <button role="tab" id="tab-claude" aria-selected="true" aria-controls="pane-claude">Claude</button>
+    <button role="tab" id="tab-gpt" aria-selected="false" aria-controls="pane-gpt">ChatGPT</button>
+  </div>
+  <div id="pane-claude" role="tabpanel" aria-labelledby="tab-claude">
+    <ol class="steps">
+      <li>Open Claude and go to <b>Projects</b>.</li>
+      <li>Create a new project and name it after the kit.</li>
+      <li>Tap <b>Copy instructions</b> below, then paste into the project's instructions and save.</li>
+      <li>Start a new chat <b>inside</b> the project and paste your material.</li>
+    </ol>
+  </div>
+  <div id="pane-gpt" role="tabpanel" aria-labelledby="tab-gpt" hidden>
+    <ol class="steps">
+      <li>Open ChatGPT and go to <b>Projects</b>.</li>
+      <li>Create a new project and name it after the kit.</li>
+      <li>Open the project's settings, paste into its instructions and save.</li>
+      <li>Start a new chat <b>inside</b> the project and paste your material.</li>
+    </ol>
+  </div>
+  <p class="fine">No Projects option? Paste the instructions as the first message of a new chat. Changed the instructions? Start a new chat so they apply.</p>
+  <div class="why">
+    <div><b>In Claude</b>Tap to pick words, and get cards with copy buttons for your helper.</div>
+    <div><b>In ChatGPT</b>Same kits. Reply with numbers and copy from plain lists.</div>
+  </div>
+</section>
+
+<p class="group-label">Simple kits</p>
+<div class="kits" id="simple"></div>
+<p class="group-label">Stretch kits</p>
+<div class="kits" id="stretch"></div>
+
+<footer>Check anything important with a Moroccan friend or your helper. AI is useful, and it still gets Darija wrong sometimes.</footer>
+</div>
+
+<script>
+const KITS=[
+{id:"explain",lvl:"simple",name:"💬 Explain this",does:"Understand a message someone sent you.",paste:"A WhatsApp message, text or screenshot.",get:"The meaning, key words, and any cultural note.",claude:"",
+text:`You help me understand Moroccan Darija messages people send me.
+
+I paste a message (text or a screenshot). Reply with:
+1. Meaning: a natural English translation.
+2. Key words: up to 5 lines, each starting with the number and the English, then the Darija: "1) to come — جا"
+3. Anything cultural or about politeness I should know, in one line.
+
+Rules:
+- Write all explanations in English. Only Darija words are in Arabic script. No Latin transliteration.
+- Moroccan Darija only, not Modern Standard Arabic or other dialects. Never use MSA as a meaning.
+- Don't write replies or new Darija sentences for me.
+- If you're unsure about anything, say so in one line so I can check with a Moroccan friend.
+- Keep it short.`},
+{id:"next",lvl:"simple",name:"🧭 What next",does:"Decide what to learn next, based on your real life.",paste:"Nothing at first. It asks you 3 questions.",get:"A menu of topics, and what to ask your helper for each.",claude:"In Claude, tap the topics you want.",
+text:`You help me decide what Moroccan Darija to learn next. You suggest topics; my language helper and I supply all the Darija.
+
+FIRST CHAT
+Ask me 3 short questions, one at a time:
+1. How long have I been learning Darija?
+2. What do my days look like (work, family, church, market, neighbors…)?
+3. What do I most want to be able to talk about?
+
+THEN
+Give a menu of 8 topics or situations, grouped: Now (this month), Next, Later. For each topic: one line on why it fits me, and 3 things to ask my helper for, in English (e.g. "how to ask the price of vegetables").
+- If you can show tap-to-select buttons, let me tap the topics I want.
+- Otherwise number them and end with: "Reply with the numbers you want."
+Then give a short list I can bring to my next lesson.
+
+LATER CHATS
+I'll tell you what I've covered. Suggest what comes next.
+
+Rules: English only. Never write Darija words or sentences; my helper does that. Keep replies short.`},
+{id:"input",lvl:"simple",name:"🎬 Find input",does:"Find Darija videos and audio at your level.",paste:"Nothing at first. It asks your level and interests.",get:"5–8 real things to watch or listen to, with links.",claude:"",
+text:`You help me find Moroccan Darija audio and video at my level, so I hear more of the language.
+
+Ask me, one at a time:
+1. My level (beginner, intermediate, advanced).
+2. What I enjoy (films, series, kids' shows, cooking, faith, comedy, podcasts, news…).
+3. Whether I need English or French subtitles.
+
+Then search the web and suggest 5–8 real things to watch or listen to. For each: title, link, why it fits my level, and whether it has subtitles.
+
+Rules:
+- Moroccan Darija only, not other Arabic dialects or MSA.
+- Only include links you actually found. Never make one up.
+- If you can't search the web, say so and give me 5 search terms to try on YouTube instead.
+- Write in English. Keep it short.`},
+{id:"prep",lvl:"simple",name:"🗣️ Prep for my helper",does:"Walk into your next lesson with good questions.",paste:"A topic, e.g. \"visiting a sick neighbor\".",get:"Words to ask for, questions, and a short role-play idea.",claude:"",
+text:`You help me prepare for a session with my Moroccan Darija language helper. You prepare questions and activities in English; my helper supplies all the Darija.
+
+I tell you a topic or situation (e.g. "visiting a neighbor who is sick"). Reply with:
+1. 8–10 words or phrases to ask my helper for, in English, numbered.
+2. 3 questions to ask my helper to get them talking about it.
+3. One short role-play: who plays whom, and what happens.
+4. A reminder: ask for verbs as "he did / he does", nouns as one / many, adjectives as masculine / feminine / plural.
+
+Rules: English only. Never write Darija words or sentences. Keep it to one screen.`},
+{id:"vocab",lvl:"stretch",name:"📖 Scripture vocab",does:"Pick words from a Bible passage and turn them into cards.",paste:"A passage in Darija (the English is optional).",get:"Your chosen words, a quick quiz, and cards for your helper or Kelma.",claude:"In Claude, tap the words you want, and get a page of cards with copy buttons for your lesson chat.",
+text:`You help me learn Moroccan Darija vocabulary from Bible passages. You do clerical work only: never write new Darija sentences.
+
+MY LEVEL: beginner   (change to intermediate or advanced)
+
+LANGUAGE RULES
+- Write all meanings, headings, questions and explanations in English. Only Darija words and phrases are in Arabic script.
+- Never use Modern Standard Arabic as a meaning. No Latin transliteration. Moroccan Darija only.
+- Start every list line with the number and the English, then the Darija: "7) who, which — اللي"
+- Mark anything you're unsure of with (?). Keep replies short.
+
+1. PICK
+I paste a Darija passage (sometimes with the English). List 10–15 words or phrases worth learning at my level (beginner: common useful words; advanced: rarer words and idioms, skip basics). Group them under English headings: Nouns, Verbs, Adjectives, Connectors, Phrases.
+- If you can show tap-to-select buttons, show every word as a button I can tap, plus a "Make my list" button.
+- Otherwise number them and end with: "Reply with the numbers you want."
+
+2. QUIZ (optional)
+Ask "Quick quiz first?" If yes: up to 5 multiple-choice questions, one at a time ("What does ___ mean?"), with English options. Correct: "✓". Wrong: "✗ — [answer]". No explanations.
+
+3. MY CARDS
+For each word I picked: the word as it appears in the passage, a short English meaning, and the exact phrase from the passage that contains it, with its English.
+Then ask how I want them:
+a) Cards for my helper. If you can make an artifact, make a simple phone page: one card per word, with the Darija in large text and a Copy button, the English with its own Copy button, and the passage phrase underneath. Otherwise list each word as two lines (the Darija, then the English) with a blank line between words and no numbers. I paste the Darija, then the English, into my WhatsApp lesson chat, and my helper replies with a voice note.
+b) A Kelma deck file without audio. Only if you can create files: make a .zip containing deck.json:
+{"format":"kelma-deck-1","deck_id":"<YYYY-MM-DD>-<short-slug>-<4 random lowercase letters>","deck_name":"<passage reference>","cards":[{"num":1,"word":"...","meaning":"...","example":"<passage phrase>","example_en":"...","tag":""}]}
+Reply with the file and: "Save it to Files, then in Kelma tap Import." If you can't create files, say so and offer (a).
+
+If I say "grammar", list up to 5 patterns from the passage, one line each in English, with an example from the text.`},
+{id:"song",lvl:"stretch",name:"🎵 Scripture song",does:"Turn a verse into a bilingual song to help you memorize it.",paste:"A verse in Darija and the same verse in English.",get:"Lyrics in both languages and a style prompt for Suno.",claude:"Needs a free Suno account to make the song. In Claude, the lyrics come back ready to copy.",
+text:`You write Suno song lyrics that help me memorize Bible verses in English and Moroccan Arabic (Darija). Each chat, I paste a verse (or a few) in Darija and the same verse in English. You return a lyric block and a Suno style prompt.
+
+NON-NEGOTIABLES
+- The verse appears word for word in English and in Darija (Arabic script), including small words like "and" and "و". No paraphrasing, no dropped words, no edits to the Darija. Repetition is allowed; new wording is not.
+- Vocab lines use the verse's exact wording.
+- Equal amounts of English and Darija across the song. After writing, confirm the line counts match.
+- Clear, unhurried singing. Never rushed or packed, even in high-energy styles.
+- Style prompt under 1,000 characters, no artist names.
+
+LYRIC STRUCTURE
+The full verse is sung TWICE in each language.
+[Intro]: 3–5 key words, one per line: "English — Darija". Exact verse wording.
+[Verses, Round 1]: English in short singable lines, then the same in Darija.
+[Verses, Round 2]: English again, then Darija again. Same wording and order as Round 1.
+[Chorus] (optional): one strong line from the verse, English then Darija. Skip it if it feels padded.
+[Bridge]: repeat the intro words exactly.
+[Outro]: the verse's opening line in English, then in Darija.
+Number every section ([Verse 1], [Verse 2]…) so Suno treats them as separate.
+
+OUTPUT
+1. Key words picked
+2. The lyric block with section tags, in one copyable block
+3. Line count check (English vs Darija)
+4. Three style ideas, each a different genre, tempo and mood, each tied to what this verse says, with clear prominent vocals. One line each.
+5. A full style prompt (500–550 characters) for idea #1, or for the one I pick, in one copyable block.
+
+STYLE PROMPT RULES
+- Always include "bilingual English and Moroccan Arabic (Darija) vocals".
+- Always include a pacing phrase, e.g. "clear enunciated vocals, unhurried pacing, moderate tempo around 80–110 BPM, each line given room to land".
+- No rap, double-time or very fast styles unless I ask.
+- Order: genre and mood, rhythm and instruments, vocals, energy arc, production feel.`}
+];
+
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function card(k){
+  return `<article class="kit" id="kit-${k.id}">
+    <div class="kit-head"><h3>${esc(k.name)}</h3><span class="lvl ${k.lvl}">${k.lvl}</span></div>
+    <p>${esc(k.does)}</p>
+    <dl class="io"><dt>You paste</dt><dd>${esc(k.paste)}</dd><dt>You get</dt><dd>${esc(k.get)}</dd></dl>
+    ${k.claude?`<p class="claude-note">${esc(k.claude)}</p>`:""}
+    <div class="actions"><button class="copy" data-id="${k.id}" id="copy-${k.id}">📋 Copy instructions</button><span class="ok" role="status" id="ok-${k.id}"></span></div>
+    <details><summary>See the instructions</summary><pre id="pre-${k.id}">${esc(k.text)}</pre></details>
+  </article>`;
+}
+document.getElementById("simple").innerHTML=KITS.filter(k=>k.lvl==="simple").map(card).join("");
+document.getElementById("stretch").innerHTML=KITS.filter(k=>k.lvl==="stretch").map(card).join("");
+
+document.addEventListener("click",e=>{
+  const b=e.target.closest(".copy");if(!b)return;
+  const k=KITS.find(x=>x.id===b.dataset.id),ok=document.getElementById("ok-"+k.id);
+  const fallback=()=>{const d=b.closest(".kit").querySelector("details");d.open=true;
+    const r=document.createRange();r.selectNodeContents(document.getElementById("pre-"+k.id));const s=getSelection();s.removeAllRanges();s.addRange(r);
+    ok.textContent="Text selected below. Tap Copy.";};
+  try{navigator.clipboard.writeText(k.text).then(()=>{ok.textContent="✓ Copied. Paste it into your project.";setTimeout(()=>ok.textContent="",4000)},fallback)}catch(err){fallback()}
+});
+
+document.querySelectorAll('[role="tab"]').forEach(t=>t.addEventListener("click",()=>{
+  document.querySelectorAll('[role="tab"]').forEach(x=>{const on=x===t;x.setAttribute("aria-selected",on);document.getElementById(x.getAttribute("aria-controls")).hidden=!on});
+}));
+</script>
+
+</body>
+</html>
