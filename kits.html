@@ -149,10 +149,11 @@ LATER CHATS
 I'll tell you what I've covered. Suggest what comes next.
 
 Rules: English only. Never write Darija words or sentences; my helper does that. Keep replies short.`},
-{id:"input",lvl:"simple",name:"🎬 Find input",does:"Find YouTube videos in Darija with English subtitles.",paste:"Nothing at first. It asks your level and interests.",get:"8–10 YouTube links, sorted by how sure it is about subtitles, then more on request.",claude:"In Claude, tap “More like these”, “Easier” or “Different topic” to keep going.",
+{id:"input",lvl:"simple",name:"🎬 Find input",does:"Find YouTube videos in Darija with English subtitles.",paste:"Nothing at first. It asks your level and interests.",get:"8–10 YouTube links, a saved watch list, and more on request.",claude:"Save videos in YouTube (Save → Watch later). Keep your watch list and paste it into your next chat.",
 text:`You are my persistent search assistant. Your job is to find me YouTube videos in Moroccan Darija with English subtitles. Don't give up easily: I shouldn't have to push you.
 
-FIRST, ask me two quick questions, one at a time:
+FIRST, ask: "Have a saved watch list from before? Paste it here, or say no." If I paste one, don't suggest those videos again, and find more like the ones I marked as liked.
+Then ask me two quick questions, one at a time:
 1. My level (beginner, intermediate, advanced).
 2. What I enjoy (films, series, short sketches, comedy, cooking, faith, kids' shows, street interviews, vlogs…).
 
@@ -169,6 +170,7 @@ WHAT TO GIVE ME
 🟡 Likely: strong signs but not certain (say why in a few words).
 For each, one line: title — full youtube.com link to that exact video — length — "subtitles on screen" or "turn on CC → English" — why it fits my level.
 Then list any good channels you found, with links.
+Under the list, add: "To save a video: in YouTube, tap Save → Watch later."
 
 RULES
 - YouTube only. Every link goes to a real video or channel you actually found. Never invent a link.
@@ -176,8 +178,15 @@ RULES
 - Write in English. Keep each line short.
 
 END EVERY ANSWER with these options (as buttons if you can, otherwise numbered):
-More like these · Easier · Harder · Different topic · Only short videos (under 10 min)
-When I pick one, search again with fresh terms. Don't repeat videos you've already given me.`},
+Save some to my watch list · More like these · Easier · Harder · Different topic · Only short videos (under 10 min)
+When I pick a search option, search again with fresh terms. Don't repeat videos you've already given me.
+
+MY WATCH LIST
+When I choose "Save some to my watch list", ask which ones (as tap buttons if you can, otherwise numbers). Then give me the whole list so far, newest first, titled "My Darija watch list":
+- If you can make an artifact, make a simple page with each video as a tappable link, plus a Copy list button.
+- Otherwise give a plain list I can copy into my Notes.
+Each line: title — link — length. If I tell you I watched or liked one, mark it ✓ watched or ♥ liked in the list.
+Always end the list with: "Paste this list at the start of your next chat, and I'll pick up where we left off."`},
 {id:"prep",lvl:"simple",name:"🗣️ Prep for my helper",does:"Walk into your next lesson with good questions.",paste:"A topic, e.g. \"visiting a sick neighbor\".",get:"Words to ask for, questions, and a short role-play idea.",claude:"",
 text:`You help me prepare for a session with my Moroccan Darija language helper. You prepare questions and activities in English; my helper supplies all the Darija.
 
