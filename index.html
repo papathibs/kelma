@@ -429,7 +429,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=10, APP_VERSION=56;
+const INSTR=10, APP_VERSION=57;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -1124,7 +1124,7 @@ function lessonPage(){
 const RECIPES=[
   {tag:'verb',ask:'He did + he does, and a sentence',word:'حاول، كيحاول',mean:'to try',ex:'خاصك ديما تبقى **تحاول** حتى تنجح',exen:'You need to always keep **trying** until you succeed.'},
   {tag:'noun',ask:'One + many, and a sentence',word:'طبلة، طبالي',mean:'table, tables',ex:'حطيت ستيلو فوق **طبلة**',exen:'I put the pen on the **table**.'},
-  {tag:'adjective',ask:'Masculine + feminine + plural, and a sentence',word:'خفيف \\ خفيفة \\ خفاف',mean:'light (weight) (m, f, pl)',ex:'طبلة تقيلة. طبالي **خفاف**',exen:'Heavy table. **Light** tables.'},
+  {tag:'adjective',ask:'Masculine + feminine + plural, and a sentence',word:'خفيف \\ خفيفة \\ خفاف',mean:'light (weight) (m, f, pl)',ex:'هاد الطبلة **خفيفة**، نقدر نهزها بوحدي',exen:'This table is **light**, I can carry it by myself.'},
   {tag:'phrase',ask:'Everything else: the whole phrase or sentence',word:'واش ممكن تعاود هادشي لي گلتي دابا؟',mean:'Can you repeat what you just said?'}];
 function recipesPage(){
   const card=r=>`<div class="rcard"><span class="tagchip">${TAGS[r.tag][0]} ${TAGS[r.tag][1]}</span><p class="rword" lang="ar" dir="rtl">${esc(r.word)}</p><p class="rmean">${esc(r.mean)}</p>${r.ex?`<p class="rex" lang="ar" dir="rtl">${exHtml(r.ex)}</p><p class="rexen">${exHtml(r.exen)}</p>`:(r.tag!=='phrase'?`<p class="radd">＋ add a sentence when you can</p>`:'')}</div>`;
