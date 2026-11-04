@@ -501,6 +501,7 @@ async function load(){
   /* v46: cards from before topics existed get Kelma's guess once, from the English. The rest wait for Tag cards. */
   if(!S.settings.topicsGuessed){const up=[];S.notes.forEach(n=>{if(!topicsOf(n).length){const tp=autoTopics(n);if(tp.length){n.topics=tp;up.push(n)}}});
     try{if(up.length)await write(['notes'],t=>{const st=t.objectStore('notes');up.forEach(n=>st.put(n))});S.settings.topicsGuessed=true;await write(['meta'],t=>t.objectStore('meta').put(S.settings,'settings'))}catch(e){}}
+  if(!S.settings.voicesFixed)setTimeout(fixVoices,1500);
   S.newDone=(await get('meta','newDone'))||{day:'',count:0};
   S.log=(await get('meta','log'))||{};
   const iv=await get('meta','instrVer');S.instrVer=(typeof iv==='number')?iv:null;
@@ -618,7 +619,7 @@ async function importFile(file){
     let audioKey=null;
     if(c.audio){const f=zip.file(base+c.audio)||zip.file(c.audio);
       if(f){const buf=await f.async('arraybuffer');const ext=(c.audio.split('.').pop()||'').toLowerCase();
-        audio.push([id,new Blob([buf],{type:ext==='m4a'?'audio/mp4':ext==='wav'?'audio/wav':(ext==='ogg'||ext==='opus')?'audio/ogg':'audio/mpeg'})]);audioKey=id}
+        audio.push([id,await cleanBlob(buf,ext==='m4a'?'audio/mp4':ext==='wav'?'audio/wav':(ext==='ogg'||ext==='opus')?'audio/ogg':'audio/mpeg')]);audioKey=id}
       else missing.push(num)}
     {const _pt=parseTags(c);if(!_pt.length){const _at=autoTags({word:c.word,meaning:c.meaning});if(_at.length){c.tags=_at}}}
     let _tp=parseTopics(c.topics);if(!_tp.length)_tp=autoTopics({meaning:c.meaning});
@@ -653,7 +654,7 @@ async function importFile(file){
 async function restore(zip,bk){
   let data;try{data=JSON.parse(await bk.async('string'))}catch(e){status={err:true,msg:'backup.json is damaged.'};render();return}
   const audio=[];
-  for(const n of data.notes||[]){if(!n.audioPath)continue;const f=zip.file(n.audioPath);if(f){const buf=await f.async('arraybuffer');audio.push([n.audioKey,new Blob([buf],{type:n.audioType||'audio/mpeg'})])}}
+  for(const n of data.notes||[]){if(!n.audioPath)continue;const f=zip.file(n.audioPath);if(f){const buf=await f.async('arraybuffer');audio.push([n.audioKey,await cleanBlob(buf,n.audioType||'audio/mpeg')])}}
   try{await write(['decks','notes','cards','audio','meta','revlog'],t=>{(data.revlog||[]).forEach(r=>{if(r&&r.t&&r.card)t.objectStore('revlog').put(r,r.t+'|'+r.card)});(data.decks||[]).forEach(d=>t.objectStore('decks').put(d));(data.notes||[]).forEach(n=>{const c={...n};delete c.audioPath;delete c.audioType;t.objectStore('notes').put(c)});(data.cards||[]).forEach(c=>t.objectStore('cards').put(c));audio.forEach(([k,b])=>t.objectStore('audio').put(b,k));if(data.settings)t.objectStore('meta').put(data.settings,'settings');if(data.log){const m={...S.log};Object.entries(data.log).forEach(([k,v])=>{const c=m[k];m[k]={n:Math.max(c?c.n:0,v.n||0),cleared:!!((c&&c.cleared)||v.cleared)}});t.objectStore('meta').put(m,'log')}})}
   catch(e){status={err:true,msg:'Could not restore the backup on this device.'};render();return}
   await load();status={msg:`Restored backup: ${(data.notes||[]).length} words with their review history.`};render();
@@ -692,6 +693,47 @@ function saveBackup(){
   download(p);done();
 }
 function download(p){const a=document.createElement('a');a.href=URL.createObjectURL(p.blob);a.download=p.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},5000)}
+
+/* ---------- WhatsApp voice-note clean-up ----------
+   WhatsApp voice notes (.opus) leave out the quiet moments to save space. A full Opus decoder fills them with soft
+   room sound (as WhatsApp does); some phone players play dead silence instead, which pops. So we decode them ourselves
+   with the full decoder and save a small mp3 that plays the same everywhere. Returns null for anything that isn't .opus. */
+const libLoad={};
+function loadLib(src){return libLoad[src]||(libLoad[src]=new Promise((res,rej)=>{const s=document.createElement('script');s.charset='utf-8';s.src=src;s.onload=res;s.onerror=()=>{delete libLoad[src];s.remove();rej(new Error('load '+src))};document.head.appendChild(s)}))}
+const isOgg=u8=>u8.length>36&&u8[0]===0x4f&&u8[1]===0x67&&u8[2]===0x67&&u8[3]===0x53;
+function voiceMp3(x,sr){
+  const y=x,r=sr; /* lamejs only encodes 44.1/48 kHz correctly; Opus always decodes at 48 kHz */
+  const fi=Math.min(y.length,Math.round(r*0.01)),fo=Math.min(y.length,Math.round(r*0.05));
+  const pcm=new Int16Array(y.length);for(let i=0;i<y.length;i++){let v=Math.max(-1,Math.min(1,y[i]));if(i<fi)v*=i/fi;const k=y.length-1-i;if(k<fo)v*=k/fo;pcm[i]=v<0?v*32768:v*32767}
+  const enc=new lamejs.Mp3Encoder(1,r,48),out=[];
+  for(let i=0;i<pcm.length;i+=1152){const b=enc.encodeBuffer(pcm.subarray(i,i+1152));if(b.length)out.push(new Uint8Array(b.buffer,b.byteOffset,b.length))}
+  const f=enc.flush();if(f.length)out.push(new Uint8Array(f.buffer,f.byteOffset,f.length));
+  return new Blob(out,{type:'audio/mpeg'})}
+async function cleanVoice(buf){
+  try{const u8=new Uint8Array(buf);if(!isOgg(u8))return null;
+    await loadLib('opusdec.min.js');
+    const dec=new window['ogg-opus-decoder'].OggOpusDecoder();await dec.ready;
+    let r;try{r=await dec.decodeFile(u8)}finally{dec.free()}
+    const x=r&&r.channelData&&r.channelData[0];if(!x||x.length<r.sampleRate*0.2)return null;
+    await loadLib('lame.min.js');
+    return voiceMp3(x,r.sampleRate)}
+  catch(e){return null}}
+/* v58: clips imported before the clean-up get it once. The old clip stays until the new one is saved. */
+let voicesBusy=false;
+async function fixVoices(){
+  if(voicesBusy)return;voicesBusy=true;let done=0,fail=0,shown=false;
+  try{for(const n of [...S.notes.values()]){if(!n.audioKey)continue;
+      let b;try{b=await get('audio',n.audioKey)}catch(e){continue}if(!b)continue;
+      const buf=await b.arrayBuffer();if(!isOgg(new Uint8Array(buf,0,Math.min(64,buf.byteLength))))continue;
+      if(!shown){shown=true;toast('🔧 Fixing audio…',60000)}
+      const m=await cleanVoice(buf);if(!m){fail++;continue}
+      try{await write(['audio'],t=>t.objectStore('audio').put(m,n.audioKey));done++}catch(e){fail++}}
+    /* a clip that still won't clean after 3 tries is left as it was */
+    S.settings.voicesTries=(S.settings.voicesTries||0)+1;if(!fail||S.settings.voicesTries>=3)S.settings.voicesFixed=true;
+    try{await write(['meta'],t=>t.objectStore('meta').put(S.settings,'settings'))}catch(e){}
+    if(shown){const t=document.getElementById('toast');if(done)toast(`✓ Audio fixed on ${plural(done,'card')}`,2500);else if(t)t.classList.remove('on')}}
+  finally{voicesBusy=false}}
+async function cleanBlob(buf,type){const m=await cleanVoice(buf);return m||new Blob([buf],{type})}
 
 /* ---------- WhatsApp chat import ----------
    Same rules as the Claude instructions: only the helper's messages (the person who sent the voice notes);
@@ -762,7 +804,7 @@ async function waOpen(zip,chat){
   r.cards.forEach(c=>{c.f=waFile(zip,c.file);if(!c.f){c.noFile=true;c.on=false}});
   /* can this phone play WhatsApp voice notes? */
   let audioOk=null;const first=r.cards.find(c=>c.f);
-  if(first){try{const b=new Blob([await first.f.async('arraybuffer')],{type:audioType(first.file)});audioOk=await waCanPlay(b)}catch(e){audioOk=false}}
+  if(first){try{audioOk=await waCanPlay(await waBlob(first))}catch(e){audioOk=false}}
   const last=r.cards.length?r.cards[r.cards.length-1].date:'';
   waImp={zip,...r,audioOk,name:'Lesson'+(last?' · '+last:'')};
   status=null;view='waprev';render();window.scrollTo(0,0);
@@ -770,8 +812,9 @@ async function waOpen(zip,chat){
 function waCanPlay(blob){return new Promise(res=>{const a=new Audio(),u=URL.createObjectURL(blob);let done=false;const fin=ok=>{if(done)return;done=true;URL.revokeObjectURL(u);res(ok)};
   a.onloadedmetadata=a.oncanplay=()=>fin(true);a.onerror=()=>fin(false);setTimeout(()=>fin(null),5000);a.preload='auto';a.src=u;a.load()})}
 let waUrl=null;
+async function waBlob(c){if(!c.blob){const buf=await c.f.async('arraybuffer');c.blob=await cleanBlob(buf,audioType(c.file))}return c.blob}
 async function waPlay(i){const c=waImp&&waImp.cards[i];if(!c||!c.f)return;
-  try{if(waUrl)URL.revokeObjectURL(waUrl);waUrl=URL.createObjectURL(new Blob([await c.f.async('arraybuffer')],{type:audioType(c.file)}));player.src=waUrl;await player.play()}
+  try{if(waUrl)URL.revokeObjectURL(waUrl);waUrl=URL.createObjectURL(await waBlob(c));player.src=waUrl;await player.play()}
   catch(e){status={err:true,msg:'This phone could not play that voice note.'};render()}}
 function waPage(){
   const cs=waImp.cards, fresh=cs.filter(c=>!c.rep&&!c.dupOf&&!c.noFile), dups=cs.filter(c=>c.dupOf), reps=cs.filter(c=>c.rep), nof=cs.filter(c=>c.noFile);
@@ -800,14 +843,14 @@ async function waImport(){
   const fresh=waImp.cards.filter(c=>c.f&&!c.rep&&((c.on&&!c.dupOf)||(c.dupOf&&c.act==='add'))), reps=waImp.cards.filter(c=>c.dupOf&&c.act==='audio'&&c.f);
   status={msg:'Importing…'};render();
   let replaced=0;
-  if(reps.length){const blobs=[];for(const c of reps){const old=S.notes.get(c.dupOf);if(!old)continue;blobs.push([old,new Blob([await c.f.async('arraybuffer')],{type:audioType(c.file)})])}
+  if(reps.length){const blobs=[];for(const c of reps){const old=S.notes.get(c.dupOf);if(!old)continue;blobs.push([old,await waBlob(c)])}
     try{await write(['notes','audio'],t=>{blobs.forEach(([n,b])=>{const k=n.audioKey||n.id;t.objectStore('audio').put(b,k);if(!n.audioKey)t.objectStore('notes').put({...n,audioKey:k})})});replaced=blobs.length}catch(e){}}
   waImp=null;view='home';
   if(!fresh.length){await load();view='home';status={msg:replaced?`✓ ${replaced} card${replaced===1?'':'s'} got the new audio. 🧹 Now clear your lesson chat in WhatsApp.`:'Nothing imported.'};render();return}
   const out=new JSZip(),cards=[],d=new Date(),ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   const rnd=Array.from({length:4},()=>'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random()*26)]).join('');
-  for(const [i,c] of fresh.entries()){const ext=(c.file.split('.').pop()||'opus').toLowerCase(),p='audio/'+String(i+1).padStart(2,'0')+'.'+ext;
-    out.file(p,await c.f.async('arraybuffer'));cards.push({num:i+1,word:c.word,meaning:c.meaning,example:c.example,example_en:c.example_en,tag:'',audio:p})}
+  for(const [i,c] of fresh.entries()){const b=await waBlob(c),ext=b.type==='audio/mpeg'?'mp3':(c.file.split('.').pop()||'opus').toLowerCase(),p='audio/'+String(i+1).padStart(2,'0')+'.'+ext;
+    out.file(p,await b.arrayBuffer());cards.push({num:i+1,word:c.word,meaning:c.meaning,example:c.example,example_en:c.example_en,tag:'',audio:p})}
   out.file('deck.json',JSON.stringify({format:'kelma-deck-1',instructions_version:INSTR,source:'whatsapp',deck_id:ymd+'-wa-'+rnd,deck_name:name,cards}));
   await importFile(new File([await out.generateAsync({type:'blob'})],'whatsapp.zip',{type:'application/zip'}));
   if(replaced&&status&&!status.err){status.msg+=` ${replaced} older card${replaced===1?'':'s'} got the new audio.`;render()}
@@ -1795,6 +1838,9 @@ function wordsPage(){
   return h}
 /* Clear copy feedback: the tapped button turns into ✓ Copied for 2 s, and a small bubble shows at the bottom. */
 let clickEl=null,toastT=null;
+let toastT2=null;
+function toast(msg,ms){let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';t.setAttribute('role','status');document.body.appendChild(t)}
+  t.textContent=msg;t.classList.add('on');clearTimeout(toastT);clearTimeout(toastT2);toastT2=setTimeout(()=>t.classList.remove('on'),ms||1600)}
 function copiedFx(btn){
   if(btn&&btn.isConnected&&!btn.dataset.was){btn.dataset.was=btn.innerHTML;btn.innerHTML='✓ Copied';btn.classList.add('copied');
     setTimeout(()=>{if(btn.isConnected){btn.innerHTML=btn.dataset.was;btn.classList.remove('copied')}delete btn.dataset.was},2000)}
