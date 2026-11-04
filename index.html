@@ -169,6 +169,12 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .gbar{display:flex;height:6px;border-radius:999px;overflow:hidden;background:var(--line);margin-top:6px;max-width:220px}.gbar i{display:block;height:100%}
 .gb-w{background:#2E7D4F}.gb-g{background:#7CB86A}.gb-s{background:#C9DFA0}.gb-f{background:var(--line)}
 .gbar.gbfull{max-width:none;height:10px;margin-top:10px}.gbtxt{margin:4px 0 10px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0 14px}
+.tile{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 26px 12px 12px;font:inherit;color:var(--ink);cursor:pointer;min-height:104px}
+.tile.wide{grid-column:1/-1;min-height:0}.tile>span:not(.go):not(.minib),.tile>b{display:block;width:100%;text-align:left}.tile .go{position:absolute;right:10px;top:12px;color:var(--muted)}
+.tl{font-size:12px;font-weight:700;color:var(--muted)}.tb{font-size:21px;line-height:1.2}.ts{font-size:12px;color:var(--muted);line-height:1.3}
+.tile .track{width:100%;margin-top:6px}
+.tile>.minib{display:flex!important;flex-direction:row;align-items:flex-end;gap:3px;height:24px;margin-top:6px;width:auto}.minib i{display:block;width:8px;border-radius:2px;background:var(--accent);opacity:.7}.minib i.t{background:var(--fire)}
 .tagpick{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}
 .tchip{display:inline-flex}.tchip input{position:absolute;opacity:0;width:1px;height:1px}
 .tchip span{border:1.5px solid var(--line);border-radius:999px;padding:7px 12px;font-size:15px;background:var(--surface);cursor:pointer}
@@ -423,7 +429,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=10, APP_VERSION=55;
+const INSTR=10, APP_VERSION=56;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -1651,10 +1657,8 @@ function svgDays(vals){
   const bars=vals.map((v,i)=>{const h=Math.round((v/mx)*(H-34));const lab=i===0?'Today':i===1?'Tmrw':DOW[new Date(addDays(t0,i)).getDay()];
     return `<rect x="${i*bw+6}" y="${H-18-h}" width="${bw-12}" height="${Math.max(h,v?3:1)}" rx="3" fill="${v?(i===0?'var(--fire)':'var(--accent)'):'var(--line)'}"/>${v?`<text x="${i*bw+bw/2}" y="${H-22-h}" text-anchor="middle" font-size="10" fill="var(--ink)">${v}</text>`:''}<text x="${i*bw+bw/2}" y="${H-4}" text-anchor="middle" font-size="10" fill="var(--muted)">${lab}</text>`}).join('');
   return `<svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Cards due over the next 7 days: ${vals.join(', ')}">${bars}</svg>`}
-function trickyWords(){
-  if(!wordsRev)return null;const since=Date.now()-60*DAY,cardNote=new Map(S.allCards.map(c=>[c.id,c.noteId])),miss=new Map();
-  wordsRev.forEach(r=>{if(r.mode!=='review'||r.g!==0||r.t<since)return;const nid=cardNote.get(r.card);if(nid)miss.set(nid,(miss.get(nid)||0)+1)});
-  return [...miss.entries()].filter(([id,m])=>m>=2&&S.notes.get(id)&&!S.notes.get(id).hidden).sort((a,b)=>b[1]-a[1]).slice(0,10)}
+/* Words that keep slipping: a card you'd got right (spaced out) and then missed again, 4+ times (half of Anki's leech level). Leaves the list once known well. */
+function slippingWords(){const by=cardsByNote(),out=[];S.notes.forEach(n=>{if(n.hidden)return;const cs=by.get(n.id)||[];const lp=Math.max(0,...cs.map(c=>c.lapses||0));if(lp>=4&&stageOf(cs)!=='well')out.push([n.id,lp])});return out.sort((a,b)=>b[1]-a[1])}
 function growthBar(notes,full){
   const by=cardsByNote(),o={well:0,growing:0,started:0,fresh:0};notes.filter(n=>!n.hidden).forEach(n=>{const st=stageOf(by.get(n.id));o[st==='well'?'well':st==='growing'?'growing':st==='started'?'started':'fresh']++});
   const tot=o.well+o.growing+o.started+o.fresh;if(!tot)return '';
@@ -1670,24 +1674,47 @@ function progressPage(){
   S.cards.forEach(c=>{if(c.type==='recognition'&&c.firstSeen){const mk=iso(c.firstSeen).slice(0,7);const o=months.get(mk)||{days:0,cards:0,fresh:0};o.fresh++;months.set(mk,o)}});
   const MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
   const monthRows=[...months.entries()].sort((a,b)=>b[0].localeCompare(a[0])).slice(0,6).map(([k,o])=>`<div class="mrow"><b>${MN[+k.slice(5,7)-1]}</b><span>${plural(o.days,'day')} · ${plural(o.cards,'card')} · ${plural(o.fresh,'new word')}</span></div>`).join('');
+  const C=comingUp(),wk=C.days.reduce((x,y)=>x+y,0),SL=slippingWords(),thisWk=weeks[weeks.length-1],nx=nextUp(m);
+  const D=wordsData(),topT=Object.entries(D.perT).sort((x,y)=>y[1].n-x[1].n)[0];
+  const mini=C.days.map((v,i)=>{const mx=Math.max(...C.days,1);return `<i style="height:${Math.max(2,Math.round(22*v/mx))}px"${i===0?' class="t"':''}></i>`}).join('');
+  const tile=(k,em,lab,big,sub,extra,wide)=>`<button class="tile${wide?' wide':''}" data-act="${k.startsWith('@')?k.slice(1):'stat'}" data-k="${k}"><span class="tl">${em} ${lab}</span><b class="tb">${big}</b><span class="ts">${sub}</span>${extra||''}<span class="go" aria-hidden="true">›</span></button>`;
+  statData={weeks,pts,monthRows};
   return `<div class="page progpage"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
-    <div class="dhead"><span class="ic" aria-hidden="true">📈</span><div><h1>Your progress</h1><p>${plural(known,'word')} you know (🌿 + 🌳)</p></div></div>
-    <button class="srow slink libbtn" data-act="words"><span class="sic" aria-hidden="true">🧭</span><div class="stxt"><b>Your words &amp; goals</b><span>What you have, where you miss, and ideas with Claude</span></div><span class="go" aria-hidden="true">›</span></button>
-    ${(()=>{const C=comingUp(),wk=C.days.reduce((a,b)=>a+b,0);return `<section class="sec"><h2>📅 Coming up</h2><p><b>Tomorrow: ${plural(C.days[1],'card')}</b> · Next 7 days: ${wk}</p>${svgDays(C.days)}
-      <p class="fine">${C.waiting?(C.paused?`${plural(C.waiting,'new word')} waiting. New words are paused until your reviews are under ${BACKLOG}.`:C.per?`${plural(C.waiting,'new word')} waiting. At ${C.per} a day, you’ll have started them all ${C.daysNeeded===0?'today':'by '+fmtDay(addDays(today0(),C.daysNeeded))}.`:`${plural(C.waiting,'new word')} waiting. New words are set to 0 a day in Settings.`):'No new words waiting. Add a lesson to get more.'}</p>
-      <p class="fine">Missed cards come back sooner, so later days can grow.</p></section>`})()}
-    ${(()=>{const T=trickyWords();if(T===null)return `<section class="sec"><h2>🧩 Tricky words</h2><p class="fine">Loading…</p></section>`;
-      return `<section class="sec"><h2>🧩 Tricky words</h2>${T.length?`<p class="fine">Words you answered “Again” most in the last 2 months.</p><div class="words">${T.map(([id,m])=>{const n=S.notes.get(id);return `<button class="wrow" data-act="card" data-id="${esc(id)}"><span class="en">${esc(n.meaning)} <span class="fine">· missed ${m}×</span></span><span class="ar" lang="ar">${esc(n.word)}</span></button>`}).join('')}</div>
-        <button class="btn primary" data-act="practiceTricky">🎯 Practice these</button><p class="fine">Extra practice. It doesn’t change when they come back or count toward your 15 minutes.</p>`:'<p class="fine">No tricky words right now.</p>'}</section>`})()}
-    <section class="sec"><h2>🗺️ Your journey</h2>
+    <div class="dhead"><span class="ic" aria-hidden="true">📈</span><div><h1>Your progress</h1><p>Tap any tile for more</p></div></div>
+    <div class="tiles">
+      ${tile('coming','📅','Coming up',`${C.days[1]} tomorrow`,`${wk} in the next 7 days`,`<span class="minib" aria-hidden="true">${mini}</span>`)}
+      ${tile('slipping','🔁','Words that keep slipping',SL.length?String(SL.length):'None',SL.length?'You get them right, then lose them again':'right now')}
+      ${tile('journey','🗺️','Your journey',`${STOPS[si].em} ${STOPS[si].name}`,next?`${(next.at-known).toLocaleString()} words to ${next.em} ${next.name}`:'The last stop',next?`<span class="track"><i style="width:${Math.round(100*(known-STOPS[si].at)/(next.at-STOPS[si].at))}%"></i></span>`:'',true)}
+      ${tile('days','🔥','Days studied',`${thisWk.days} of 7`,'this week')}
+      ${tile('minutes','⏱️','Minutes',`${thisWk.mins} min`,'this week · goal 105')}
+      ${tile('words','🌿','Words you know',String(known),'🌿 growing + 🌳 known well')}
+      ${tile('@words','🧭','Your words & goals',topT?`${TOPICS[topT[0]][0]} ${TOPICS[topT[0]][1]}`:'Your goals',topT?`${plural(topT[1].n,'card')} · your biggest topic`:'Write what you want to do')}
+      ${tile('@milestones','🏅','Milestones',nx?`${nx.t.em} ${nx.n.toLocaleString()}`:'All done',nx?`${(nx.n-nx.v).toLocaleString()} to go: ${esc(nx.t.unit)}`:'','',true)}
+    </div>
+    <button class="btn" data-act="week">📸 Share my week</button></div>`;
+}
+let statKey='coming',statData=null;
+function statPage(){
+  if(!statData){progressPage()}
+  const {weeks,pts,monthRows}=statData,m=metrics(),known=m.grow,si=stopIndex(known),next=STOPS[si+1];
+  const head=(em,t,sub)=>`<div class="page progpage"><div class="top" style="display:flex"><button class="ghost" data-act="progress">‹ Progress</button></div><div class="dhead"><span class="ic" aria-hidden="true">${em}</span><div><h1>${t}</h1>${sub?`<p>${sub}</p>`:''}</div></div>${statusBox()}`;
+  let b='';
+  if(statKey==='coming'){const C=comingUp(),wk=C.days.reduce((x,y)=>x+y,0);b=head('📅','Coming up',`${C.days[1]} tomorrow · ${wk} in the next 7 days`)+`<section class="sec">${svgDays(C.days)}
+      <p>${C.waiting?(C.paused?`${plural(C.waiting,'new word')} waiting. New words are paused until your reviews are under ${BACKLOG}.`:C.per?`${plural(C.waiting,'new word')} waiting. At ${C.per} a day, you’ll have started them all ${C.daysNeeded===0?'today':'by '+fmtDay(addDays(today0(),C.daysNeeded))}.`:`${plural(C.waiting,'new word')} waiting. New words are set to 0 a day in Settings.`):'No new words waiting. Add a lesson to get more.'}</p>
+      <p class="fine">Missed cards come back sooner, so later days can grow.</p></section>`}
+  if(statKey==='slipping'){const SL=slippingWords();b=head('🔁','Words that keep slipping',SL.length?plural(SL.length,'word'):'None right now')+`<section class="sec">
+      <p>You’ve gotten these right before, but missed them again 4 or more times.</p>
+      <p class="fine">Sometimes a word is just hard. Often a small change to the card helps: add a sentence that uses it, get a clearer recording, or learn it next to the word you mix it up with. Tap a word to change its card.</p>
+      ${SL.length?`<div class="words">${SL.map(([id,lp])=>{const n=S.notes.get(id);return `<button class="wrow" data-act="card" data-id="${esc(id)}"><span class="en">${esc(n.meaning)} <span class="fine">· missed ${lp}×</span></span><span class="ar" lang="ar">${esc(n.word)}</span></button>`}).join('')}</div>
+      <button class="btn primary" data-act="practiceSlipping">🎯 Practice these</button><p class="fine">Extra practice. It doesn’t change when they come back or count toward your 15 minutes.</p>`:'<p class="fine">None right now. Words show up here after you miss them 4 times.</p>'}</section>`}
+  if(statKey==='journey')b=head('🗺️','Your journey',`${plural(known,'word')} you know (🌿 + 🌳)`)+`<section class="sec">
       ${next?`<div class="nextup"><span>Next stop: <b>${next.em} ${next.name}</b></span><span class="fine">${(next.at-known).toLocaleString()} more words</span></div><div class="track"><i style="width:${Math.round(100*(known-STOPS[si].at)/(next.at-STOPS[si].at))}%"></i></div>`:''}
       <ol class="journey">${STOPS.map((st,i)=>`<li class="${i<si?'done':i===si?'here':''}"><span class="dot" aria-hidden="true">${st.em}</span><div><b>${st.name}</b> <span class="fine">${st.at?'~'+st.at.toLocaleString()+' words':'start'}</span>${i===si?' <span class="here-tag">You are here</span>':''}<p>${st.can}</p></div></li>`).join('')}</ol>
-      <p class="fine small">A rough guide based on research with learners of European languages (Milton & Alexiou). Your words and pace will differ. Kelma builds your vocabulary; conversations build your fluency.</p></section>
-    <section class="sec"><h2>📅 Days studied per week</h2>${svgBars(weeks.map(w=>w.days),weeks.map(w=>w.label),7,'var(--fire)','days')}</section>
-    <section class="sec"><h2>⏱️ Minutes per week</h2>${svgBars(weeks.map(w=>w.mins),weeks.map(w=>w.label),0,'var(--accent)','min',105)}<p class="fine">Dotted line: 15 minutes a day. Review only, not practice.</p></section>
-    <section class="sec"><h2>🌱 Words over time</h2>${pts.length>=2?svgLines(pts):`<p class="fine">Your word chart starts this week. Check back in a couple of weeks to see it grow.</p>`}</section>
-    ${monthRows?`<section class="sec"><h2>🗓️ By month</h2>${monthRows}</section>`:''}
-    <div class="row"><button class="btn" data-act="milestones">🏅 Milestones</button><button class="btn" data-act="week">📸 Share my week</button></div></div>`;
+      <p class="fine small">A rough guide based on research with learners of European languages (Milton & Alexiou). Your words and pace will differ. Kelma builds your vocabulary; conversations build your fluency.</p></section>`;
+  if(statKey==='days')b=head('🔥','Days studied',`${weeks[weeks.length-1].days} of 7 this week`)+`<section class="sec"><h2>Per week</h2>${svgBars(weeks.map(w=>w.days),weeks.map(w=>w.label),7,'var(--fire)','days')}<p class="fine">A day counts when you do 15 minutes of review, or clear everything due.</p></section>${monthRows?`<section class="sec"><h2>🗓️ By month</h2>${monthRows}</section>`:''}`;
+  if(statKey==='minutes')b=head('⏱️','Minutes',`${weeks[weeks.length-1].mins} min this week`)+`<section class="sec"><h2>Per week</h2>${svgBars(weeks.map(w=>w.mins),weeks.map(w=>w.label),0,'var(--accent)','min',105)}<p class="fine">Dotted line: 15 minutes a day. Review only, not practice.</p></section>`;
+  if(statKey==='words')b=head('🌿','Words you know',`${known} (🌿 growing + 🌳 known well)`)+`<section class="sec"><h2>Over time</h2>${pts.length>=2?svgLines(pts):`<p class="fine">Your word chart starts this week. Check back in a couple of weeks to see it grow.</p>`}</section>`;
+  return b+`</div>`;
 }
 /* ---------- Your words: goals, what you have, misses, notes, Claude ---------- */
 let wordsRev=null,goalsEdit=false,tagPaste=null;
@@ -2013,6 +2040,7 @@ function render(){
   if(view==='tags'){app.innerHTML=tagsPage();return}
   if(view==='words'){app.innerHTML=wordsPage();return}
   if(view==='tut'){app.innerHTML=tutPage();return}
+  if(view==='stat'){app.innerHTML=statPage();return}
   if(view==='tutlist'){app.innerHTML=tutListPage();return}
   if(view==='ways'){app.innerHTML=practicePage();if(waysOpen){const el=document.getElementById('w-'+waysOpen);if(el)setTimeout(()=>el.scrollIntoView({block:'center'}),0)}return}
   if(view==='order'){app.innerHTML=orderPage();return}
@@ -2114,7 +2142,8 @@ app.addEventListener('click',e=>{
   else if(a==='ptype'){const t=el.dataset.t;pickTypes.has(t)?pickTypes.delete(t):pickTypes.add(t);render()}
   else if(a==='practiceDeck')startPractice([id]);
   else if(a==='practiceAgain'){if(sess.noteIds)practiceNotes(sess.noteIds);else startPractice(sess.deckIds||[],sess.types||[])}
-  else if(a==='practiceTricky'){const T=trickyWords()||[];practiceNotes(T.map(x=>x[0]))}
+  else if(a==='practiceSlipping'){practiceNotes(slippingWords().map(x=>x[0]))}
+  else if(a==='stat'){statKey=el.dataset.k;go('stat')}
   else if(a==='deck'){deckId=id;go('deck')}
   else if(a==='home')go('home');
   else if(a==='waTog'){const c=waImp&&waImp.cards[+el.dataset.i];if(c){c.on=!c.on;waKeepName();render()}}
