@@ -166,6 +166,9 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .ntbox .homenav,.ntbox .ntmock{pointer-events:none}.ntbox .today.ntmock{padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}.ntbox .today.ntmock .btn{width:100%;margin-top:8px}
 .ntbox .outdated.ntmock{margin-bottom:10px}
 .nthl{outline:3px solid #E4572E!important;outline-offset:3px}
+.gbar{display:flex;height:6px;border-radius:999px;overflow:hidden;background:var(--line);margin-top:6px;max-width:220px}.gbar i{display:block;height:100%}
+.gb-w{background:#2E7D4F}.gb-g{background:#7CB86A}.gb-s{background:#C9DFA0}.gb-f{background:var(--line)}
+.gbar.gbfull{max-width:none;height:10px;margin-top:10px}.gbtxt{margin:4px 0 10px}
 .tagpick{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}
 .tchip{display:inline-flex}.tchip input{position:absolute;opacity:0;width:1px;height:1px}
 .tchip span{border:1.5px solid var(--line);border-radius:999px;padding:7px 12px;font-size:15px;background:var(--surface);cursor:pointer}
@@ -420,7 +423,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=10, APP_VERSION=54;
+const INSTR=10, APP_VERSION=55;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -1392,7 +1395,7 @@ function decksPage(){
   ds.forEach(d=>{const t=new Date(d.importedAt||Date.now()),k=t.getFullYear()*12+t.getMonth();if(!groups.has(k))groups.set(k,{label:MONTHS[t.getMonth()]+' '+t.getFullYear(),list:[]});groups.get(k).list.push(d)});
   const cur=now.getFullYear()*12+now.getMonth();
   const row=d=>{const n=deckNotes(d.id),k=counts(d.id);const sx=(d.name+' '+n.map(x=>x.word+' '+x.meaning).join(' ')).toLowerCase();
-    return `<button class="deckrow" data-act="deck" data-id="${esc(d.id)}" data-s="${esc(sx)}"><span class="ic" aria-hidden="true">${esc(deckIcon(d.id))}</span><span><span class="name">${esc(d.name)}</span><br><span class="meta">${plural(n.length,'word')}${isKid()?'':` · ${k.due} due`}</span></span><span class="go" aria-hidden="true">›</span></button>`};
+    return `<button class="deckrow" data-act="deck" data-id="${esc(d.id)}" data-s="${esc(sx)}"><span class="ic" aria-hidden="true">${esc(deckIcon(d.id))}</span><span><span class="name">${esc(d.name)}</span><br><span class="meta">${plural(n.length,'word')}${isKid()?'':` · ${k.due} due`}</span>${growthBar(n)}</span><span class="go" aria-hidden="true">›</span></button>`};
   let h=`<div class="page"><div class="top" style="display:flex;justify-content:space-between;align-items:center"><button class="ghost" data-act="home">‹ Home</button><label class="btn small" for="file">＋ Import deck</label></div>
     <div class="dhead"><span class="ic" aria-hidden="true">📚</span><div><h1>Decks</h1><p>${plural(ds.length,'deck')} · ${plural(S.notes.size,'word')}</p></div></div>${statusBox()}`;
   {const ut=[...S.notes.values()].filter(needsTag).length;h+=`<button class="srow slink libbtn" data-act="tags"><span class="sic" aria-hidden="true">🏷️</span><div class="stxt"><b>Tag cards</b><span>${ut?plural(ut,'card')+' to tag':'Every card has a type and a topic'}</span></div><span class="go" aria-hidden="true">›</span></button>`}
@@ -1562,6 +1565,7 @@ function deckPage(){
   const mark=n=>{const st=stageOf(byNote.get(n.id));return st?STAGES[st][0]:''};
   let h=`<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="decks">‹ Decks</button></div>
     <div class="dhead"><span class="ic" aria-hidden="true">${esc(deckIcon(d.id))}</span>${renaming?`<div class="rename"><label for="deck-name" class="fine">Deck name</label><input id="deck-name" maxlength="60" value="${esc(d.name)}"><div class="row"><button class="btn primary small" data-act="saveName" data-id="${esc(d.id)}">Save</button><button class="btn small" data-act="cancelName">Cancel</button></div></div>`:`<div><h1>${esc(d.name)}</h1><p>${plural(ns.length,'word')}</p></div><button class="edit" data-act="rename" aria-label="Rename deck">✏️</button>`}</div>
+    ${growthBar(ns,true)}
     <button class="btn primary focus" data-act="practiceDeck" data-id="${esc(d.id)}">🎯 Practice this deck</button>
     ${status?`<div class="status${status.err?' err':''}" role="status">${esc(status.msg)}</div>`:''}
     ${S.pending&&S.pending.kind==='deck'&&S.pending.deckId===d.id?`<button class="btn primary focus" data-act="saveBackup">📤 Send file</button>`:`<button class="btn focus" data-act="shareDeck" data-id="${esc(d.id)}">📤 Share deck</button>`}
@@ -1617,11 +1621,12 @@ async function makeWeekCard(){
   x.fillStyle=soft;x.font='400 28px '+F;x.fillText('papathibs.github.io/kelma',90,H-40);
   return new Promise(r=>cv.toBlob(b=>r(b),'image/png'));
 }
-function svgBars(vals,labels,max,color,unit){
-  const W=340,H=130,bw=W/vals.length,mx=Math.max(max||0,...vals,1);
+function svgBars(vals,labels,max,color,unit,goal){
+  const W=340,H=130,bw=W/vals.length,mx=Math.max(max||0,goal||0,...vals,1);
   const bars=vals.map((v,i)=>{const h=Math.round((v/mx)*(H-28));return `<rect x="${i*bw+3}" y="${H-18-h}" width="${bw-6}" height="${Math.max(h,v?3:1)}" rx="3" fill="${v?color:'var(--line)'}"><title>${labels[i]}: ${v} ${unit}</title></rect>`}).join('');
   const lab=labels.map((l,i)=>(i%2===(labels.length-1)%2)?`<text x="${i*bw+bw/2}" y="${H-4}" text-anchor="middle" font-size="9" fill="var(--muted)">${l}</text>`:'').join('');
-  return `<svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="${unit} per week for the last ${vals.length} weeks: ${vals.join(', ')}">${bars}${lab}<text x="0" y="10" font-size="9" fill="var(--muted)">${mx}</text></svg>`;
+  const gl=goal?(()=>{const y=H-18-Math.round((goal/mx)*(H-28));return `<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="var(--muted)" stroke-dasharray="4 4" stroke-width="1"/><text x="${W}" y="${y-3}" text-anchor="end" font-size="9" fill="var(--muted)">${goal} ${unit}</text>`})():'';
+  return `<svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="${unit} per week for the last ${vals.length} weeks: ${vals.join(', ')}">${bars}${gl}${lab}${goal&&mx===goal?'':`<text x="0" y="10" font-size="9" fill="var(--muted)">${mx}</text>`}</svg>`;
 }
 function svgLines(pts){
   const W=340,H=140;if(pts.length<2)return '';
@@ -1631,9 +1636,34 @@ function svgLines(pts){
     <text x="10" y="${H-4}" font-size="9" fill="var(--muted)">${pts[0].label}</text><text x="${W-10}" y="${H-4}" font-size="9" text-anchor="end" fill="var(--muted)">${pts[pts.length-1].label}</text><text x="0" y="10" font-size="9" fill="var(--muted)">${mx}</text></svg>
     <div class="legend"><span><i style="background:var(--grow)"></i>started or better</span><span><i style="background:var(--accent)"></i>🌿 + 🌳</span><span><i style="background:var(--gold)"></i>🌳 known well</span></div>`;
 }
+/* ---------- Coming up, tricky words, lesson growth ---------- */
+const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const fmtDay=t=>{const d=new Date(t);return MON3[d.getMonth()]+' '+d.getDate()};
+function comingUp(){
+  const t0=today0(),days=[];for(let i=0;i<7;i++)days.push(0);
+  S.cards.forEach(c=>{if(c.state!=='review'&&c.state!=='learning')return;let i=Math.floor((c.due-t0)/DAY);if(i<0)i=0;if(i<7)days[i]++});
+  const by=cardsByNote();let waiting=0;S.decks.forEach(d=>{if(!isPaused(d.id))waiting+=freshLeft(d.id)});
+  const per=S.settings.newPerDay||0;const doneToday=Math.min(per,S.newDone.day===iso(t0)?S.newDone.count:0);
+  const daysNeeded=per?Math.ceil(Math.max(0,waiting-(per-doneToday))/per):null;
+  return {days,waiting,per,daysNeeded,paused:backlogged()}}
+function svgDays(vals){
+  const W=340,H=110,bw=W/7,mx=Math.max(...vals,1),t0=today0();
+  const bars=vals.map((v,i)=>{const h=Math.round((v/mx)*(H-34));const lab=i===0?'Today':i===1?'Tmrw':DOW[new Date(addDays(t0,i)).getDay()];
+    return `<rect x="${i*bw+6}" y="${H-18-h}" width="${bw-12}" height="${Math.max(h,v?3:1)}" rx="3" fill="${v?(i===0?'var(--fire)':'var(--accent)'):'var(--line)'}"/>${v?`<text x="${i*bw+bw/2}" y="${H-22-h}" text-anchor="middle" font-size="10" fill="var(--ink)">${v}</text>`:''}<text x="${i*bw+bw/2}" y="${H-4}" text-anchor="middle" font-size="10" fill="var(--muted)">${lab}</text>`}).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Cards due over the next 7 days: ${vals.join(', ')}">${bars}</svg>`}
+function trickyWords(){
+  if(!wordsRev)return null;const since=Date.now()-60*DAY,cardNote=new Map(S.allCards.map(c=>[c.id,c.noteId])),miss=new Map();
+  wordsRev.forEach(r=>{if(r.mode!=='review'||r.g!==0||r.t<since)return;const nid=cardNote.get(r.card);if(nid)miss.set(nid,(miss.get(nid)||0)+1)});
+  return [...miss.entries()].filter(([id,m])=>m>=2&&S.notes.get(id)&&!S.notes.get(id).hidden).sort((a,b)=>b[1]-a[1]).slice(0,10)}
+function growthBar(notes,full){
+  const by=cardsByNote(),o={well:0,growing:0,started:0,fresh:0};notes.filter(n=>!n.hidden).forEach(n=>{const st=stageOf(by.get(n.id));o[st==='well'?'well':st==='growing'?'growing':st==='started'?'started':'fresh']++});
+  const tot=o.well+o.growing+o.started+o.fresh;if(!tot)return '';
+  const seg=(k,c)=>o[k]?`<i class="gb-${c}" style="width:${100*o[k]/tot}%"></i>`:'';
+  const bar=`<span class="gbar${full?' gbfull':''}" role="img" aria-label="${o.well} known well, ${o.growing} growing, ${o.started} started, ${o.fresh} not started">${seg('well','w')}${seg('growing','g')}${seg('started','s')}${seg('fresh','f')}</span>`;
+  return full?`${bar}<p class="fine gbtxt">${plural(tot,'word')}${o.well?` · ${o.well} 🌳`:''}${o.growing?` · ${o.growing} 🌿`:''}${o.started?` · ${o.started} 🌱`:''}${o.fresh?` · ${o.fresh} not started`:''}</p>`:bar}
 function progressPage(){
   const m=metrics(),known=m.grow,si=stopIndex(known),next=STOPS[si+1],t0=today0(),mon=mondayOf(t0);
-  const weeks=[];for(let w=11;w>=0;w--){const st=addDays(mon,-7*w);let days=0,cards=0;for(let i=0;i<7;i++){const k=iso(addDays(st,i));if(dayMet(k))days++;cards+=(S.log[k]||{n:0}).n}const d=new Date(st);weeks.push({label:`${MON3[d.getMonth()]} ${d.getDate()}`,days,cards})}
+  const weeks=[];for(let w=11;w>=0;w--){const st=addDays(mon,-7*w);let days=0,cards=0;let mins=0;for(let i=0;i<7;i++){const k=iso(addDays(st,i));if(dayMet(k))days++;cards+=(S.log[k]||{n:0}).n;mins+=((S.log[k]||{}).ms||0)/60000}const d=new Date(st);weeks.push({mins:Math.round(mins),label:`${MON3[d.getMonth()]} ${d.getDate()}`,days,cards})}
   const snapKeys=Object.keys(S.snaps||{}).sort();const byWeek=new Map();snapKeys.forEach(k=>{const wk=mondayOf(Date.parse(k+'T00:00:00'));byWeek.set(wk,{...S.snaps[k],label:`${MON3[new Date(wk).getMonth()]} ${new Date(wk).getDate()}`})});
   const pts=[...byWeek.values()].slice(-12);
   const months=new Map();Object.keys(S.log).forEach(k=>{const mk=k.slice(0,7);const o=months.get(mk)||{days:0,cards:0,fresh:0};o.cards+=S.log[k].n||0;if(dayMet(k))o.days++;months.set(mk,o)});
@@ -1643,19 +1673,25 @@ function progressPage(){
   return `<div class="page progpage"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
     <div class="dhead"><span class="ic" aria-hidden="true">📈</span><div><h1>Your progress</h1><p>${plural(known,'word')} you know (🌿 + 🌳)</p></div></div>
     <button class="srow slink libbtn" data-act="words"><span class="sic" aria-hidden="true">🧭</span><div class="stxt"><b>Your words &amp; goals</b><span>What you have, where you miss, and ideas with Claude</span></div><span class="go" aria-hidden="true">›</span></button>
+    ${(()=>{const C=comingUp(),wk=C.days.reduce((a,b)=>a+b,0);return `<section class="sec"><h2>📅 Coming up</h2><p><b>Tomorrow: ${plural(C.days[1],'card')}</b> · Next 7 days: ${wk}</p>${svgDays(C.days)}
+      <p class="fine">${C.waiting?(C.paused?`${plural(C.waiting,'new word')} waiting. New words are paused until your reviews are under ${BACKLOG}.`:C.per?`${plural(C.waiting,'new word')} waiting. At ${C.per} a day, you’ll have started them all ${C.daysNeeded===0?'today':'by '+fmtDay(addDays(today0(),C.daysNeeded))}.`:`${plural(C.waiting,'new word')} waiting. New words are set to 0 a day in Settings.`):'No new words waiting. Add a lesson to get more.'}</p>
+      <p class="fine">Missed cards come back sooner, so later days can grow.</p></section>`})()}
+    ${(()=>{const T=trickyWords();if(T===null)return `<section class="sec"><h2>🧩 Tricky words</h2><p class="fine">Loading…</p></section>`;
+      return `<section class="sec"><h2>🧩 Tricky words</h2>${T.length?`<p class="fine">Words you answered “Again” most in the last 2 months.</p><div class="words">${T.map(([id,m])=>{const n=S.notes.get(id);return `<button class="wrow" data-act="card" data-id="${esc(id)}"><span class="en">${esc(n.meaning)} <span class="fine">· missed ${m}×</span></span><span class="ar" lang="ar">${esc(n.word)}</span></button>`}).join('')}</div>
+        <button class="btn primary" data-act="practiceTricky">🎯 Practice these</button><p class="fine">Extra practice. It doesn’t change when they come back or count toward your 15 minutes.</p>`:'<p class="fine">No tricky words right now.</p>'}</section>`})()}
     <section class="sec"><h2>🗺️ Your journey</h2>
       ${next?`<div class="nextup"><span>Next stop: <b>${next.em} ${next.name}</b></span><span class="fine">${(next.at-known).toLocaleString()} more words</span></div><div class="track"><i style="width:${Math.round(100*(known-STOPS[si].at)/(next.at-STOPS[si].at))}%"></i></div>`:''}
       <ol class="journey">${STOPS.map((st,i)=>`<li class="${i<si?'done':i===si?'here':''}"><span class="dot" aria-hidden="true">${st.em}</span><div><b>${st.name}</b> <span class="fine">${st.at?'~'+st.at.toLocaleString()+' words':'start'}</span>${i===si?' <span class="here-tag">You are here</span>':''}<p>${st.can}</p></div></li>`).join('')}</ol>
       <p class="fine small">A rough guide based on research with learners of European languages (Milton & Alexiou). Your words and pace will differ. Kelma builds your vocabulary; conversations build your fluency.</p></section>
     <section class="sec"><h2>📅 Days studied per week</h2>${svgBars(weeks.map(w=>w.days),weeks.map(w=>w.label),7,'var(--fire)','days')}</section>
-    <section class="sec"><h2>🔁 Cards reviewed per week</h2>${svgBars(weeks.map(w=>w.cards),weeks.map(w=>w.label),0,'var(--accent)','cards')}</section>
+    <section class="sec"><h2>⏱️ Minutes per week</h2>${svgBars(weeks.map(w=>w.mins),weeks.map(w=>w.label),0,'var(--accent)','min',105)}<p class="fine">Dotted line: 15 minutes a day. Review only, not practice.</p></section>
     <section class="sec"><h2>🌱 Words over time</h2>${pts.length>=2?svgLines(pts):`<p class="fine">Your word chart starts this week. Check back in a couple of weeks to see it grow.</p>`}</section>
     ${monthRows?`<section class="sec"><h2>🗓️ By month</h2>${monthRows}</section>`:''}
     <div class="row"><button class="btn" data-act="milestones">🏅 Milestones</button><button class="btn" data-act="week">📸 Share my week</button></div></div>`;
 }
 /* ---------- Your words: goals, what you have, misses, notes, Claude ---------- */
 let wordsRev=null,goalsEdit=false,tagPaste=null;
-async function loadRev(){try{wordsRev=await getAll('revlog')}catch(e){wordsRev=[]}if(view==='words')render()}
+async function loadRev(){try{wordsRev=await getAll('revlog')}catch(e){wordsRev=[]}if(view==='words'||view==='progress')render()}
 function wordsData(){
   const byNote=cardsByNote(),notes=[...S.notes.values()].filter(n=>!n.hidden&&(byNote.get(n.id)||[]).length);
   const tagged=notes.filter(n=>tagsOf(n).length),topicked=notes.filter(n=>topicsOf(n).length),per={},perT={};
@@ -2015,6 +2051,7 @@ async function begin(q,mode,deckIds,types){
 const startSession=()=>begin(buildQueue(null),'review');
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function practiceQueue(ids,types){const set=new Set(ids),ts=new Set(types||[]);return shuffle(S.cards.filter(c=>{const n=S.notes.get(c.noteId);return n&&set.has(n.deckId)&&(!ts.size||tagsOf(n).some(t=>ts.has(t)))}).map(c=>c.id))}
+async function practiceNotes(ids){const set=new Set(ids);if(sess)sess.urls.forEach(u=>URL.revokeObjectURL(u));await begin(shuffle(S.cards.filter(c=>set.has(c.noteId)).map(c=>c.id)),'practice',null,null);if(sess)sess.noteIds=ids}
 function startPractice(ids,types){if(sess)sess.urls.forEach(u=>URL.revokeObjectURL(u));begin(practiceQueue(ids,types),'practice',ids,types)}
 function grade(g){
   const c=S.cards.find(x=>x.id===sess.queue[0]);if(!c)return;
@@ -2076,7 +2113,8 @@ app.addEventListener('click',e=>{
   else if(a==='practiceSel'){const ids=pickAll?S.decks.map(d=>d.id):[...(pickSel||[])];if(ids.length&&pickCount())startPractice(ids,[...pickTypes])}
   else if(a==='ptype'){const t=el.dataset.t;pickTypes.has(t)?pickTypes.delete(t):pickTypes.add(t);render()}
   else if(a==='practiceDeck')startPractice([id]);
-  else if(a==='practiceAgain')startPractice(sess.deckIds||[],sess.types||[]);
+  else if(a==='practiceAgain'){if(sess.noteIds)practiceNotes(sess.noteIds);else startPractice(sess.deckIds||[],sess.types||[])}
+  else if(a==='practiceTricky'){const T=trickyWords()||[];practiceNotes(T.map(x=>x[0]))}
   else if(a==='deck'){deckId=id;go('deck')}
   else if(a==='home')go('home');
   else if(a==='waTog'){const c=waImp&&waImp.cards[+el.dataset.i];if(c){c.on=!c.on;waKeepName();render()}}
@@ -2093,7 +2131,7 @@ app.addEventListener('click',e=>{
   else if(a==='decks')go('decks');
   else if(a==='combine'){combineSel=new Set();go('combine')}
   else if(a==='week')openWeek();
-  else if(a==='progress'){snapToday();go('progress')}
+  else if(a==='progress'){snapToday();go('progress');loadRev()}
   else if(a==='milestones')go('milestones');
   else if(a==='saveMyName')saveMyName();
   else if(a==='shareWeek')shareWeek();
