@@ -190,6 +190,7 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .tprev{max-height:260px;overflow:auto;font-size:14px;display:flex;flex-direction:column;gap:4px}
 .rpgrp{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-top:10px}
 .rprow{display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid var(--line)}.rprow:first-child{border-top:none}
+.findrow{cursor:pointer}.findrow.dim{opacity:.55}.findbig{font-family:var(--f-ar);font-size:34px;line-height:1.4}
 .rptxt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.rptxt .ar{font-family:var(--f-ar);font-size:20px}
 .cnt{font-size:13px;font-weight:600;color:var(--muted);margin-left:6px}
 .slist{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
@@ -216,7 +217,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 .chip{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
 .word{font-family:var(--f-ar);font-size:clamp(40px,12vw,58px);line-height:1.5;font-weight:600;margin:0;overflow-wrap:anywhere}
 .ex{font-family:var(--f-ar);font-size:24px;line-height:1.8;margin:0;max-width:30ch}
-.ex mark.t{background:none;color:var(--target);font-weight:700}
+.ex mark.t,.findex mark.t{background:none;color:var(--target);font-weight:700}
 .mean{font-size:26px;font-weight:700;margin:0;line-height:1.3}
 .exen{font-size:16px;color:var(--muted);margin:0;max-width:36ch}
 .ans{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;padding-top:16px;border-top:1px solid var(--line)}
@@ -429,7 +430,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=11, APP_VERSION=59;
+const INSTR=11, APP_VERSION=60;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -1447,7 +1448,7 @@ function statusBox(){return status?`<div class="status${status.err?' err':''}" r
 function home(){
   const c=counts(), words=S.notes.size, total=c.due+c.newToday;
   const kid=isKid(), multi=PROFILES.length>1;
-  let h=`<header class="top"><div class="mark"><span class="ar" lang="ar">كلمة</span><span class="lat">Kelma</span></div><div style="display:flex;gap:4px;align-items:center">${multi?`<button class="who-chip" data-act="who" aria-label="Switch profile">${esc(curProfile().name)} ⇄</button>`:''}<button class="ghost helpq" data-act="help" aria-label="Help">❓</button><button class="ghost" data-act="settings" aria-label="Settings">⚙️</button></div></header>`;
+  let h=`<header class="top"><div class="mark"><span class="ar" lang="ar">كلمة</span><span class="lat">Kelma</span></div><div style="display:flex;gap:4px;align-items:center">${multi?`<button class="who-chip" data-act="who" aria-label="Switch profile">${esc(curProfile().name)} ⇄</button>`:''}${S.notes.size?`<button class="ghost" data-act="find" aria-label="Search words">🔍</button>`:''}<button class="ghost helpq" data-act="help" aria-label="Help">❓</button><button class="ghost" data-act="settings" aria-label="Settings">⚙️</button></div></header>`;
   if(!S.ok)h+=`<div class="status err">This view can’t store cards. Open this page in Safari or the Claude app instead.</div>`;
   const su=!setupComplete();
   if(su&&!STANDALONE)return statusBox()+safariWelcome();
@@ -1637,6 +1638,54 @@ function ordPause(id){const p=new Set(S.settings.pausedDecks||[]);p.has(id)?p.de
 function repeatGroups(did){const g=new Map();deckNotes(did).forEach(n=>{const k=normAr(n.word);if(!k)return;if(!g.has(k))g.set(k,[]);g.get(k).push(n)});return [...g.values()].filter(x=>x.length>1)}
 function noteScore(byNote,n){const cs=byNote.get(n.id)||[];const R={'':0,started:1,growing:2,well:3};return (n.hidden?-100:0)+R[stageOf(cs)]*1000+cs.reduce((a,c)=>a+(c.reps||0),0)}
 let delHiddenAsk=false;
+/* ---------- Search words (v60) ----------
+   Finds English, Darija (every form) and example sentences. Arabic is compared without vowel marks and with
+   the letters people type different ways treated as one. Practicing a found word is extra practice. */
+let findQ='',findKey=null;
+const normFind=t=>String(t||'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'')
+  .replace(/[ً-ٰٟـ]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ة/g,'ه').replace(/[ىی]/g,'ي').replace(/[گڭکك]/g,'ك')
+  .replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/ڤ/g,'ف').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+function findGroups(){const by=new Map();
+  for(const n of S.notes.values()){const k=normFind(n.word);if(!k)continue;if(!by.has(k))by.set(k,[]);by.get(k).push(n)}
+  return by}
+function findMatch(q){
+  const terms=normFind(q).split(' ').filter(Boolean);if(!terms.length)return [];
+  const out=[];
+  for(const [k,ns] of findGroups()){
+    let best=9;
+    for(const n of ns){const w=normFind(n.word),m=normFind(n.meaning),ex=normFind((n.example||'')+' '+(n.example_en||'')),all=w+' '+m+' '+ex;
+      if(!terms.every(t=>all.includes(t)))continue;
+      const q1=terms.join(' '),wf=w.split(' '),mf=m.split(' ');
+      const sc=wf.includes(q1)||m===q1?0:(' '+w).includes(' '+q1)||(' '+m).includes(' '+q1)?1:w.includes(q1)||m.includes(q1)?2:3;
+      if(sc<best)best=sc}
+    if(best<9)out.push([best,k,ns])}
+  return out.sort((a,b)=>a[0]-b[0]||a[1].localeCompare(b[1])).slice(0,60)}
+function findStage(ns){const by=cardsByNote(),ST=isKid()?KSTAGES:STAGES,rank={well:3,growing:2,started:1};let top='';
+  for(const n of ns){const st=stageOf(by.get(n.id)||[]);if((rank[st]||0)>(rank[top]||0))top=st}
+  return top?ST[top][0]+' '+ST[top][1]:'not started yet'}
+const deckName=id=>{const d=S.decks.find(x=>x.id===id);return d?d.name:''};
+function findResults(){
+  if(!normFind(findQ))return `<p class="fine">Type a word in English or Darija.</p>`;
+  const r=findMatch(findQ);if(!r.length)return `<p class="fine" style="margin-top:14px">Not in your decks yet.</p>`;
+  return `<section class="rpgrp">${r.map(([,k,ns])=>{const n=ns.find(x=>!x.hidden)||ns[0],hid=ns.every(x=>x.hidden),au=ns.find(x=>x.audioKey&&!x.hidden)||ns.find(x=>x.audioKey);
+    const decks=[...new Set(ns.map(x=>deckName(x.deckId)).filter(Boolean))].join(' · ');
+    return `<div class="rprow findrow${hid?' dim':''}" data-act="findOpen" data-id="${esc(k)}"><div class="rptxt"><span class="ar" lang="ar" dir="rtl">${esc(n.word)}</span><span>${esc(n.meaning)}</span><span class="fine">${hid?'🙈 hidden · ':findStage(ns)+' · '}${esc(decks)}</span></div>${au?`<button class="btn small" data-act="playNote" data-id="${esc(au.id)}" aria-label="Play">▶</button>`:''}<span class="go" aria-hidden="true">›</span></div>`}).join('')}</section>`}
+function findPage(){
+  return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">🔍</span><div><h1>Search words</h1><p>${plural(S.notes.size,'word')} in your decks</p></div></div>${statusBox()}
+    <input class="search" id="find-q" type="search" placeholder="English or Darija" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" value="${esc(findQ)}">
+    <div id="find-res">${findResults()}</div></div>`}
+function findCardPage(){
+  const ns=findGroups().get(findKey);if(!ns){view='find';return findPage()}
+  const live=ns.filter(n=>!n.hidden),n=live[0]||ns[0],au=live.find(x=>x.audioKey)||ns.find(x=>x.audioKey),by=cardsByNote(),ST=isKid()?KSTAGES:STAGES;
+  const exs=[...new Map(ns.filter(x=>x.example).map(x=>[x.example,x])).values()];
+  return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="find">‹ Search</button></div>${statusBox()}
+    <section class="sec findex" style="text-align:center"><div class="findbig" lang="ar" dir="rtl">${esc(n.word)}</div><p style="font-size:19px;margin:4px 0 10px">${esc(n.meaning)}</p>
+      <div style="display:flex;justify-content:center">${au?`<button class="play big" data-act="playNote" data-id="${esc(au.id)}" aria-label="Play audio">${PLAY}</button>`:'<span class="noaudio">No audio</span>'}</div>
+      ${exs.map(x=>`<p class="ar" lang="ar" dir="rtl" style="font-size:20px;margin:14px 0 2px">${exHtml(x.example)}</p>${x.example_en?`<p class="fine" style="margin:0">${exHtml(x.example_en)}</p>`:''}`).join('')}</section>
+    ${live.length?`<button class="btn primary focus" data-act="findPractice">🎯 Practice this word</button><p class="fine" style="text-align:center">Extra practice. It doesn’t change when the word comes back.</p>`:`<p class="fine">🙈 This word is hidden, so it can’t be practiced. Show it again from Edit card.</p>`}
+    <section class="sec" style="margin-top:14px">${ns.map(x=>{const st=x.hidden?'🙈 hidden':(s=>s?ST[s][0]+' '+ST[s][1]:'not started yet')(stageOf(by.get(x.id)||[]));
+      return `<div style="margin:6px 0 12px"><h2 style="margin:0 0 2px">📚 ${esc(deckName(x.deckId))}</h2><p class="fine" style="margin:0 0 8px">${st}</p><div class="row">${x.hidden?'':`<button class="btn" data-act="findDeck" data-id="${esc(x.deckId)}">Practice this deck</button>`}<button class="btn" data-act="findEdit" data-id="${esc(x.id)}">✏️ Edit card</button></div></div>`}).join('')}</section></div>`}
 function repeatsPage(){
   const d=S.decks.find(x=>x.id===deckId);if(!d){view='decks';return decksPage()}
   const groups=repeatGroups(d.id),byNote=cardsByNote(),hidden=deckNotes(d.id).filter(n=>n.hidden);
@@ -1928,7 +1977,7 @@ function cardPage(){
   const n=S.notes.get(editId);if(!n){view='deck';return deckPage()}
   const curT=new Set(topicsOf(n)),topts=Object.entries(TOPICS).map(([k,v])=>`<label class="tchip"><input type="checkbox" name="e-topics" value="${k}" ${curT.has(k)?'checked':''}><span>${v[0]} ${v[1]}</span></label>`).join('');
   const cur=new Set(tagsOf(n));const opts=Object.entries(TAGS).map(([k,v])=>`<label class="tchip"><input type="checkbox" name="e-tags" value="${k}" ${cur.has(k)?'checked':''}><span>${v[0]} ${v[1]}</span></label>`).join('');
-  return `<div class="page edit"><div class="top" style="display:flex">${editFrom==='study'?`<button class="ghost" data-act="backToStudy">‹ Back to review</button>`:`<button class="ghost" data-act="deck" data-id="${esc(n.deckId)}">‹ Back</button>`}</div>
+  return `<div class="page edit"><div class="top" style="display:flex">${editFrom==='study'?`<button class="ghost" data-act="backToStudy">‹ Back to review</button>`:editFrom==='search'?`<button class="ghost" data-act="findBack">‹ Back</button>`:`<button class="ghost" data-act="deck" data-id="${esc(n.deckId)}">‹ Back</button>`}</div>
     <div class="dhead"><span class="ic" aria-hidden="true">✏️</span><div><h1>Edit card</h1><p>${n.hidden?'🙈 Hidden from reviews and practice':'Changes keep your progress.'}</p></div></div>
     ${statusBox()}
     <label for="e-word">Darija</label><textarea id="e-word" dir="rtl" lang="ar" rows="2">${esc(n.word)}</textarea>
@@ -1980,6 +2029,7 @@ async function deleteCard(){
   try{await write(['notes','cards','audio'],t=>{t.objectStore('notes').delete(n.id);ids.forEach(i=>t.objectStore('cards').delete(i));if(n.audioKey)t.objectStore('audio').delete(n.audioKey)})}catch(e){}
   const did=n.deckId;await load();editId=null;editDel=false;
   if(editFrom==='study'){await backToStudy({id:n.id,gone:true});return}
+  if(editFrom==='search'){editFrom='deck';view=findGroups().has(findKey)?'findcard':'find';status={msg:'🗑️ Card deleted.'};render();window.scrollTo(0,0);return}
   deckId=did;view='deck';status={msg:'🗑️ Card deleted.'};render();window.scrollTo(0,0);
 }
 function combinePage(){
@@ -2138,6 +2188,8 @@ function render(){
   if(view==='tutlist'){app.innerHTML=tutListPage();return}
   if(view==='ways'){app.innerHTML=practicePage();if(waysOpen){const el=document.getElementById('w-'+waysOpen);if(el)setTimeout(()=>el.scrollIntoView({block:'center'}),0)}return}
   if(view==='order'){app.innerHTML=orderPage();return}
+  if(view==='find'){app.innerHTML=findPage();return}
+  if(view==='findcard'){app.innerHTML=findCardPage();return}
   if(view==='library'){app.innerHTML=libraryPage();return}
   if(view==='repeats'){app.innerHTML=repeatsPage();return}
   if(view==='help'){app.innerHTML=helpPage();if(helpOpen){const el=document.getElementById('h-'+helpOpen);if(el)setTimeout(()=>el.scrollIntoView({block:'center'}),0)}return}
@@ -2259,6 +2311,12 @@ app.addEventListener('click',e=>{
   else if(a==='saveMyName')saveMyName();
   else if(a==='shareWeek')shareWeek();
   else if(a==='card'){editFrom='deck';editId=id;editAudio=null;editDel=false;go('card')}
+  else if(a==='find'){go('find');const q=document.getElementById('find-q');if(q&&!findQ)q.focus()}
+  else if(a==='findBack'){const n=S.notes.get(editId);if(n)findKey=normFind(n.word);editFrom='deck';go(findGroups().has(findKey)?'findcard':'find')}
+  else if(a==='findOpen'){findKey=id;player.pause();go('findcard')}
+  else if(a==='findPractice'){const ns=findGroups().get(findKey)||[];practiceNotes(ns.filter(n=>!n.hidden).map(n=>n.id))}
+  else if(a==='findDeck')startPractice([id],[]);
+  else if(a==='findEdit'){editFrom='search';editId=id;editAudio=null;editDel=false;go('card')}
   else if(a==='editCurrent'){const c=sess&&S.cards.find(x=>x.id===sess.queue[0]);if(c){player.pause();editFrom='study';editId=c.noteId;editAudio=null;editDel=false;go('card')}}
   else if(a==='backToStudy')backToStudy(null);
   else if(a==='saveCard')saveCardEdit();
@@ -2345,6 +2403,7 @@ app.addEventListener('click',e=>{
   else if(a==='saveBackup')saveBackup();
 });
 app.addEventListener('input',e=>{
+  if(e.target.id==='find-q'){findQ=e.target.value;const r=document.getElementById('find-res');if(r)r.innerHTML=findResults();return}
   if(e.target.id==='deck-search'){const q=e.target.value.trim().toLowerCase();let any=false;
     app.querySelectorAll('details.month').forEach(dt=>{let shown=0;dt.querySelectorAll('.deckrow').forEach(r=>{const ok=!q||r.dataset.s.includes(q);r.hidden=!ok;if(ok)shown++});dt.hidden=!shown;if(q&&shown)dt.open=true;if(shown)any=true});
     const nm=document.getElementById('no-match');if(nm)nm.hidden=any;return}
@@ -2365,6 +2424,7 @@ app.addEventListener('change',async e=>{
   if(!pickSel)pickSel=new Set();e.target.checked?pickSel.add(ds.pick):pickSel.delete(ds.pick);render();
 });
 document.addEventListener('keydown',e=>{
+  if(e.target&&e.target.id==='find-q'&&e.key==='Enter'){e.target.blur();return}
   if(view!=='study'||!sess||!sess.queue.length)return;
   if(e.key===' '||e.key==='Enter'){if(!sess.shown){e.preventDefault();sess.shown=true;render();autoplay()}}
   else if(sess.shown&&sess.mode==='review'&&['1','2','3'].includes(e.key))grade(+e.key-1);
