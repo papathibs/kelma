@@ -215,6 +215,8 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 .left{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums;min-width:4ch;text-align:right}
 .card{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px 18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;min-height:300px}
 .chip{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.latin{color:var(--muted);font-size:18px;margin:2px 0 0;direction:ltr}.findrow .latin{font-size:14px}
 .word{font-family:var(--f-ar);font-size:clamp(40px,12vw,58px);line-height:1.5;font-weight:600;margin:0;overflow-wrap:anywhere}
 .ex{font-family:var(--f-ar);font-size:24px;line-height:1.8;margin:0;max-width:30ch}
 .ex mark.t,.findex mark.t{background:none;color:var(--target);font-weight:700}
@@ -344,7 +346,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 .wrow.hid{opacity:.5}
 .edit label:not(.btn){font-weight:700;font-size:14px;margin-top:4px}
 .edit textarea,.edit select{font:inherit;font-size:17px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);width:100%}
-.edit textarea[dir=rtl]{font-family:var(--f-ar);font-size:22px}
+.edit textarea[lang=ar]{font-family:var(--f-ar);font-size:22px}
 .audiobox{display:flex;flex-wrap:wrap;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--surface)}
 .audiobox .lbl{font-weight:700;flex:1 0 100%}
 .audiobox .ok{color:var(--accent);font-weight:700;font-size:14px;flex:1 0 100%}
@@ -430,7 +432,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=11, APP_VERSION=60;
+const INSTR=12, APP_VERSION=61;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -624,7 +626,7 @@ async function importFile(file){
       else missing.push(num)}
     {const _pt=parseTags(c);if(!_pt.length){const _at=autoTags({word:c.word,meaning:c.meaning});if(_at.length){c.tags=_at}}}
     let _tp=parseTopics(c.topics);if(!_tp.length)_tp=autoTopics({meaning:c.meaning});
-    notes.push({id,deckId:deck.deck_id,order:Number(num)||i+1,num:String(num),word:c.word,meaning:c.meaning,example:c.example||'',example_en:c.example_en||'',tag:parseTags(c)[0]||'',tags:parseTags(c),topics:_tp,audioKey});
+    notes.push({id,deckId:deck.deck_id,order:Number(num)||i+1,num:String(num),word:c.word,...(c.latin&&String(c.latin).trim()?{latin:String(c.latin).trim()}:{}),meaning:c.meaning,example:c.example||'',example_en:c.example_en||'',tag:parseTags(c)[0]||'',tags:parseTags(c),topics:_tp,audioKey});
   }
   const noAudio=!notes.some(n=>n.audioKey)&&!deck.cards.some(c=>c.audio), starter=deck.deck_id===STARTER;
   const kinds=noAudio?['recognition','production']:TYPES;
@@ -676,7 +678,7 @@ async function shareDeck(id){
   if(!window.JSZip)return;const d=S.decks.find(x=>x.id===id);if(!d)return;
   status={msg:'Getting the deck ready…'};render();
   const zip=new JSZip(),cards=[];const extOf=t=>/mp4|m4a|aac/.test(t)?'m4a':/wav/.test(t)?'wav':/ogg/.test(t)?'ogg':'mp3';
-  for(const n of deckNotes(id).filter(n=>!n.hidden)){const c={num:Number(n.num)||n.order,word:n.word,meaning:n.meaning,example:n.example||'',example_en:n.example_en||'',tag:tagsOf(n)[0]||'',tags:tagsOf(n),topics:topicsOf(n)};
+  for(const n of deckNotes(id).filter(n=>!n.hidden)){const c={num:Number(n.num)||n.order,word:n.word,...(n.latin?{latin:n.latin}:{}),meaning:n.meaning,example:n.example||'',example_en:n.example_en||'',tag:tagsOf(n)[0]||'',tags:tagsOf(n),topics:topicsOf(n)};
     if(n.audioKey){const b=await get('audio',n.audioKey);if(b){c.audio='audio/'+String(c.num).padStart(2,'0')+'.'+extOf(b.type||'');zip.file(c.audio,b)}}
     cards.push(c)}
   zip.file('deck.json',JSON.stringify({format:'kelma-deck-1',instructions_version:INSTR,deck_id:d.id,deck_name:d.name,cards},null,1));
@@ -793,7 +795,7 @@ let waImp=null;
 const waKeepName=()=>{const i=document.getElementById('wa-name');if(i&&waImp)waImp.name=i.value};
 const AR_RE=/[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/;
 const AUDIO_RE=/\.(opus|ogg|oga|m4a|mp3|aac|wav|amr)$/i;
-const normAr=s=>String(s||'').normalize('NFC').replace(/[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g,'').replace(/[\u0623\u0625\u0622\u0671]/g,'\u0627').replace(/\u0649/g,'\u064A').replace(/[^\p{L}\p{N}]+/gu,' ').trim().replace(/^\u0627\u0644(?=\S{3})/,'');
+const normAr=s=>String(s||'').toLowerCase().normalize('NFC').replace(/[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g,'').replace(/[\u0623\u0625\u0622\u0671]/g,'\u0627').replace(/\u0649/g,'\u064A').replace(/[^\p{L}\p{N}]+/gu,' ').trim().replace(/^\u0627\u0644(?=\S{3})/,'');
 function waChatFile(zip){return Object.values(zip.files).find(f=>!f.dir&&!f.name.startsWith('__MACOSX')&&/(^|\/)(_chat\.txt|WhatsApp Chat[^/]*\.txt)$/i.test(f.name))}
 function waParse(text){
   text=String(text).replace(/\r/g,'').replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g,'').replace(/[\u202F\u00A0]/g,' ');
@@ -816,6 +818,7 @@ function waParse(text){
   return msgs;
 }
 function waBuild(msgs){
+  const script=(S.settings&&S.settings.script)||'ar';
   const n={};msgs.forEach(m=>{if(m.kind==='audio')n[m.who]=(n[m.who]||0)+1});
   const helper=(Object.entries(n).sort((a,b)=>b[1]-a[1])[0]||[])[0]||null;
   const cards=[],skipped=[];
@@ -828,9 +831,14 @@ function waBuild(msgs){
     else if(m.kind==='audio'){
       if(!buf.length){skipped.push({why:'Voice note with nothing typed before it',what:m.date+' '+m.time});continue}
       const ar=buf.filter(t=>AR_RE.test(t)),en=buf.filter(t=>!AR_RE.test(t));buf=[];
-      if(!ar.length){skipped.push({why:'No Darija in Arabic letters',what:short(en.join(' / '))});continue}
-      if(!en.length){skipped.push({why:'No English',what:short(ar.join(' / '))});continue}
-      cards.push({word:ar[0],meaning:en[0],example:ar[1]||'',example_en:en[1]||'',file:m.file,date:m.date,extra:Math.max(0,ar.length-2)+Math.max(0,en.length-2)});
+      if(ar.length){ /* Arabic letters: as before. "Both": the first Latin message is the Latin spelling. */
+        let lat='',E=en;if(script==='both'&&en.length>=2){lat=en[0];E=en.slice(1)}
+        if(!E.length){skipped.push({why:'No English',what:short(ar.join(' / '))});continue}
+        cards.push({word:ar[0],latin:lat,meaning:E[0],example:ar[1]||'',example_en:E[1]||'',file:m.file,date:m.date,extra:Math.max(0,ar.length-2)+Math.max(0,E.length-2)})}
+      else if(script==='ar'){skipped.push({why:'No Darija in Arabic letters (writing Darija in Latin letters? Change it in ⚙️ Settings)',what:short(en.join(' / '))});continue}
+      else{ /* Latin letters: the order decides. Darija, English, example, example in English. */
+        if(en.length<2){skipped.push({why:'Need Darija, then English',what:short(en.join(' / '))});continue}
+        cards.push({word:en[0],meaning:en[1],example:en[2]||'',example_en:en[3]||'',lat:true,file:m.file,date:m.date,extra:Math.max(0,en.length-4)})}
     }
     else if(m.kind==='other')skipped.push({why:'Not a voice note (photo or file)',what:short(m.file)});
   }
@@ -868,8 +876,8 @@ async function waPlay(i){const c=waImp&&waImp.cards[i];if(!c||!c.f)return;
 function waPage(){
   const cs=waImp.cards, fresh=cs.filter(c=>!c.rep&&!c.dupOf&&!c.noFile), dups=cs.filter(c=>c.dupOf), reps=cs.filter(c=>c.rep), nof=cs.filter(c=>c.noFile);
   const nOn=fresh.filter(c=>c.on).length+dups.filter(c=>c.act==='add').length, nRep=dups.filter(c=>c.act==='audio').length;
-  const row=(c,body)=>`<div class="warow">${body}${c.f?`<button class="btn small" data-act="waPlay" data-i="${cs.indexOf(c)}" aria-label="Play">▶</button>`:''}</div>`;
-  const line=c=>`<span class="watxt"><span lang="ar" dir="rtl" class="waar">${esc(c.word)}</span> <span class="waen">— ${esc(c.meaning)}</span>${c.example?`<br><span class="fine" lang="ar" dir="rtl">${esc(c.example)}</span>`:''}${c.extra?`<br><span class="fine">⚠️ ${c.extra} extra message${c.extra===1?'':'s'} left out</span>`:''}</span>`;
+  const row=(c,body)=>`<div class="warow">${body}${c.lat?`<button class="btn small" data-act="waSwap" data-i="${cs.indexOf(c)}" aria-label="Swap Darija and English">⇄</button>`:''}${c.f?`<button class="btn small" data-act="waPlay" data-i="${cs.indexOf(c)}" aria-label="Play">▶</button>`:''}</div>`;
+  const line=c=>`<span class="watxt"><span lang="ar" dir="auto" class="waar">${esc(c.word)}</span>${c.latin?` <span class="fine">(${esc(c.latin)})</span>`:''} <span class="waen">— ${esc(c.meaning)}</span>${c.example?`<br><span class="fine" lang="ar" dir="auto">${esc(c.example)}</span>`:''}${c.extra?`<br><span class="fine">⚠️ ${c.extra} extra message${c.extra===1?'':'s'} left out</span>`:''}</span>`;
   let h=`<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="waCancel">‹ Cancel</button></div>
     <div class="dhead"><span class="ic" aria-hidden="true">💬</span><div><h1>From WhatsApp</h1><p>Voice notes from ${esc(waImp.helper)}</p></div></div>
     ${statusBox()}`;
@@ -883,6 +891,7 @@ function waPage(){
   if(sk.length)h+=`<details><summary class="subhead">⚠️ Couldn’t import · ${sk.length}</summary>`+sk.map(s=>`<p class="fine"><b>${esc(s.why)}:</b> <span dir="auto">${esc(s.what)}</span></p>`).join('')+`</details>`;
   const any=nOn+nRep;
   h+=`<button class="btn primary focus" data-act="waImport" ${any?'':'disabled'}>${any?`✓ Import${nOn?' '+plural(nOn,'word'):''}${nRep?(nOn?' + ':' ')+nRep+' new audio':''}`:'Nothing to import'}</button>`;
+  if(cs.some(c=>c.lat))h+=`<p class="fine">Tap ⇄ if Darija and English came out the wrong way round.</p>`;
   h+=`<p class="fine">Types (verb, noun…) aren’t added here. You can set them on any card later.</p></div>`;
   return h;
 }
@@ -899,7 +908,7 @@ async function waImport(){
   const out=new JSZip(),cards=[],d=new Date(),ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   const rnd=Array.from({length:4},()=>'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random()*26)]).join('');
   for(const [i,c] of fresh.entries()){const b=await waBlob(c),ext=b.type==='audio/mpeg'?'mp3':(c.file.split('.').pop()||'opus').toLowerCase(),p='audio/'+String(i+1).padStart(2,'0')+'.'+ext;
-    out.file(p,await b.arrayBuffer());cards.push({num:i+1,word:c.word,meaning:c.meaning,example:c.example,example_en:c.example_en,tag:'',audio:p})}
+    out.file(p,await b.arrayBuffer());cards.push({num:i+1,word:c.word,...(c.latin?{latin:c.latin}:{}),meaning:c.meaning,example:c.example,example_en:c.example_en,tag:'',audio:p})}
   out.file('deck.json',JSON.stringify({format:'kelma-deck-1',instructions_version:INSTR,source:'whatsapp',deck_id:ymd+'-wa-'+rnd,deck_name:name,cards}));
   await importFile(new File([await out.generateAsync({type:'blob'})],'whatsapp.zip',{type:'application/zip'}));
   if(replaced&&status&&!status.err){status.msg+=` ${replaced} older card${replaced===1?'':'s'} got the new audio.`;render()}
@@ -1170,7 +1179,7 @@ function claudePage(){
 
 /* ---------- Add a lesson walkthrough + recipes ---------- */
 let lessonI=0;
-const wa=(t,time,me)=>`<div class="wab"><span${/[\u0600-\u06FF]/.test(t)?' lang="ar" dir="rtl" class="ar"':''}>${esc(t)}</span><small>${time}</small></div>`;
+const wa=(t,time,me)=>`<div class="wab"><span${/[\u0600-\u06FF]/.test(t)?' lang="ar" dir="auto" class="ar"':''}>${esc(t)}</span><small>${time}</small></div>`;
 const wv=len=>`<div class="wab wav"><span class="pl">▶</span><span class="wf" aria-hidden="true"></span><small>${len}</small></div>`;
 const LESSON=[
   {em:'📖',t:'Before the lesson',b:()=>`<p>Know what to ask your helper for. Every card needs <b>Arabic</b>, <b>English</b> and a <b>voice note</b>. Some kinds of words need a bit more:</p>
@@ -1219,7 +1228,7 @@ const RECIPES=[
   {tag:'adjective',ask:'Masculine + feminine + plural, and a sentence',word:'خفيف \\ خفيفة \\ خفاف',mean:'light (weight) (m, f, pl)',ex:'هاد الطبلة **خفيفة**، نقدر نهزها بوحدي',exen:'This table is **light**, I can carry it by myself.'},
   {tag:'phrase',ask:'Everything else: the whole phrase or sentence',word:'واش ممكن تعاود هادشي لي گلتي دابا؟',mean:'Can you repeat what you just said?'}];
 function recipesPage(){
-  const card=r=>`<div class="rcard"><span class="tagchip">${TAGS[r.tag][0]} ${TAGS[r.tag][1]}</span><p class="rword" lang="ar" dir="rtl">${esc(r.word)}</p><p class="rmean">${esc(r.mean)}</p>${r.ex?`<p class="rex" lang="ar" dir="rtl">${exHtml(r.ex)}</p><p class="rexen">${exHtml(r.exen)}</p>`:(r.tag!=='phrase'?`<p class="radd">＋ add a sentence when you can</p>`:'')}</div>`;
+  const card=r=>`<div class="rcard"><span class="tagchip">${TAGS[r.tag][0]} ${TAGS[r.tag][1]}</span><p class="rword" lang="ar" dir="auto">${esc(r.word)}</p><p class="rmean">${esc(r.mean)}</p>${r.ex?`<p class="rex" lang="ar" dir="auto">${exHtml(r.ex)}</p><p class="rexen">${exHtml(r.exen)}</p>`:(r.tag!=='phrase'?`<p class="radd">＋ add a sentence when you can</p>`:'')}</div>`;
   return `<div class="page step"><div class="top" style="display:flex"><button class="ghost" data-act="${view==='recipes'&&recipesFrom==='lesson'?'lessonBack':'home'}">‹ ${recipesFrom==='lesson'?'Add a lesson':'Home'}</button></div>
     <div class="dhead"><span class="ic" aria-hidden="true">📖</span><div><h1>Card recipes</h1><p>What to ask your helper for</p></div></div>
     <div class="rmin"><b>Every card</b><div class="rmin3"><span>🔤 Arabic</span><span>🇬🇧 English</span><span>🎤 Voice note</span></div></div>
@@ -1262,7 +1271,7 @@ function tutJourney(){
   const rows=[['👂','Day 1','You hear it',' 🌱','Started. Every word begins here.'],['👁️','Day 2','You see it','','Read it, then check the meaning.'],['🗣️','Day 3','You say it',' 🌿','Growing. All its cards are right.'],
     ['🔁','Then','It comes back less often','','Each time you get it right, the gap grows.',`<div class="jgap"><span>3 days</span><span>1 week</span><span>2 weeks</span><span>1 month</span></div>`],['🌳','About 1–2 months','Known well',' 🌳','It can wait 3 weeks or more between reviews.']];
   return `<p>This is what will happen to the words you just practiced.</p>
-    <div class="jcard"><div class="ar" lang="ar" dir="rtl">${esc(w)}</div><div class="en">${esc(m)}</div></div>
+    <div class="jcard"><div class="ar" lang="ar" dir="auto">${esc(w)}</div><div class="en">${esc(m)}</div></div>
     <div class="jtl">${rows.map((r,i)=>`<div class="jst" style="animation-delay:${0.25+i*0.7}s"><span class="jdot">${r[0]}</span><div class="jday">${r[1]}</div><b>${r[2]}</b><span class="jbig">${r[3]}</span><p>${r[4]}</p>${r[5]||''}</div>`).join('')}</div>
     <div class="jnote" style="animation-delay:${0.25+5*0.7}s">Miss it? It just comes back sooner. That’s normal, and it’s how words stick.</div>`;
 }
@@ -1288,7 +1297,7 @@ const TUTSTEPS={
      <p class="fine">At a workshop, everyone is in the same group. That’s fine: Kelma uses only the messages from whoever sends the voice notes.</p>`},
   {k:'send3',m:'solo',t:'Send 3 words to yourself',b:()=>`<ol class="steps"><li>Open WhatsApp. Find the chat with your own name, marked <b>(You)</b>. Not there? Tap ✏️ for a new chat and pick yourself at the top.</li>
      <li>For each word below: send the Arabic, send the English, then hold 🎤 and say the word.</li></ol>
-     ${PRACTICE3.map(([a,e],i)=>`<div class="p3"><div class="p3r"><span lang="ar" dir="rtl" class="ar">${esc(a)}</span><button class="btn small" data-act="tutCopy" data-t="${esc(a)}" data-o="p3a${i}">📋 Copy</button></div><div class="p3r"><span>${esc(e)}</span><button class="btn small" data-act="tutCopy" data-t="${esc(e)}" data-o="p3e${i}">📋 Copy</button></div><div class="p3r fine">🎤 Then a voice note saying it</div></div>`).join('')}`},
+     ${PRACTICE3.map(([a,e],i)=>`<div class="p3"><div class="p3r"><span lang="ar" dir="auto" class="ar">${esc(a)}</span><button class="btn small" data-act="tutCopy" data-t="${esc(a)}" data-o="p3a${i}">📋 Copy</button></div><div class="p3r"><span>${esc(e)}</span><button class="btn small" data-act="tutCopy" data-t="${esc(e)}" data-o="p3e${i}">📋 Copy</button></div><div class="p3r fine">🎤 Then a voice note saying it</div></div>`).join('')}`},
   {k:'folder',t:'Make a Kelma folder',b:()=>`<p>One place for your lesson files and backups, so you never have to decide where to save.</p>
      <ol class="steps"><li>Open the <b>Files</b> app.</li><li>Tap <b>Browse</b>, then <b>iCloud Drive</b>.</li><li>Tap <b>⋯</b> at the top right, then <b>New Folder</b>.</li><li>Name it <b>Kelma</b>.</li></ol>
      <p class="fine">Already have it? Tap Next.<br>Android: in the Files app, make a folder called Kelma.</p>`},
@@ -1520,6 +1529,7 @@ function settingsPage(){
     <div class="slist">
     ${row('👤',esc(p.name),multi?`${PROFILES.length} people on this device`:'',`<button class="btn small" data-act="editProfile">Change</button>`)}
     ${row('✨','New words per day','',`<div class="stepper"><button class="btn small" data-act="newMinus" aria-label="Fewer">−</button><output>${S.settings.newPerDay}</output><button class="btn small" data-act="newPlus" aria-label="More">+</button></div>`)}
+    ${row('🔤','I write Darija in',`<span class="seg">${[['ar','Arabic letters'],['lat','Latin letters'],['both','Both']].map(([k,l])=>`<button class="btn small${((S.settings.script||'ar')===k)?' primary':''}" data-act="script" data-v="${k}" aria-pressed="${(S.settings.script||'ar')===k}">${l}</button>`).join('')}</span>`,'')}
     ${row('💾','Backup '+info('backup','Backup'),`Last: <b>${lb}</b> · once a week`,pend?`<button class="btn small primary" data-act="saveBackup">Save file</button>`:`<button class="btn small" data-act="backup">Back up</button>`)}
     ${usesClaude()?row('📋','Claude instructions '+info('instr','Claude instructions'),'Copy, then paste into your Claude project',`<button class="btn small" data-act="update">Copy</button>`):''}
     <button class="srow slink" data-act="lesson"><span class="sic" aria-hidden="true">📝</span><div class="stxt"><b>Add a lesson</b><span>Step by step</span></div><span class="go" aria-hidden="true">›</span></button>
@@ -1653,7 +1663,7 @@ function findMatch(q){
   const out=[];
   for(const [k,ns] of findGroups()){
     let best=9;
-    for(const n of ns){const w=normFind(n.word),m=normFind(n.meaning),ex=normFind((n.example||'')+' '+(n.example_en||'')),all=w+' '+m+' '+ex;
+    for(const n of ns){const w=normFind(n.word+' '+(n.latin||'')),m=normFind(n.meaning),ex=normFind((n.example||'')+' '+(n.example_en||'')),all=w+' '+m+' '+ex;
       if(!terms.every(t=>all.includes(t)))continue;
       const q1=terms.join(' '),wf=w.split(' '),mf=m.split(' ');
       const sc=wf.includes(q1)||m===q1?0:(' '+w).includes(' '+q1)||(' '+m).includes(' '+q1)?1:w.includes(q1)||m.includes(q1)?2:3;
@@ -1669,7 +1679,7 @@ function findResults(){
   const r=findMatch(findQ);if(!r.length)return `<p class="fine" style="margin-top:14px">Not in your decks yet.</p>`;
   return `<section class="rpgrp">${r.map(([,k,ns])=>{const n=ns.find(x=>!x.hidden)||ns[0],hid=ns.every(x=>x.hidden),au=ns.find(x=>x.audioKey&&!x.hidden)||ns.find(x=>x.audioKey);
     const decks=[...new Set(ns.map(x=>deckName(x.deckId)).filter(Boolean))].join(' · ');
-    return `<div class="rprow findrow${hid?' dim':''}" data-act="findOpen" data-id="${esc(k)}"><div class="rptxt"><span class="ar" lang="ar" dir="rtl">${esc(n.word)}</span><span>${esc(n.meaning)}</span><span class="fine">${hid?'🙈 hidden · ':findStage(ns)+' · '}${esc(decks)}</span></div>${au?`<button class="btn small" data-act="playNote" data-id="${esc(au.id)}" aria-label="Play">▶</button>`:''}<span class="go" aria-hidden="true">›</span></div>`}).join('')}</section>`}
+    return `<div class="rprow findrow${hid?' dim':''}" data-act="findOpen" data-id="${esc(k)}"><div class="rptxt"><span class="ar" lang="ar" dir="auto">${esc(n.word)}</span>${n.latin?`<span class="latin">${esc(n.latin)}</span>`:''}<span>${esc(n.meaning)}</span><span class="fine">${hid?'🙈 hidden · ':findStage(ns)+' · '}${esc(decks)}</span></div>${au?`<button class="btn small" data-act="playNote" data-id="${esc(au.id)}" aria-label="Play">▶</button>`:''}<span class="go" aria-hidden="true">›</span></div>`}).join('')}</section>`}
 function findPage(){
   return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
     <div class="dhead"><span class="ic" aria-hidden="true">🔍</span><div><h1>Search words</h1><p>${plural(S.notes.size,'word')} in your decks</p></div></div>${statusBox()}
@@ -1680,9 +1690,9 @@ function findCardPage(){
   const live=ns.filter(n=>!n.hidden),n=live[0]||ns[0],au=live.find(x=>x.audioKey)||ns.find(x=>x.audioKey),by=cardsByNote(),ST=isKid()?KSTAGES:STAGES;
   const exs=[...new Map(ns.filter(x=>x.example).map(x=>[x.example,x])).values()];
   return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="find">‹ Search</button></div>${statusBox()}
-    <section class="sec findex" style="text-align:center"><div class="findbig" lang="ar" dir="rtl">${esc(n.word)}</div><p style="font-size:19px;margin:4px 0 10px">${esc(n.meaning)}</p>
+    <section class="sec findex" style="text-align:center"><div class="findbig" lang="ar" dir="auto">${esc(n.word)}</div>${n.latin?`<p class="latin">${esc(n.latin)}</p>`:''}<p style="font-size:19px;margin:4px 0 10px">${esc(n.meaning)}</p>
       <div style="display:flex;justify-content:center">${au?`<button class="play big" data-act="playNote" data-id="${esc(au.id)}" aria-label="Play audio">${PLAY}</button>`:'<span class="noaudio">No audio</span>'}</div>
-      ${exs.map(x=>`<p class="ar" lang="ar" dir="rtl" style="font-size:20px;margin:14px 0 2px">${exHtml(x.example)}</p>${x.example_en?`<p class="fine" style="margin:0">${exHtml(x.example_en)}</p>`:''}`).join('')}</section>
+      ${exs.map(x=>`<p class="ar" lang="ar" dir="auto" style="font-size:20px;margin:14px 0 2px">${exHtml(x.example)}</p>${x.example_en?`<p class="fine" style="margin:0">${exHtml(x.example_en)}</p>`:''}`).join('')}</section>
     ${live.length?`<button class="btn primary focus" data-act="findPractice">🎯 Practice this word</button><p class="fine" style="text-align:center">Extra practice. It doesn’t change when the word comes back.</p>`:`<p class="fine">🙈 This word is hidden, so it can’t be practiced. Show it again from Edit card.</p>`}
     <section class="sec" style="margin-top:14px">${ns.map(x=>{const st=x.hidden?'🙈 hidden':(s=>s?ST[s][0]+' '+ST[s][1]:'not started yet')(stageOf(by.get(x.id)||[]));
       return `<div style="margin:6px 0 12px"><h2 style="margin:0 0 2px">📚 ${esc(deckName(x.deckId))}</h2><p class="fine" style="margin:0 0 8px">${st}</p><div class="row">${x.hidden?'':`<button class="btn" data-act="findDeck" data-id="${esc(x.deckId)}">Practice this deck</button>`}<button class="btn" data-act="findEdit" data-id="${esc(x.id)}">✏️ Edit card</button></div></div>`}).join('')}</section></div>`}
@@ -1695,7 +1705,7 @@ function repeatsPage(){
   if(groups.length)h+=`<p class="fine">Tap <b>Keep</b> on the one you want. The others are deleted. ⭐ = most progress.</p>`+groups.map(g=>{
     let best=g.reduce((a,b)=>noteScore(byNote,b)>noteScore(byNote,a)?b:a);const tie=g.every(n=>noteScore(byNote,n)===noteScore(byNote,best));
     const star=n=>n===best&&!tie;
-    return `<section class="rpgrp">${g.map(n=>`<div class="rprow"><div class="rptxt"><span class="ar" lang="ar" dir="rtl">${esc(n.word)}</span><span>${esc(n.meaning)}</span><span class="fine">${star(n)?'⭐ ':''}${n.hidden?'🙈 hidden · ':''}${mark(n)}</span></div>${n.audioKey?`<button class="btn small" data-act="playNote" data-id="${esc(n.id)}" aria-label="Play">▶</button>`:''}<button class="btn small${star(n)?' primary':''}" data-act="keepNote" data-id="${esc(n.id)}">Keep</button></div>`).join('')}</section>`}).join('');
+    return `<section class="rpgrp">${g.map(n=>`<div class="rprow"><div class="rptxt"><span class="ar" lang="ar" dir="auto">${esc(n.word)}</span><span>${esc(n.meaning)}</span><span class="fine">${star(n)?'⭐ ':''}${n.hidden?'🙈 hidden · ':''}${mark(n)}</span></div>${n.audioKey?`<button class="btn small" data-act="playNote" data-id="${esc(n.id)}" aria-label="Play">▶</button>`:''}<button class="btn small${star(n)?' primary':''}" data-act="keepNote" data-id="${esc(n.id)}">Keep</button></div>`).join('')}</section>`}).join('');
   h+=`<section class="sec" style="margin-top:14px"><h2>🙈 Hidden cards</h2>${hidden.length?`<p>${plural(hidden.length,'hidden card')} in this deck. Deleting them removes them from your phone for good.</p>
     ${delHiddenAsk?`<div class="row"><button class="btn primary" data-act="delHidden">🗑️ Yes, delete ${hidden.length}</button><button class="btn" data-act="delHiddenNo">Cancel</button></div>`:`<button class="btn" data-act="delHiddenAsk">🗑️ Delete hidden cards</button>`}`:'<p class="fine">None.</p>'}</section></div>`;
   return h;
@@ -1913,7 +1923,7 @@ function tagsPage(){
       <p class="fine"><b>1.</b> Let Kelma tag what it can from the English.</p><button class="btn small" data-act="autoTagAll">⚡ Tag what Kelma can</button>
       <p class="fine"><b>2.</b> Ask Claude for the rest, ${need.length>100?'100 cards at a time':'all at once'}.</p><button class="btn small" data-act="tagCopy">🤖 Copy ${plural(Math.min(100,need.length),'card')} for Claude</button>`:''}
       ${job.length?`<div class="tagjob"><p><b>Paste Claude’s reply</b> for the ${plural(job.length,'card')} you copied:</p><textarea id="tagpaste" rows="4" placeholder="1: verb | daily&#10;2: noun | food">${esc(tagPaste&&tagPaste.raw||'')}</textarea><div class="row"><button class="btn small" data-act="tagPasteBtn">📋 Paste</button><button class="btn small primary" data-act="tagPreview">Check</button><button class="btn small" data-act="tagCancel">Cancel</button></div>
-        ${tagPaste&&tagPaste.changes?`<div class="tprev">${tagPaste.changes.length?tagPaste.changes.slice(0,40).map(([id,tg,tp])=>{const n=S.notes.get(id);return `<div>${chips(tg,tp)} <span lang="ar" dir="rtl">${esc(n.word)}</span> · ${esc(n.meaning)}</div>`}).join('')+(tagPaste.changes.length>40?`<div class="fine">+${tagPaste.changes.length-40} more</div>`:''):'<p class="fine">Nothing to apply. Check the reply has lines like “3: verb | food”.</p>'}</div>${tagPaste.changes.length?`<button class="btn primary" data-act="tagApply">✓ Apply to ${plural(tagPaste.changes.length,'card')}</button>`:''}`:''}</div>`:''}`:'<p>Nothing to do.</p>')+`</section></div>`;
+        ${tagPaste&&tagPaste.changes?`<div class="tprev">${tagPaste.changes.length?tagPaste.changes.slice(0,40).map(([id,tg,tp])=>{const n=S.notes.get(id);return `<div>${chips(tg,tp)} <span lang="ar" dir="auto">${esc(n.word)}</span> · ${esc(n.meaning)}</div>`}).join('')+(tagPaste.changes.length>40?`<div class="fine">+${tagPaste.changes.length-40} more</div>`:''):'<p class="fine">Nothing to apply. Check the reply has lines like “3: verb | food”.</p>'}</div>${tagPaste.changes.length?`<button class="btn primary" data-act="tagApply">✓ Apply to ${plural(tagPaste.changes.length,'card')}</button>`:''}`:''}</div>`:''}`:'<p>Nothing to do.</p>')+`</section></div>`;
   return h}
 let tagsFrom='decks';
 function wordsPage(){
@@ -1980,9 +1990,10 @@ function cardPage(){
   return `<div class="page edit"><div class="top" style="display:flex">${editFrom==='study'?`<button class="ghost" data-act="backToStudy">‹ Back to review</button>`:editFrom==='search'?`<button class="ghost" data-act="findBack">‹ Back</button>`:`<button class="ghost" data-act="deck" data-id="${esc(n.deckId)}">‹ Back</button>`}</div>
     <div class="dhead"><span class="ic" aria-hidden="true">✏️</span><div><h1>Edit card</h1><p>${n.hidden?'🙈 Hidden from reviews and practice':'Changes keep your progress.'}</p></div></div>
     ${statusBox()}
-    <label for="e-word">Darija</label><textarea id="e-word" dir="rtl" lang="ar" rows="2">${esc(n.word)}</textarea>
+    <label for="e-word">Darija</label><textarea id="e-word" dir="auto" lang="ar" rows="2">${esc(n.word)}</textarea>
+    <label for="e-lat">Latin spelling (optional)</label><input class="search" id="e-lat" dir="ltr" autocomplete="off" autocorrect="off" spellcheck="false" value="${esc(n.latin||'')}">
     <label for="e-mean">English</label><textarea id="e-mean" rows="2">${esc(n.meaning)}</textarea>
-    <label for="e-ex">Example (Darija, optional)</label><textarea id="e-ex" dir="rtl" lang="ar" rows="2">${esc(n.example||'')}</textarea>
+    <label for="e-ex">Example (Darija, optional)</label><textarea id="e-ex" dir="auto" lang="ar" rows="2">${esc(n.example||'')}</textarea>
     <label for="e-exen">Example (English, optional)</label><textarea id="e-exen" rows="2">${esc(n.example_en||'')}</textarea>
     <span class="lbl2">Topic <span class="fine">(up to 2)</span></span><div class="tagpick">${topts}</div>
     <span class="lbl2">Type <span class="fine">(tap all that fit)</span></span><div class="tagpick">${opts}</div>
@@ -2008,7 +2019,7 @@ async function saveCardEdit(){
   const v=id=>(document.getElementById(id)||{}).value||'';
   const word=v('e-word').trim(),meaning=v('e-mean').trim();
   if(!word||!meaning){status={err:true,msg:'Darija and English can’t be empty.'};render();return}
-  const nn={...n,word,meaning,example:v('e-ex').trim(),example_en:v('e-exen').trim(),tag:'',tags:[]};{const tg=[...document.querySelectorAll('input[name=e-tags]:checked')].map(x=>x.value).filter(k=>TAGS[k]);nn.tags=tg;nn.tag=tg[0]||''}
+  const nn={...n,word,meaning,example:v('e-ex').trim(),example_en:v('e-exen').trim(),tag:'',tags:[]};{const lt=v('e-lat').trim();if(lt)nn.latin=lt;else delete nn.latin}{const tg=[...document.querySelectorAll('input[name=e-tags]:checked')].map(x=>x.value).filter(k=>TAGS[k]);nn.tags=tg;nn.tag=tg[0]||''}
   {const tp=[...document.querySelectorAll('input[name=e-topics]:checked')].map(x=>x.value).filter(k=>TOPICS[k]).slice(0,2);if(tp.join()!==topicsOf(n).join()){nn.topics=tp;nn.topicsSet=true}}
   nn.edited=true;if(editAudio)nn.audioKey=n.id;
   try{await write(['notes','audio'],t=>{t.objectStore('notes').put(nn);if(editAudio)t.objectStore('audio').put(editAudio,n.id)})}
@@ -2119,8 +2130,8 @@ function updatePage(){
 function cardHtml(c,n,shown){
   const url=sess.urls.get(n.id), silent=!!(S.decks.find(d=>d.id===n.deckId)||{}).noAudio;
   const play=(big)=>url?`<button class="play${big?' big':''}" data-act="play" aria-label="Play audio">${PLAY}</button>`:silent?'':`<span class="noaudio">No audio</span>`;
-  const word=`<p class="word" lang="ar" dir="rtl">${esc(n.word)}</p>`;
-  const ex=n.example?`<p class="ex" lang="ar" dir="rtl">${exHtml(n.example)}</p>`:'';
+  const word=`<p class="word" lang="ar" dir="auto">${esc(n.word)}</p>${n.latin?`<p class="latin">${esc(n.latin)}</p>`:''}`;
+  const ex=n.example?`<p class="ex" lang="ar" dir="auto">${exHtml(n.example)}</p>`:'';
   const mean=`<p class="mean">${esc(n.meaning)}</p>`;
   const exen=n.example_en?`<p class="exen">${exHtml(n.example_en)}</p>`:'';
   const tg=tagsOf(n).length?`<span class="tagchips">${tagsOf(n).map(t=>`<span class="tagchip">${TAGS[t][0]} ${TAGS[t][1]}</span>`).join('')}</span>`:'';
@@ -2389,6 +2400,8 @@ app.addEventListener('click',e=>{
   else if(a==='saveName')saveName(id);
   else if(a==='shareDeck')shareDeck(id);
   else if(a==='delete'){const inp=document.getElementById('del-confirm');if(inp&&inp.value.trim().toUpperCase()==='DELETE')deleteDeck(id)}
+  else if(a==='script'){S.settings.script=el.dataset.v;saveMeta();render()}
+  else if(a==='waSwap'){const c=waImp&&waImp.cards[+el.dataset.i];if(c){[c.word,c.meaning]=[c.meaning,c.word];[c.example,c.example_en]=[c.example_en,c.example];render()}}
   else if(a==='newMinus'||a==='newPlus'){S.settings.newPerDay=Math.min(60,Math.max(0,S.settings.newPerDay+(a==='newPlus'?5:-5)));saveMeta();render()}
   else if(a==='backup')backup();
   else if(a==='bonus'){S.newDone.capExtra=(S.newDone.capExtra||0)+5;S.newDone.extra=(S.newDone.extra||0)+5;saveMeta();startSession()}
@@ -2411,7 +2424,7 @@ app.addEventListener('input',e=>{
 });
 app.addEventListener('change',async e=>{
   if(e.target.id==='e-audio'){const f=e.target.files&&e.target.files[0];if(!f)return;
-    const keep=['e-word','e-mean','e-ex','e-exen'].map(i=>[i,(document.getElementById(i)||{}).value]);const keepT=[...document.querySelectorAll('input[name=e-tags],input[name=e-topics]')].map(x=>[x.name,x.value,x.checked]);
+    const keep=['e-word','e-lat','e-mean','e-ex','e-exen'].map(i=>[i,(document.getElementById(i)||{}).value]);const keepT=[...document.querySelectorAll('input[name=e-tags],input[name=e-topics]')].map(x=>[x.name,x.value,x.checked]);
     const type=f.type||(/\.m4a$/i.test(f.name)?'audio/mp4':/\.mp3$/i.test(f.name)?'audio/mpeg':/\.wav$/i.test(f.name)?'audio/wav':'');
     const blob=new Blob([await f.arrayBuffer()],{type});
     if(!(await testAudio(blob))){status={err:true,msg:'This phone can’t play that file. Try an .m4a or .mp3 recording.'}}else{editAudio=blob;status=null}
