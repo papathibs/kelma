@@ -432,7 +432,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=12, APP_VERSION=61;
+const INSTR=13, APP_VERSION=62;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -444,8 +444,11 @@ function autoTags(n){const w=String(n.word||'').trim(),m=String(n.meaning||'').t
     else if(w.split(/\s*[\\\/]\s*/).filter(Boolean).length===3||/\b(m\s*,\s*f\s*,\s*pl|mfpl|masculine)\b/i.test(m))t.push('adjective');}
   if(SPIRIT.test(m))t.push('spiritual');
   return t}
+/* 🧰 Power tools: phrases that help you learn the language. Found from the English meaning. */
+const TOOL_RE=/\bhow (do|would|can|should) (you|i|we) (say|write|spell|pronounce)\b|\bwhat does\b.*\bmean\b|\bwhat do(es)? (it|this|that|you) mean\b|\bwhat('s| is) (this|that|it) called\b|\bwhat('s| is) the word for\b|\bwhat('s| is) .* in (darija|arabic)\b|\bhow is .* in (darija|arabic)\b|\brepeat\b|\bsay (it|that|this) again\b|\bone more time\b|\bslowly\b|\bslower\b|\bspell\b|\bwrite (it|that|this) (down|for me)\b|\bis (it|this|that) (correct|right)\b|\bdid i say (it|that) right\b|\bcorrect me\b|\bi (don'?t|do not|didn'?t|did not) understand\b|\bwhat did you (just )?say\b|\bexplain\b|\bpronounce\b/i;
+const isTool=t=>TOOL_RE.test(String(t||''));
 const tagsOf=n=>n?(Array.isArray(n.tags)&&n.tags.length?n.tags:(n.tag?[n.tag]:[])):[];
-const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
+const TAGS={noun:['🏷️','Noun'],verb:['⚡','Verb'],adjective:['🎨','Adjective'],connector:['🔗','Connector'],question:['❓','Question'],phrase:['🗨️','Phrase'],tools:['🧰','Power tools'],proverb:['💬','Proverb'],verse:['📖','Verse'],spiritual:['🙏','Spiritual'],instruction:['📝','Instruction']};
 /* Topics: what a card is about (separate from its type). Up to 2 per card. */
 const TOPICS={greetings:['👋','Greetings & courtesy'],me:['🧍','About me'],family:['👨‍👩‍👧','Family & people'],numbers:['🔢','Numbers & time'],food:['🍲','Food & drink'],shopping:['🛒','Shopping & money'],clothing:['👕','Clothing & colours'],health:['🩺','Body & health'],home:['🏠','Home'],travel:['🚕','Getting around'],daily:['☀️','Daily life'],safety:['🛡️','Safety'],faith:['🙏','Faith'],other:['💬','Other']};
 const TOPIC_ALIAS={greeting:'greetings',courtesy:'greetings',about:'me',aboutme:'me',people:'family',number:'numbers',time:'numbers',drink:'food',money:'shopping',clothes:'clothing',colours:'clothing',colors:'clothing',body:'health',travel:'travel',getting:'travel',around:'travel',life:'daily'};
@@ -504,6 +507,9 @@ async function load(){
   /* v46: cards from before topics existed get Kelma's guess once, from the English. The rest wait for Tag cards. */
   if(!S.settings.topicsGuessed){const up=[];S.notes.forEach(n=>{if(!topicsOf(n).length){const tp=autoTopics(n);if(tp.length){n.topics=tp;up.push(n)}}});
     try{if(up.length)await write(['notes'],t=>{const st=t.objectStore('notes');up.forEach(n=>st.put(n))});S.settings.topicsGuessed=true;await write(['meta'],t=>t.objectStore('meta').put(S.settings,'settings'))}catch(e){}}
+  /* v62: once, tag existing learning phrases as 🧰 Power tools (never again, so a removed tag stays removed) */
+  if(!S.settings.toolsGuessed){const up=[];S.notes.forEach(n=>{const tg=tagsOf(n);if(!tg.includes('tools')&&isTool(n.meaning)){n.tags=[...tg,'tools'];n.tag=n.tags[0];up.push(n)}});
+    try{if(up.length)await write(['notes'],t=>{const st=t.objectStore('notes');up.forEach(n=>st.put(n))});S.settings.toolsGuessed=true;await write(['meta'],t=>t.objectStore('meta').put(S.settings,'settings'))}catch(e){}}
   if((S.settings.audioChecked||0)<59)setTimeout(fixVoices,1500);
   S.newDone=(await get('meta','newDone'))||{day:'',count:0};
   S.log=(await get('meta','log'))||{};
@@ -626,7 +632,8 @@ async function importFile(file){
       else missing.push(num)}
     {const _pt=parseTags(c);if(!_pt.length){const _at=autoTags({word:c.word,meaning:c.meaning});if(_at.length){c.tags=_at}}}
     let _tp=parseTopics(c.topics);if(!_tp.length)_tp=autoTopics({meaning:c.meaning});
-    notes.push({id,deckId:deck.deck_id,order:Number(num)||i+1,num:String(num),word:c.word,...(c.latin&&String(c.latin).trim()?{latin:String(c.latin).trim()}:{}),meaning:c.meaning,example:c.example||'',example_en:c.example_en||'',tag:parseTags(c)[0]||'',tags:parseTags(c),topics:_tp,audioKey});
+    const _tg=parseTags(c);if(!_tg.includes('tools')&&isTool(c.meaning))_tg.push('tools');
+    notes.push({id,deckId:deck.deck_id,order:Number(num)||i+1,num:String(num),word:c.word,...(c.latin&&String(c.latin).trim()?{latin:String(c.latin).trim()}:{}),meaning:c.meaning,example:c.example||'',example_en:c.example_en||'',tag:_tg[0]||'',tags:_tg,topics:_tp,audioKey});
   }
   const noAudio=!notes.some(n=>n.audioKey)&&!deck.cards.some(c=>c.audio), starter=deck.deck_id===STARTER;
   const kinds=noAudio?['recognition','production']:TYPES;
@@ -892,7 +899,7 @@ function waPage(){
   const any=nOn+nRep;
   h+=`<button class="btn primary focus" data-act="waImport" ${any?'':'disabled'}>${any?`✓ Import${nOn?' '+plural(nOn,'word'):''}${nRep?(nOn?' + ':' ')+nRep+' new audio':''}`:'Nothing to import'}</button>`;
   if(cs.some(c=>c.lat))h+=`<p class="fine">Tap ⇄ if Darija and English came out the wrong way round.</p>`;
-  h+=`<p class="fine">Types (verb, noun…) aren’t added here. You can set them on any card later.</p></div>`;
+  h+=`<p class="fine">Types (verb, noun…) aren’t added here, except 🧰 Power tools. You can set them on any card later.</p></div>`;
   return h;
 }
 async function waImport(){
@@ -908,7 +915,7 @@ async function waImport(){
   const out=new JSZip(),cards=[],d=new Date(),ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   const rnd=Array.from({length:4},()=>'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random()*26)]).join('');
   for(const [i,c] of fresh.entries()){const b=await waBlob(c),ext=b.type==='audio/mpeg'?'mp3':(c.file.split('.').pop()||'opus').toLowerCase(),p='audio/'+String(i+1).padStart(2,'0')+'.'+ext;
-    out.file(p,await b.arrayBuffer());cards.push({num:i+1,word:c.word,...(c.latin?{latin:c.latin}:{}),meaning:c.meaning,example:c.example,example_en:c.example_en,tag:'',audio:p})}
+    out.file(p,await b.arrayBuffer());cards.push({num:i+1,word:c.word,...(c.latin?{latin:c.latin}:{}),meaning:c.meaning,example:c.example,example_en:c.example_en,tag:isTool(c.meaning)?'tools':'',tags:isTool(c.meaning)?['tools']:[],audio:p})}
   out.file('deck.json',JSON.stringify({format:'kelma-deck-1',instructions_version:INSTR,source:'whatsapp',deck_id:ymd+'-wa-'+rnd,deck_name:name,cards}));
   await importFile(new File([await out.generateAsync({type:'blob'})],'whatsapp.zip',{type:'application/zip'}));
   if(replaced&&status&&!status.err){status.msg+=` ${replaced} older card${replaced===1?'':'s'} got the new audio.`;render()}
