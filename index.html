@@ -350,6 +350,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 .selhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:14px 0 4px}
 .selbar{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--surface);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom));box-shadow:0 -4px 16px rgba(0,0,0,.08)}
 .selbar .in{max-width:560px;margin:0 auto}.selbar .row{flex-wrap:wrap;gap:6px}.selbar p{margin:0 0 8px;font-weight:700}
+.selcount{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.selcount p{margin:0!important}
 .selsheet{max-height:46vh;overflow:auto;margin-bottom:8px}.selsheet .sr{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
 .page.selecting{padding-bottom:260px}
 #undo{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 8px 8px 18px;border-radius:999px;font-weight:700;display:none;align-items:center;gap:12px;z-index:101;white-space:nowrap}
@@ -442,7 +443,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=13, APP_VERSION=63;
+const INSTR=13, APP_VERSION=64;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -1732,6 +1733,11 @@ async function deleteNotes(ns){const ids=new Set(ns.map(n=>n.id));const cids=S.a
 async function keepNote(id){const n=S.notes.get(id);if(!n)return;const g=repeatGroups(n.deckId).find(x=>x.some(y=>y.id===id));if(!g)return;
   const drop=g.filter(x=>x.id!==id);try{await deleteNotes(drop);status={msg:`✓ Kept one. ${plural(drop.length,'repeat')} deleted.`}}catch(e){status={err:true,msg:'Could not delete. Try again.'}}render()}
 async function playNote(id){const n=S.notes.get(id);if(!n||!n.audioKey)return;try{const b=await get('audio',n.audioKey);if(b){player.src=URL.createObjectURL(b);player.play().catch(()=>{})}}catch(e){}}
+function deckMatch(n){const t=normFind(deckQ).split(' ').filter(Boolean);if(!t.length)return true;const all=normFind([n.word,n.latin,n.meaning,n.example,n.example_en].filter(Boolean).join(' '));return t.every(x=>all.includes(x))}
+function deckRows(ns){const byNote=cardsByNote(),mark=n=>{const st=stageOf(byNote.get(n.id));return st?STAGES[st][0]:''},vis=ns.filter(deckMatch);
+  return `${sel?`<div class="selhead"><button class="btn small" data-act="selAll">${vis.length&&vis.every(n=>sel.has(n.id))?'Clear all':'Select all'}</button><button class="btn small primary" data-act="selDone">Done</button></div>`
+      :`<div class="selhead"><p class="fine" style="margin:0">✏️ Tap a word to edit, hide or delete it.</p><button class="btn small" data-act="selStart">☑️ Select</button></div>`}
+    <div class="words">`+vis.map(n=>`<button class="wrow${n.hidden?' hid':''}${sel&&sel.has(n.id)?' on':''}" data-act="${sel?'selTog':'card'}" data-id="${esc(n.id)}"${sel?` aria-pressed="${sel.has(n.id)}"`:''}>${sel?`<span class="tick" aria-hidden="true">${sel.has(n.id)?'✓':''}</span>`:''}<span class="en">${n.hidden?'🙈 ':tagsOf(n).length?tagsOf(n).map(t=>TAGS[t][0]).join('')+' ':''}${esc(n.meaning)}</span><span class="ar" lang="ar"><span class="kw">${n.hidden?'':mark(n)}</span> ${esc(n.word)}</span></button>`).join('')+`</div>${vis.length?'':'<p class="fine">No words match.</p>'}`}
 function deckPage(){
   const d=S.decks.find(x=>x.id===deckId);if(!d){view='home';return home()}
   const ns=deckNotes(d.id), byNote=cardsByNote();
@@ -1745,9 +1751,8 @@ function deckPage(){
     <p class="fine">Shares the words and audio, not your progress.</p>
     ${S.decks.length>1?`<button class="btn focus" data-act="combine">🔗 Combine with other decks</button>`:''}
     ${(()=>{const r=repeatGroups(d.id).length,hd=ns.filter(n=>n.hidden).length;return `<button class="btn focus" data-act="repeats">🔍 Find repeats${r||hd?` <span class="cnt">${[r?plural(r,'repeat'):'',hd?hd+' hidden':''].filter(Boolean).join(' · ')}</span>`:''}</button>`})()}
-    ${sel?`<div class="selhead"><button class="btn small" data-act="selAll">${ns.length&&ns.every(n=>sel.has(n.id))?'Clear all':'Select all'}</button><button class="btn small primary" data-act="selDone">Done</button></div>`
-      :`<div class="selhead"><p class="fine" style="margin:0">✏️ Tap a word to edit, hide or delete it.</p><button class="btn small" data-act="selStart">☑️ Select</button></div>`}
-    <div class="words">`+ns.map(n=>`<button class="wrow${n.hidden?' hid':''}${sel&&sel.has(n.id)?' on':''}" data-act="${sel?'selTog':'card'}" data-id="${esc(n.id)}"${sel?` aria-pressed="${sel.has(n.id)}"`:''}>${sel?`<span class="tick" aria-hidden="true">${sel.has(n.id)?'✓':''}</span>`:''}<span class="en">${n.hidden?'🙈 ':tagsOf(n).length?tagsOf(n).map(t=>TAGS[t][0]).join('')+' ':''}${esc(n.meaning)}</span><span class="ar" lang="ar"><span class="kw">${n.hidden?'':mark(n)}</span> ${esc(n.word)}</span></button>`).join('')+`</div>
+    <input class="search" id="deck-q" type="search" placeholder="Search this deck" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" value="${esc(deckQ)}" aria-label="Search this deck">
+    <div id="deck-words">${deckRows(ns)}</div>
     <p class="fine">🌱 started · 🌿 growing · 🌳 known well</p>
     <button class="dangerlink" data-act="askDelete">🗑️ Delete this deck</button>${sel?selBar(ns):''}</div>`;
   if(sel)h=h.replace('<div class="page">','<div class="page selecting">');
@@ -2065,17 +2070,17 @@ async function deleteCard(){
   deckId=did;view='deck';status=null;render();window.scrollTo(0,deckScrollY);toast('🗑️ Card deleted.',1800);
 }
 /* ---------- Select several cards (v63) ---------- */
-let sel=null,selAsk='',selMsg='',deckScrollY=0,undoBuf=null;
+let deckQ='',sel=null,selAsk='',selMsg='',deckScrollY=0,undoBuf=null;
 function selBar(ns){const ids=ns.filter(n=>sel.has(n.id)),k=ids.length;
   const msg=selMsg?`<div class="selmsg" role="status"><span>${esc(selMsg)}</span>${undoBuf?`<button class="btn small" data-act="selUndo">↩️ Undo</button>`:''}</div>`:'';
-  if(!k)return `<div class="selbar"><div class="in">${msg}<p>Tap words to select them.</p></div></div>`;
+  if(!k)return `<div class="selbar"><div class="in">${msg}<div class="selcount"><p>Tap words to select them.</p><button class="btn small primary" data-act="selDone">Done</button></div></div></div>`;
   const allHid=ids.every(n=>n.hidden);let sheet='';
   if(selAsk==='del')sheet=`<p>Delete ${plural(k,'card')}? Their progress is lost too.</p><div class="row"><button class="btn danger" data-act="selDelGo">🗑️ Delete</button><button class="btn" data-act="selCancel">Cancel</button></div>`;
   else if(selAsk==='types'||selAsk==='topics'){const L=selAsk==='types'?TAGS:TOPICS,has=selAsk==='types'?tagsOf:topicsOf;
     sheet=`<div class="selsheet">${Object.entries(L).map(([key,v])=>{const c=ids.filter(n=>has(n).includes(key)).length;
       return `<div class="sr"><span>${v[0]} ${esc(v[1])}${c?` <span class="fine">· ${c}</span>`:''}</span><span class="row" style="flex-wrap:nowrap"><button class="btn small" data-act="selAdd" data-id="${key}"${c===k?' disabled':''}>Add</button><button class="btn small" data-act="selRem" data-id="${key}"${c?'':' disabled'}>Remove</button></span></div>`}).join('')}</div><div class="row"><button class="btn" data-act="selCancel">✓ Close</button></div>`}
   else sheet=`<div class="row"><button class="btn danger" data-act="selAsk" data-id="del">🗑️ Delete</button><button class="btn" data-act="selAsk" data-id="types">🏷️ Types</button><button class="btn" data-act="selAsk" data-id="topics">🧭 Topics</button><button class="btn" data-act="selHide">${allHid?'👁️ Show':'🙈 Hide'}</button></div>`;
-  return `<div class="selbar"><div class="in">${msg}<p>${plural(k,'card')} selected</p>${sheet}</div></div>`}
+  return `<div class="selbar"><div class="in">${msg}<div class="selcount"><p>${plural(k,'card')} selected</p><span class="row" style="flex-wrap:nowrap"><button class="btn small" data-act="selClear">Clear</button><button class="btn small primary" data-act="selDone">Done</button></span></div>${sheet}</div></div>`}
 function keepY(fn){const y=window.scrollY;fn();render();window.scrollTo(0,y)}
 async function selSave(list,msg){
   try{await write(['notes'],t=>{const st=t.objectStore('notes');list.forEach(n=>st.put(n))})}catch(e){selMsg='Could not save. Your phone may be out of storage.';render();return}
@@ -2281,7 +2286,7 @@ function render(){
   else if(view==='profile')app.innerHTML=profileFormPage();
   else app.innerHTML=home();
 }
-function go(v){view=v;status=null;renaming=false;sel=null;selAsk='';selMsg='';undoBuf=null;if(S.pending&&S.pending.kind==='deck')S.pending=null;render();window.scrollTo(0,0)}
+function go(v){view=v;status=null;renaming=false;sel=null;deckQ='';selAsk='';selMsg='';undoBuf=null;if(S.pending&&S.pending.kind==='deck')S.pending=null;render();window.scrollTo(0,0)}
 
 /* ---------- session ---------- */
 function playCurrent(){if(celebrating)return;const c=S.cards.find(x=>x.id===sess.queue[0]);const u=c&&sess.urls.get(c.noteId);if(u){player.src=u;player.play().catch(()=>{})}}
@@ -2385,9 +2390,10 @@ app.addEventListener('click',e=>{
   else if(a==='cardBack')backToDeck();
   else if(a==='selUndo')selUndo();
   else if(a==='selStart')keepY(()=>{sel=new Set();selAsk='';selMsg='';undoBuf=null});
+  else if(a==='selClear')keepY(()=>{sel.clear();selAsk='';selMsg='';undoBuf=null});
   else if(a==='selDone')keepY(()=>{sel=null;selAsk='';selMsg='';undoBuf=null});
   else if(a==='selTog')keepY(()=>{sel.has(id)?sel.delete(id):sel.add(id);if(selAsk==='del')selAsk=''});
-  else if(a==='selAll')keepY(()=>{const ns=deckNotes(deckId);if(ns.every(n=>sel.has(n.id)))sel.clear();else ns.forEach(n=>sel.add(n.id));selAsk=''});
+  else if(a==='selAll')keepY(()=>{const ns=deckNotes(deckId).filter(deckMatch);if(ns.every(n=>sel.has(n.id)))sel.clear();else ns.forEach(n=>sel.add(n.id));selAsk=''});
   else if(a==='selAsk')keepY(()=>{selAsk=id});
   else if(a==='selCancel')keepY(()=>{selAsk=''});
   else if(a==='selAdd')selApply(selAsk,id,true);
@@ -2488,6 +2494,7 @@ app.addEventListener('click',e=>{
   else if(a==='saveBackup')saveBackup();
 });
 app.addEventListener('input',e=>{
+  if(e.target.id==='deck-q'){deckQ=e.target.value;const w=document.getElementById('deck-words');if(w)w.innerHTML=deckRows(deckNotes(deckId));return}
   if(e.target.id==='find-q'){findQ=e.target.value;const r=document.getElementById('find-res');if(r)r.innerHTML=findResults();return}
   if(e.target.id==='deck-search'){const q=e.target.value.trim().toLowerCase();let any=false;
     app.querySelectorAll('details.month').forEach(dt=>{let shown=0;dt.querySelectorAll('.deckrow').forEach(r=>{const ok=!q||r.dataset.s.includes(q);r.hidden=!ok;if(ok)shown++});dt.hidden=!shown;if(q&&shown)dt.open=true;if(shown)any=true});
@@ -2509,7 +2516,7 @@ app.addEventListener('change',async e=>{
   if(!pickSel)pickSel=new Set();e.target.checked?pickSel.add(ds.pick):pickSel.delete(ds.pick);render();
 });
 document.addEventListener('keydown',e=>{
-  if(e.target&&e.target.id==='find-q'&&e.key==='Enter'){e.target.blur();return}
+  if(e.target&&(e.target.id==='find-q'||e.target.id==='deck-q')&&e.key==='Enter'){e.target.blur();return}
   if(view!=='study'||!sess||!sess.queue.length)return;
   if(e.key===' '||e.key==='Enter'){if(!sess.shown){e.preventDefault();sess.shown=true;render();autoplay()}}
   else if(sess.shown&&sess.mode==='review'&&['1','2','3'].includes(e.key))grade(+e.key-1);
