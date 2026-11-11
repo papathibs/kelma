@@ -190,7 +190,7 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .tprev{max-height:260px;overflow:auto;font-size:14px;display:flex;flex-direction:column;gap:4px}
 .rpgrp{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-top:10px}
 .rprow{display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid var(--line)}.rprow:first-child{border-top:none}
-.findrow{cursor:pointer}.findrow.dim{opacity:.55}.findbig{font-family:var(--f-ar);font-size:34px;line-height:1.4}
+.findrow{cursor:pointer}.findchips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.findchips .chip{text-transform:none;letter-spacing:normal;font-weight:500;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 12px;font:inherit;font-size:15px;color:var(--ink)}.findchips .chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}.findrow.dim{opacity:.55}.findbig{font-family:var(--f-ar);font-size:34px;line-height:1.4}
 .rptxt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.rptxt .ar{font-family:var(--f-ar);font-size:20px}
 .cnt{font-size:13px;font-weight:600;color:var(--muted);margin-left:6px}
 .slist{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
@@ -443,7 +443,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=13, APP_VERSION=64;
+const INSTR=13, APP_VERSION=65;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -1053,8 +1053,8 @@ function progressPanel(){
     <div class="streak${n?'':' zero'}"><span class="flame" aria-hidden="true">🔥</span><div><b>${n}</b><span>${n===1?'day in a row':'days in a row'}${n?'':' · study today to start'}</span></div></div>
     <div class="week" aria-label="This week">${days}</div>
     <div class="goal${met?' met':''}"><div class="lbl">${met?'<b>✓ Done for today</b>':'<b>🎯 Today</b>'}<span>${Math.min(mins,15)} / 15 min</span></div><div class="track"><i style="width:${met?100:pct}%"></i></div></div>
-    <div class="stages">${['started','growing','well'].map(k=>`<button class="stage${stageTip===k?' on':''}" data-act="stageTip" data-k="${k}" aria-expanded="${stageTip===k}"><span class="em" aria-hidden="true">${ST[k][0]}</span><b>${ws[k]}</b><span>${ST[k][1]}</span></button>`).join('')}</div>
-    ${stageTip?`<p class="stage-tip" role="status">${ST[stageTip][0]} <b>${ST[stageTip][1][0].toUpperCase()+ST[stageTip][1].slice(1)}:</b> ${ST[stageTip][2]}</p>`:''}
+    <div class="stages">${['started','growing','well'].map(k=>`<button class="stage" data-act="findStage" data-k="${k}" aria-label="See the ${ws[k]} ${ST[k][1]} words"><span class="em" aria-hidden="true">${ST[k][0]}</span><b>${ws[k]}</b><span>${ST[k][1]}</span></button>`).join('')}</div>
+
     ${kid?'':badgeRow()}
   </section>`;
 }
@@ -1475,7 +1475,7 @@ function statusBox(){return status?`<div class="status${status.err?' err':''}" r
 function home(){
   const c=counts(), words=S.notes.size, total=c.due+c.newToday;
   const kid=isKid(), multi=PROFILES.length>1;
-  let h=`<header class="top"><div class="mark"><span class="ar" lang="ar">كلمة</span><span class="lat">Kelma</span></div><div style="display:flex;gap:4px;align-items:center">${multi?`<button class="who-chip" data-act="who" aria-label="Switch profile">${esc(curProfile().name)} ⇄</button>`:''}${S.notes.size?`<button class="ghost" data-act="find" aria-label="Search words">🔍</button>`:''}<button class="ghost helpq" data-act="help" aria-label="Help">❓</button><button class="ghost" data-act="settings" aria-label="Settings">⚙️</button></div></header>`;
+  let h=`<header class="top"><div class="mark"><span class="ar" lang="ar">كلمة</span><span class="lat">Kelma</span></div><div style="display:flex;gap:4px;align-items:center">${multi?`<button class="who-chip" data-act="who" aria-label="Switch profile">${esc(curProfile().name)} ⇄</button>`:''}${S.notes.size?`<button class="ghost" data-act="findHome" aria-label="Search words">🔍</button>`:''}<button class="ghost helpq" data-act="help" aria-label="Help">❓</button><button class="ghost" data-act="settings" aria-label="Settings">⚙️</button></div></header>`;
   if(!S.ok)h+=`<div class="status err">This view can’t store cards. Open this page in Safari or the Claude app instead.</div>`;
   const su=!setupComplete();
   if(su&&!STANDALONE)return statusBox()+safariWelcome();
@@ -1669,7 +1669,9 @@ let delHiddenAsk=false;
 /* ---------- Search words (v60) ----------
    Finds English, Darija (every form) and example sentences. Arabic is compared without vowel marks and with
    the letters people type different ways treated as one. Practicing a found word is extra practice. */
-let findQ='',findKey=null;
+let findQ='',findKey=null,findSt='';
+const FSTAGE={started:1,growing:1,well:1,fresh:1};
+function groupStage(ns){const by=cardsByNote(),rank={well:3,growing:2,started:1};let top='',live=0;for(const n of ns){if(n.hidden)continue;live++;const st=stageOf(by.get(n.id)||[]);if((rank[st]||0)>(rank[top]||0))top=st}return live?(top||'fresh'):''}
 const normFind=t=>String(t||'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'')
   .replace(/[ً-ٰٟـ]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ة/g,'ه').replace(/[ىی]/g,'ي').replace(/[گڭکك]/g,'ك')
   .replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/ڤ/g,'ف').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
@@ -1677,9 +1679,12 @@ function findGroups(){const by=new Map();
   for(const n of S.notes.values()){const k=normFind(n.word);if(!k)continue;if(!by.has(k))by.set(k,[]);by.get(k).push(n)}
   return by}
 function findMatch(q){
-  const terms=normFind(q).split(' ').filter(Boolean);if(!terms.length)return [];
+  const terms=normFind(q).split(' ').filter(Boolean);if(!terms.length&&!findSt)return [];
+  if(!terms.length){const out=[];for(const [k,ns] of findGroups())if(groupStage(ns)===findSt)out.push([0,k,ns]);
+    const en=x=>String((x[2].find(n=>!n.hidden)||x[2][0]).meaning||'').toLowerCase();return out.sort((a,b)=>en(a).localeCompare(en(b)))}
   const out=[];
   for(const [k,ns] of findGroups()){
+    if(findSt&&groupStage(ns)!==findSt)continue;
     let best=9;
     for(const n of ns){const w=normFind(n.word+' '+(n.latin||'')),m=normFind(n.meaning),ex=normFind((n.example||'')+' '+(n.example_en||'')),all=w+' '+m+' '+ex;
       if(!terms.every(t=>all.includes(t)))continue;
@@ -1687,22 +1692,27 @@ function findMatch(q){
       const sc=wf.includes(q1)||m===q1?0:(' '+w).includes(' '+q1)||(' '+m).includes(' '+q1)?1:w.includes(q1)||m.includes(q1)?2:3;
       if(sc<best)best=sc}
     if(best<9)out.push([best,k,ns])}
-  return out.sort((a,b)=>a[0]-b[0]||a[1].localeCompare(b[1])).slice(0,60)}
+  return out.sort((a,b)=>a[0]-b[0]||a[1].localeCompare(b[1])).slice(0,findSt?100000:60)}
 function findStage(ns){const by=cardsByNote(),ST=isKid()?KSTAGES:STAGES,rank={well:3,growing:2,started:1};let top='';
   for(const n of ns){const st=stageOf(by.get(n.id)||[]);if((rank[st]||0)>(rank[top]||0))top=st}
   return top?ST[top][0]+' '+ST[top][1]:'not started yet'}
 const deckName=id=>{const d=S.decks.find(x=>x.id===id);return d?d.name:''};
+function findStageHead(r){if(!findSt)return '';const ST=stageSet(),lab=findSt==='fresh'?['⚪','not started','You haven’t reviewed these words yet.']:ST[findSt];
+  const ids=r.flatMap(([,,ns])=>ns.filter(n=>!n.hidden).map(n=>n.id));
+  return `<p class="stage-tip" role="status">${lab[0]} <b>${cap1(lab[1])}: ${plural(r.length,'word')}${normFind(findQ)?' matching':''}.</b> ${lab[2]}</p>${ids.length?`<button class="btn primary focus" data-act="findPracticeAll">🎯 Practice these ${plural(r.length,'word')}</button><p class="fine" style="text-align:center">Extra practice. It doesn’t change when the words come back.</p>`:''}`}
 function findResults(){
-  if(!normFind(findQ))return `<p class="fine">Type a word in English or Darija.</p>`;
-  const r=findMatch(findQ);if(!r.length)return `<p class="fine" style="margin-top:14px">Not in your decks yet.</p>`;
-  return `<section class="rpgrp">${r.map(([,k,ns])=>{const n=ns.find(x=>!x.hidden)||ns[0],hid=ns.every(x=>x.hidden),au=ns.find(x=>x.audioKey&&!x.hidden)||ns.find(x=>x.audioKey);
+  if(!normFind(findQ)&&!findSt)return `<p class="fine">Type a word in English or Darija, or tap a stage.</p>`;
+  const r=findMatch(findQ);if(!r.length)return findSt?`<p class="fine" style="margin-top:14px">No words here yet.</p>`:`<p class="fine" style="margin-top:14px">Not in your decks yet.</p>`;
+  return findStageHead(r)+`<section class="rpgrp">${r.map(([,k,ns])=>{const n=ns.find(x=>!x.hidden)||ns[0],hid=ns.every(x=>x.hidden),au=ns.find(x=>x.audioKey&&!x.hidden)||ns.find(x=>x.audioKey);
     const decks=[...new Set(ns.map(x=>deckName(x.deckId)).filter(Boolean))].join(' · ');
     return `<div class="rprow findrow${hid?' dim':''}" data-act="findOpen" data-id="${esc(k)}"><div class="rptxt"><span class="ar" lang="ar" dir="auto">${esc(n.word)}</span>${n.latin?`<span class="latin">${esc(n.latin)}</span>`:''}<span>${esc(n.meaning)}</span><span class="fine">${hid?'🙈 hidden · ':findStage(ns)+' · '}${esc(decks)}</span></div>${au?`<button class="btn small" data-act="playNote" data-id="${esc(au.id)}" aria-label="Play">▶</button>`:''}<span class="go" aria-hidden="true">›</span></div>`}).join('')}</section>`}
 function findPage(){
   return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
     <div class="dhead"><span class="ic" aria-hidden="true">🔍</span><div><h1>Search words</h1><p>${plural(S.notes.size,'word')} in your decks</p></div></div>${statusBox()}
     <input class="search" id="find-q" type="search" placeholder="English or Darija" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" value="${esc(findQ)}">
+    <div class="chips findchips" role="group" aria-label="Show words by stage">${[['','All'],['started',stageSet().started[0]+' '+cap1(stageSet().started[1])],['growing',stageSet().growing[0]+' '+cap1(stageSet().growing[1])],['well',stageSet().well[0]+' '+cap1(stageSet().well[1])],['fresh','Not started']].map(([k,l])=>`<button class="chip${findSt===k?' on':''}" data-act="findSt" data-k="${k}" aria-pressed="${findSt===k}">${l}</button>`).join('')}</div>
     <div id="find-res">${findResults()}</div></div>`}
+const cap1=t=>t?t[0].toUpperCase()+t.slice(1):t;
 function findCardPage(){
   const ns=findGroups().get(findKey);if(!ns){view='find';return findPage()}
   const live=ns.filter(n=>!n.hidden),n=live[0]||ns[0],au=live.find(x=>x.audioKey)||ns.find(x=>x.audioKey),by=cardsByNote(),ST=isKid()?KSTAGES:STAGES;
@@ -1887,7 +1897,7 @@ function statPage(){
       <p class="fine small">A rough guide based on research with learners of European languages (Milton & Alexiou). Your words and pace will differ. Kelma builds your vocabulary; conversations build your fluency.</p></section>`;
   if(statKey==='days')b=head('🔥','Days studied',`${weeks[weeks.length-1].days} of 7 this week`)+`<section class="sec"><h2>Per week</h2>${svgBars(weeks.map(w=>w.days),weeks.map(w=>w.label),7,'var(--fire)','days')}<p class="fine">A day counts when you do 15 minutes of review, or clear everything due.</p></section>${monthRows?`<section class="sec"><h2>🗓️ By month</h2>${monthRows}</section>`:''}`;
   if(statKey==='minutes')b=head('⏱️','Minutes',`${weeks[weeks.length-1].mins} min this week`)+`<section class="sec"><h2>Per week</h2>${svgBars(weeks.map(w=>w.mins),weeks.map(w=>w.label),0,'var(--accent)','min',105)}<p class="fine">Dotted line: 15 minutes a day. Review only, not practice.</p></section>`;
-  if(statKey==='words')b=head('🌿','Words you know',`${known} (🌿 growing + 🌳 known well)`)+`<section class="sec"><h2>Over time</h2>${pts.length>=2?svgLines(pts):`<p class="fine">Your word chart starts this week. Check back in a couple of weeks to see it grow.</p>`}</section>`;
+  if(statKey==='words')b=head('🌿','Words you know',`${known} (🌿 growing + 🌳 known well)`)+`<div class="row" style="margin:4px 0 12px"><button class="btn" data-act="findStage" data-k="growing">${stageSet().growing[0]} See ${stageSet().growing[1]} ›</button><button class="btn" data-act="findStage" data-k="well">${stageSet().well[0]} See ${stageSet().well[1]} ›</button></div><section class="sec"><h2>Over time</h2>${pts.length>=2?svgLines(pts):`<p class="fine">Your word chart starts this week. Check back in a couple of weeks to see it grow.</p>`}</section>`;
   return b+`</div>`;
 }
 /* ---------- Your words: goals, what you have, misses, notes, Claude ---------- */
@@ -2400,6 +2410,10 @@ app.addEventListener('click',e=>{
   else if(a==='selRem')selApply(selAsk,id,false);
   else if(a==='selHide')selHide();
   else if(a==='selDelGo')selDelete();
+  else if(a==='findSt'){findSt=el.dataset.k||'';const y=window.scrollY;render();window.scrollTo(0,y)}
+  else if(a==='findPracticeAll'){const r=findMatch(findQ);practiceNotes(r.flatMap(([,,ns])=>ns.filter(n=>!n.hidden).map(n=>n.id)))}
+  else if(a==='findHome'){findQ='';findSt='';go('find');const q=document.getElementById('find-q');if(q)q.focus()}
+  else if(a==='findStage'){findQ='';findSt=el.dataset.k;go('find');window.scrollTo(0,0)}
   else if(a==='find'){go('find');const q=document.getElementById('find-q');if(q&&!findQ)q.focus()}
   else if(a==='findBack'){const n=S.notes.get(editId);if(n)findKey=normFind(n.word);editFrom='deck';go(findGroups().has(findKey)?'findcard':'find')}
   else if(a==='findOpen'){findKey=id;player.pause();go('findcard')}
