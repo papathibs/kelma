@@ -432,6 +432,15 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 .wadup{display:block}
 .wachoice{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .wachoice .btn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.waflag{display:block;color:#b45309;font-size:14px;margin-top:4px}
+.waedit{padding:10px 0;border-bottom:1px solid var(--line)}
+.waedit{display:flex;flex-direction:column;gap:6px}
+.waedit label{font-weight:700;font-size:14px;margin-top:6px}
+.waedit textarea{font:inherit;font-size:17px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);width:100%;box-sizing:border-box}
+.waedit textarea[lang=ar]{font-family:var(--f-ar);font-size:22px}
+.waedit input{width:100%;box-sizing:border-box}
+.waedit [data-act=waShift]{align-self:flex-start}
+.waleft{background:var(--accent-soft);border-radius:8px;padding:6px 10px;margin:6px 0}
 </style>
 </head>
 <body>
@@ -444,7 +453,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=13, APP_VERSION=66;
+const INSTR=13, APP_VERSION=67;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -853,11 +862,11 @@ function waBuild(msgs){
       if(ar.length){ /* Arabic letters: as before. "Both": the first Latin message is the Latin spelling. */
         let lat='',E=en;if(script==='both'&&en.length>=2){lat=en[0];E=en.slice(1)}
         if(!E.length){skipped.push({why:'No English',what:short(ar.join(' / '))});continue}
-        cards.push({word:ar[0],latin:lat,meaning:E[0],example:ar[1]||'',example_en:E[1]||'',file:m.file,date:m.date,extra:Math.max(0,ar.length-2)+Math.max(0,E.length-2)})}
+        cards.push({word:ar[0],latin:lat,meaning:E[0],example:ar[1]||'',example_en:E[1]||'',file:m.file,date:m.date,extra:Math.max(0,ar.length-2)+Math.max(0,E.length-2),left:[...ar.slice(2),...E.slice(2)]})}
       else if(script==='ar'){skipped.push({why:'No Darija in Arabic letters (writing Darija in Latin letters? Change it in ⚙️ Settings)',what:short(en.join(' / '))});continue}
       else{ /* Latin letters: the order decides. Darija, English, example, example in English. */
         if(en.length<2){skipped.push({why:'Need Darija, then English',what:short(en.join(' / '))});continue}
-        cards.push({word:en[0],meaning:en[1],example:en[2]||'',example_en:en[3]||'',lat:true,file:m.file,date:m.date,extra:Math.max(0,en.length-4)})}
+        cards.push({word:en[0],meaning:en[1],example:en[2]||'',example_en:en[3]||'',lat:true,file:m.file,date:m.date,extra:Math.max(0,en.length-4),left:en.slice(4)})}
     }
     else if(m.kind==='other')skipped.push({why:'Not a voice note (photo or file)',what:short(m.file)});
   }
@@ -871,6 +880,27 @@ function waBuild(msgs){
     else c.on=true});
   return {helper,cards,skipped,omitted:false};
 }
+/* v67: spot cards that probably came out in the wrong order, so they can be fixed before import */
+const nWords=t=>String(t||'').trim().split(/\s+/).filter(Boolean).length;
+function waCheck(c){
+  if(c.ok)return [];const f=[];
+  if(c.extra)f.push('Extra messages — a voice note may be missing');
+  if(nWords(c.meaning)>5)f.push('English looks like a sentence — the English word may be missing');
+  if(c.example&&!c.example_en)f.push('Example has no English');
+  if(!c.example&&c.example_en)f.push('English example with no Darija example');
+  if(c.lat&&/[2379]/.test(c.meaning)&&!/\d{2,}/.test(c.meaning))f.push('English has 3, 7 or 9 — Darija may be in the English box');
+  return f}
+let waEdit=-1;
+function waEditForm(c,i){const lat=!c.lat&&((S.settings&&S.settings.script)==='both'||c.latin);
+  return `<div class="waedit">${c.left&&c.left.length?`<div class="waleft"><span class="fine"><b>Left out:</b></span>${c.left.map(t=>`<br><span dir="auto">${esc(t)}</span>`).join('')}</div>`:''}
+    <label for="wa-e-word">Darija</label><textarea id="wa-e-word" dir="auto" ${c.lat?'':'lang="ar"'} rows="2">${esc(c.word)}</textarea>
+    ${lat?`<label for="wa-e-lat">Latin spelling (optional)</label><input class="search" id="wa-e-lat" dir="ltr" autocomplete="off" autocorrect="off" spellcheck="false" value="${esc(c.latin||'')}">`:''}
+    <label for="wa-e-mean">English</label><textarea id="wa-e-mean" rows="2">${esc(c.meaning)}</textarea>
+    <button class="btn small" data-act="waShift" data-i="${i}">↓ English is missing — move text down</button>
+    <label for="wa-e-ex">Example (Darija, optional)</label><textarea id="wa-e-ex" dir="auto" ${c.lat?'':'lang="ar"'} rows="2">${esc(c.example||'')}</textarea>
+    <label for="wa-e-exen">Example (English, optional)</label><textarea id="wa-e-exen" rows="2">${esc(c.example_en||'')}</textarea>
+    <div class="wachoice">${c.f?`<button class="btn small" data-act="waPlay" data-i="${i}">▶ Play</button>`:''}<button class="btn small primary" data-act="waEditSave" data-i="${i}">✓ Save</button><button class="btn small" data-act="waEditCancel">Cancel</button></div></div>`}
+const waVal=id=>{const e=document.getElementById(id);return e?e.value.trim():null};
 const waFile=(zip,name)=>Object.values(zip.files).find(f=>!f.dir&&!f.name.startsWith('__MACOSX')&&f.name.split('/').pop()===name);
 const audioType=name=>{const e=(name.split('.').pop()||'').toLowerCase();return e==='m4a'?'audio/mp4':e==='wav'?'audio/wav':e==='mp3'?'audio/mpeg':e==='aac'?'audio/aac':e==='amr'?'audio/amr':'audio/ogg'};
 async function waOpen(zip,chat){
@@ -882,7 +912,7 @@ async function waOpen(zip,chat){
   let audioOk=null;const first=r.cards.find(c=>c.f);
   if(first){try{audioOk=await waCanPlay(await waBlob(first))}catch(e){audioOk=false}}
   const last=r.cards.length?r.cards[r.cards.length-1].date:'';
-  waImp={zip,...r,audioOk,name:'Lesson'+(last?' · '+last:'')};
+  waImp={zip,...r,audioOk,name:'Lesson'+(last?' · '+last:'')};waEdit=-1;
   status=null;view='waprev';render();window.scrollTo(0,0);
 }
 function waCanPlay(blob){return new Promise(res=>{const a=new Audio(),u=URL.createObjectURL(blob);let done=false;const fin=ok=>{if(done)return;done=true;URL.revokeObjectURL(u);res(ok)};
@@ -895,21 +925,26 @@ async function waPlay(i){const c=waImp&&waImp.cards[i];if(!c||!c.f)return;
 function waPage(){
   const cs=waImp.cards, fresh=cs.filter(c=>!c.rep&&!c.dupOf&&!c.noFile), dups=cs.filter(c=>c.dupOf), reps=cs.filter(c=>c.rep), nof=cs.filter(c=>c.noFile);
   const nOn=fresh.filter(c=>c.on).length+dups.filter(c=>c.act==='add').length, nRep=dups.filter(c=>c.act==='audio').length;
-  const row=(c,body)=>`<div class="warow">${body}${c.lat?`<button class="btn small" data-act="waSwap" data-i="${cs.indexOf(c)}" aria-label="Swap Darija and English">⇄</button>`:''}${c.f?`<button class="btn small" data-act="waPlay" data-i="${cs.indexOf(c)}" aria-label="Play">▶</button>`:''}</div>`;
-  const line=c=>`<span class="watxt"><span lang="ar" dir="auto" class="waar">${esc(c.word)}</span>${c.latin?` <span class="fine">(${esc(c.latin)})</span>`:''} <span class="waen">— ${esc(c.meaning)}</span>${c.example?`<br><span class="fine" lang="ar" dir="auto">${esc(c.example)}</span>`:''}${c.extra?`<br><span class="fine">⚠️ ${c.extra} extra message${c.extra===1?'':'s'} left out</span>`:''}</span>`;
+  const row=(c,body)=>waEdit===cs.indexOf(c)?waEditForm(c,waEdit):`<div class="warow">${body}<button class="btn small" data-act="waEdit" data-i="${cs.indexOf(c)}" aria-label="Edit">✏️</button>${c.lat?`<button class="btn small" data-act="waSwap" data-i="${cs.indexOf(c)}" aria-label="Swap Darija and English">⇄</button>`:''}${c.f?`<button class="btn small" data-act="waPlay" data-i="${cs.indexOf(c)}" aria-label="Play">▶</button>`:''}</div>`;
+  const line=c=>`<span class="watxt"><span lang="ar" dir="auto" class="waar">${esc(c.word)}</span>${c.latin?` <span class="fine">(${esc(c.latin)})</span>`:''} <span class="waen">— ${esc(c.meaning)}</span>${c.example?`<br><span class="fine" lang="ar" dir="auto">${esc(c.example)}</span>`:''}${c.example_en?`<br><span class="fine">${esc(c.example_en)}</span>`:''}${c.extra&&!c.ok?`<br><span class="fine">⚠️ ${c.extra} extra message${c.extra===1?'':'s'} left out</span>`:''}${waCheck(c).filter(t=>!t.startsWith('Extra')).map(t=>`<span class="waflag">⚠️ ${esc(t)}</span>`).join('')}</span>`;
   let h=`<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="waCancel">‹ Cancel</button></div>
     <div class="dhead"><span class="ic" aria-hidden="true">💬</span><div><h1>From WhatsApp</h1><p>Voice notes from ${esc(waImp.helper)}</p></div></div>
     ${statusBox()}`;
   if(waImp.audioOk===false)h+=`<div class="warn"><p><b>⚠️ This phone can’t play these voice notes.</b> The cards would import without working audio. Tell Kyle before importing.</p></div>`;
   h+=`<label class="subhead" for="wa-name">Deck name</label><input class="search" id="wa-name" maxlength="60" value="${esc(waImp.name)}">`;
-  h+=`<p class="subhead">✓ New words · ${fresh.filter(c=>c.on).length} of ${fresh.length}</p>`;
-  h+=fresh.length?fresh.map(c=>row(c,`<button class="watog" data-act="waTog" data-i="${cs.indexOf(c)}" aria-pressed="${c.on}">${c.on?'☑️':'⬜️'}</button>${line(c)}`)).join(''):'<p class="fine">No new words in this chat.</p>';
+  const tog=c=>row(c,`<button class="watog" data-act="waTog" data-i="${cs.indexOf(c)}" aria-pressed="${c.on}">${c.on?'☑️':'⬜️'}</button>${line(c)}`);
+  const chk=fresh.filter(c=>waCheck(c).length||waEdit===cs.indexOf(c)&&c.flagged);
+  fresh.forEach(c=>{c.flagged=chk.includes(c)});
+  if(chk.length)h+=`<p class="subhead">⚠️ Check these · ${chk.length}</p><p class="fine">These may have come out in the wrong order. Tap ✏️ to fix, then ✓ Save.</p>`+chk.map(tog).join('');
+  const okc=fresh.filter(c=>!chk.includes(c));
+  h+=chk.length?(okc.length?`<p class="subhead">✓ Other new words · ${okc.filter(c=>c.on).length} of ${okc.length}</p>`:''):`<p class="subhead">✓ New words · ${fresh.filter(c=>c.on).length} of ${fresh.length}</p>`;
+  h+=okc.length?okc.map(tog).join(''):fresh.length?'':'<p class="fine">No new words in this chat.</p>';
   if(dups.length)h+=`<p class="subhead">🔁 Already in your decks · ${dups.length}</p>`+dups.map(c=>row(c,`<div class="watxt">${line(c)}<span class="fine wadup">In “${esc(c.dupDeck)}”${c.dupMeaning&&c.dupMeaning!==c.meaning?` as “${esc(c.dupMeaning)}”`:''}</span><span class="wachoice"><button class="btn small" data-act="waDup" data-v="skip" data-i="${cs.indexOf(c)}" aria-pressed="${c.act==='skip'}">Skip</button><button class="btn small" data-act="waDup" data-v="audio" data-i="${cs.indexOf(c)}" aria-pressed="${c.act==='audio'}">Use new audio</button><button class="btn small" data-act="waDup" data-v="add" data-i="${cs.indexOf(c)}" aria-pressed="${c.act==='add'}">Add as new</button></span></div>`)).join('');
   if(reps.length)h+=`<p class="subhead">♊ Twice in this chat · kept once</p>`+reps.map(c=>row(c,line(c))).join('');
   const sk=[...waImp.skipped,...nof.map(c=>({why:'Voice note missing from the zip',what:c.word}))];
   if(sk.length)h+=`<details><summary class="subhead">⚠️ Couldn’t import · ${sk.length}</summary>`+sk.map(s=>`<p class="fine"><b>${esc(s.why)}:</b> <span dir="auto">${esc(s.what)}</span></p>`).join('')+`</details>`;
   const any=nOn+nRep;
-  h+=`<button class="btn primary focus" data-act="waImport" ${any?'':'disabled'}>${any?`✓ Import${nOn?' '+plural(nOn,'word'):''}${nRep?(nOn?' + ':' ')+nRep+' new audio':''}`:'Nothing to import'}</button>`;
+  h+=`<button class="btn primary focus" data-act="waImport" ${any&&waEdit<0?'':'disabled'}>${any?`✓ Import${nOn?' '+plural(nOn,'word'):''}${nRep?(nOn?' + ':' ')+nRep+' new audio':''}`:'Nothing to import'}</button>`;
   if(cs.some(c=>c.lat))h+=`<p class="fine">Tap ⇄ if Darija and English came out the wrong way round.</p>`;
   h+=`<p class="fine">Types (verb, noun…) aren’t added here, except 🧰 Power tools. You can set them on any card later.</p></div>`;
   return h;
@@ -2386,7 +2421,17 @@ app.addEventListener('click',e=>{
   else if(a==='waDup'){const c=waImp&&waImp.cards[+el.dataset.i];if(c){c.act=el.dataset.v;waKeepName();render()}}
   else if(a==='waPlay'){e.stopPropagation();waPlay(+el.dataset.i)}
   else if(a==='waImport')waImport();
-  else if(a==='waCancel'){waImp=null;status=null;go('home')}
+  else if(a==='waCancel'){waImp=null;waEdit=-1;status=null;go('home')}
+  else if(a==='waEdit'){waKeepName();waEdit=+el.dataset.i;status=null;render();const f=document.getElementById('wa-e-word');if(f)f.closest('.waedit').scrollIntoView({block:'center'})}
+  else if(a==='waEditCancel'){waEdit=-1;status=null;render()}
+  else if(a==='waShift'){const c=waImp&&waImp.cards[+el.dataset.i];if(c){const m=waVal('wa-e-mean'),x=waVal('wa-e-ex'),xe=waVal('wa-e-exen');
+      const set=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v};
+      if(c.lat){set('wa-e-exen',x);set('wa-e-ex',m);set('wa-e-mean','')}else{set('wa-e-exen',m);set('wa-e-mean','')}
+      const e=document.getElementById('wa-e-mean');if(e)e.focus()}}
+  else if(a==='waEditSave'){const c=waImp&&waImp.cards[+el.dataset.i];if(c){const w=waVal('wa-e-word'),m=waVal('wa-e-mean');
+      if(!w||!m){status={err:true,msg:'Darija and English are both needed.'};render();return}
+      c.word=w;c.meaning=m;c.example=waVal('wa-e-ex')||'';c.example_en=waVal('wa-e-exen')||'';const l=waVal('wa-e-lat');if(l!==null)c.latin=l;
+      c.ok=true;c.extra=0;c.on=true;waEdit=-1;status=null;render()}}
   else if(a==='reveal'){if(!sess.shown){sess.shown=true;render();autoplay()}}
   else if(a==='play'){e.stopPropagation();playCurrent()}
   else if(a==='grade')grade(+el.dataset.g);
@@ -2497,7 +2542,7 @@ app.addEventListener('click',e=>{
   else if(a==='shareDeck')shareDeck(id);
   else if(a==='delete'){const inp=document.getElementById('del-confirm');if(inp&&inp.value.trim().toUpperCase()==='DELETE')deleteDeck(id)}
   else if(a==='script'){S.settings.script=el.dataset.v;saveMeta();render()}
-  else if(a==='waSwap'){const c=waImp&&waImp.cards[+el.dataset.i];if(c){[c.word,c.meaning]=[c.meaning,c.word];[c.example,c.example_en]=[c.example_en,c.example];render()}}
+  else if(a==='waSwap'){const c=waImp&&waImp.cards[+el.dataset.i];if(c){waKeepName();[c.word,c.meaning]=[c.meaning,c.word];[c.example,c.example_en]=[c.example_en,c.example];render()}}
   else if(a==='newMinus'||a==='newPlus'){S.settings.newPerDay=Math.min(60,Math.max(0,S.settings.newPerDay+(a==='newPlus'?5:-5)));saveMeta();render()}
   else if(a==='backup')backup();
   else if(a==='bonus'){S.newDone.capExtra=(S.newDone.capExtra||0)+5;S.newDone.extra=(S.newDone.extra||0)+5;saveMeta();startSession()}
