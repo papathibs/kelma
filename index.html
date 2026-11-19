@@ -458,7 +458,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=14, APP_VERSION=68;
+const INSTR=14, APP_VERSION=69;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -2417,8 +2417,10 @@ function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random
 function practiceQueue(ids,types){const set=new Set(ids),ts=new Set(types||[]);return shuffle(S.cards.filter(c=>{const n=S.notes.get(c.noteId);return n&&set.has(n.deckId)&&(!ts.size||tagsOf(n).some(t=>ts.has(t)))}).map(c=>c.id))}
 async function practiceNotes(ids){const set=new Set(ids);if(sess)sess.urls.forEach(u=>URL.revokeObjectURL(u));await begin(shuffle(S.cards.filter(c=>set.has(c.noteId)).map(c=>c.id)),'practice',null,null);if(sess)sess.noteIds=ids}
 function startPractice(ids,types){if(sess)sess.urls.forEach(u=>URL.revokeObjectURL(u));begin(practiceQueue(ids,types),'practice',ids,types)}
+/* v69: moving to the next card stops the last card's sound */
+function stopSound(){try{player.pause();player.currentTime=0}catch(e){}}
 function grade(g){
-  const c=S.cards.find(x=>x.id===sess.queue[0]);if(!c)return;
+  const c=S.cards.find(x=>x.id===sess.queue[0]);if(!c)return;stopSound();
   if(c.state==='new'){S.newDone.count++;saveMeta();c.firstSeen=Date.now();if(c.type==='recognition')sess.newWords++}
   sess.queue.shift();logAnswer(Math.max(0,Math.min(CARD_MAX,Date.now()-(sess.t0||Date.now()))));
   if(g===0){
@@ -2434,7 +2436,7 @@ function grade(g){
   saveCard(c);logRev(c,g,'review');sess.shown=false;render();autoplay();checkBadges();
 }
 function pgrade(g){
-  const id=sess.queue.shift();if(!id)return;logAnswer(0);{const c=S.cards.find(x=>x.id===id);if(c)logRev(c,g,'practice')}
+  const id=sess.queue.shift();if(!id)return;stopSound();logAnswer(0);{const c=S.cards.find(x=>x.id===id);if(c)logRev(c,g,'practice')}
   if(g===0)sess.queue.splice(Math.min(4,sess.queue.length),0,id);else sess.answered++;
   sess.shown=false;render();autoplay();checkBadges();
 }
