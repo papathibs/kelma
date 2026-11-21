@@ -221,6 +221,38 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 .ex{font-family:var(--f-ar);font-size:24px;line-height:1.8;margin:0;max-width:30ch}
 .ex mark.t,.findex mark.t{background:none;color:var(--target);font-weight:700}
 .mean{font-size:26px;font-weight:700;margin:0;line-height:1.3}
+.gmlist{display:flex;flex-direction:column;gap:8px;margin:6px 0 10px}
+.gmbtn{display:flex;gap:12px;align-items:center;text-align:left;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;cursor:pointer}
+.gmbtn:disabled{opacity:.55;cursor:default}
+.gmic{font-size:28px;flex:none}.gmtxt{display:flex;flex-direction:column;gap:2px}.gmbest{font-size:13px;font-weight:700;color:var(--gold)}
+.gmtime{font-weight:700;font-variant-numeric:tabular-nums;font-size:18px;color:var(--muted)}
+.gmmode{display:flex;gap:8px;margin:4px 0 12px}
+.gmgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.gmcell{min-height:64px;padding:8px;border-radius:14px;border:2px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:700;font-size:17px;cursor:pointer;transition:transform .12s,opacity .2s}
+.gmcell.sel{border-color:var(--accent);background:var(--accent-soft)}
+.gmcell.ok{border-color:var(--grow);background:color-mix(in srgb,var(--grow) 18%,var(--surface));transform:scale(.96)}
+.gmcell.bad{border-color:var(--again);animation:gmshake .35s}
+.gmcell.gone{visibility:hidden}
+@keyframes gmshake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.gmar{font-family:var(--f-ar);font-size:24px;font-weight:700;line-height:1.5}
+.gmar:not([lang]){font-family:var(--f-ui);font-size:20px}
+.gmq{text-align:center;padding:20px 14px}
+.gmq .gmar{font-size:32px}
+.gmen{font-size:17px;font-weight:700}
+.gmch{display:flex;flex-direction:column;gap:10px}
+.gmopt{padding:14px;border-radius:14px;border:2px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;cursor:pointer;min-height:58px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.gmopt.ok{border-color:var(--grow);background:color-mix(in srgb,var(--grow) 18%,var(--surface))}
+.gmopt.bad{border-color:var(--again);background:color-mix(in srgb,var(--again) 14%,var(--surface))}
+.gmopt.dim{opacity:.5}
+.gmline{min-height:64px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px;border-bottom:2px solid var(--line);margin:12px 0}
+.gmline.ok{border-color:var(--grow)}.gmline.bad{border-color:var(--again)}
+.gmtiles{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.gmq .play{margin:0 auto;display:flex}
+.tile{line-height:1.4;min-height:0;height:auto;align-self:center;padding:8px 12px;border-radius:10px;border:1px solid var(--line);border-bottom-width:3px;background:var(--surface);color:var(--ink);font-family:var(--f-ar);font-size:20px;cursor:pointer}
+.gmfix{color:var(--grow);font-weight:700;font-family:var(--f-ar);font-size:20px}
+.gmdone{text-align:center;padding:22px 14px}.gmstars{font-size:36px;letter-spacing:4px}.gmscore{font-size:34px;font-weight:700;margin:6px 0}.gmnew{color:var(--gold);font-weight:700;font-size:18px}
+.gmmiss{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.gmmiss:last-child{border-bottom:0}
 .cardpic{display:block;width:min(220px,60vw);height:auto;aspect-ratio:1/1;object-fit:contain;margin:8px auto;border-radius:16px;background:#fff}
 .showen{display:block;margin:6px auto 0;background:none;border:1px dashed var(--line);border-radius:999px;padding:8px 16px;color:var(--muted);font:inherit;font-weight:700;cursor:pointer}
 .thumb{width:44px;height:44px;object-fit:contain;border-radius:8px;background:#fff;flex:none;align-self:center}
@@ -458,7 +490,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=14, APP_VERSION=70;
+const INSTR=14, APP_VERSION=71;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -2311,7 +2343,7 @@ function pickPage(){
     <div class="pick"><label class="all"><input type="checkbox" data-pickall ${pickAll?'checked':''}><span class="name">📚 All decks</span></label>`+
     (pickAll?'':ds.map(d=>`<label><input type="checkbox" data-pick="${esc(d.id)}" ${pickSel.has(d.id)?'checked':''}><span class="ic" aria-hidden="true">${esc(deckIcon(d.id))}</span><span><span class="name">${esc(d.name)}</span><br><span class="meta">${plural(deckNotes(d.id).length,'word')}</span></span></label>`).join(''))+`</div>`+
     (used.length?`<p class="subhead">Only these types <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></p><div class="types">`+used.map(k=>`<button data-act="ptype" data-t="${k}" aria-pressed="${pickTypes.has(k)}">${TAGS[k][0]} ${TAGS[k][1]}</button>`).join('')+`</div>`:'')+
-    `<button class="btn primary focus" data-act="practiceSel" ${n?'':'disabled'}>${n?`🎯 Start practice · ${plural(n,'card')}`:(pickAll||(pickSel&&pickSel.size))?'No cards match these types':'Pick a deck above'}</button></div>`;
+    `<button class="btn primary focus" data-act="practiceSel" ${n?'':'disabled'}>${n?`🎯 Start practice · ${plural(n,'card')}`:(pickAll||(pickSel&&pickSel.size))?'No cards match these types':'Pick a deck above'}</button>${gamesBox()}</div>`;
 }
 function updatePage(){
   return `<div class="page upd"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
@@ -2412,6 +2444,8 @@ function render(){
   else if(view==='deck')app.innerHTML=deckPage();
   else if(view==='delete')app.innerHTML=deletePage();
   else if(view==='pick')app.innerHTML=pickPage();
+  else if(view==='game')app.innerHTML=gamePage();
+  else if(view==='gmrec')app.innerHTML=gmRecPage();
   else if(view==='waprev')app.innerHTML=waImp?waPage():home();
   else if(view==='update')app.innerHTML=updatePage();
   else if(view==='decks')app.innerHTML=decksPage();
@@ -2426,6 +2460,158 @@ function render(){
   else app.innerHTML=home();
 }
 function go(v){view=v;status=null;renaming=false;sel=null;deckQ='';selAsk='';selMsg='';undoBuf=null;if(S.pending&&S.pending.kind==='deck')S.pending=null;render();window.scrollTo(0,0)}
+
+/* ---------- v71: games ----------
+   Four games on the words picked in Focus practice. Only words already started. Games are extra practice:
+   they never change the review schedule. Cards are sorted by size: short (a word or short phrase) or long (a sentence). */
+const GAMES=[
+  ['match','🧩','Match pairs','Tap the pairs. Beat your time.'],
+  ['listen','👂','Listen and pick','Hear it, pick the meaning.'],
+  ['speed','⚡','Speed round','60 seconds. As many as you can.'],
+  ['build','🧱','Build the sentence','Hear it, put the words in order.']];
+const gmClean=t=>String(t||'').replace(/\*\*/g,'').trim();
+const gmToks=t=>gmClean(t).split(/\s+/).filter(x=>x&&!/^[\\\/،,|·—–-]+$/.test(x));
+const isForms=n=>/[\\\/]|،|,/.test(n.word);
+const isShort=n=>gmToks(n.word).length<=3&&nWords(n.meaning)<=4;
+const gmPool=()=>{
+  const ids=pickAll?new Set(S.decks.map(d=>d.id)):(pickSel||new Set()),by=cardsByNote();
+  const seenW=new Set(),seenM=new Set(),out=[];
+  for(const n of S.notes.values()){
+    if(!ids.has(n.deckId)||n.hidden||!n.word||!n.meaning)continue;
+    if(pickTypes.size&&!tagsOf(n).some(t=>pickTypes.has(t)))continue;
+    if(!stageOf(by.get(n.id)))continue;
+    const w=gmClean(n.word),m=gmClean(n.meaning).toLowerCase();if(seenW.has(w)||seenM.has(m))continue;seenW.add(w);seenM.add(m);out.push(n)}
+  return out};
+/* sentences to build: long cards, plus example sentences of word cards */
+const gmSentences=pool=>{const out=[];
+  for(const n of pool){
+    if(!isShort(n)&&!isForms(n)&&gmToks(n.word).length>=3)out.push({n,ar:gmClean(n.word),en:n.meaning});
+    if(n.example&&n.example_en&&gmToks(n.example).length>=3)out.push({n,ar:gmClean(n.example),en:gmClean(n.example_en)})}
+  return out};
+function gmAvail(pool){
+  const sh=pool.filter(isShort),lo=pool.filter(n=>!isShort(n)),au=pool.filter(n=>n.audioKey);
+  const auSh=au.filter(isShort).length,auLo=au.length-auSh,sen=gmSentences(pool).length;
+  return {
+    match:sh.length>=5?{n:sh.length,u:'short word'}:{why:'Needs 5 short words you’ve started.'},
+    listen:(auSh>=4||auLo>=4)?{n:au.length,u:'word'}:{why:'Needs 4 started words with voice notes.'},
+    speed:(sh.length>=4||lo.length>=4)?{n:pool.length,u:'word'}:{why:'Needs 4 words you’ve started.'},
+    build:sen>=1?{n:sen,u:'sentence'}:{why:'Needs sentences or example sentences you’ve started.'}}}
+const gmKey=()=>[...(pickAll?['all']:[...(pickSel||[])].sort()),...[...pickTypes].sort()].join('|');
+const gmStore=()=>{const g=S.settings.games||(S.settings.games={best:{},plays:[],miss:{}});g.best=g.best||{};g.plays=g.plays||[];g.miss=g.miss||{};return g};
+const gmBest=(game,key)=>gmStore().best[game+'#'+key];
+const fmtTime=ms=>{const s=Math.round(ms/100)/10;return s<60?s.toFixed(1)+' s':Math.floor(s/60)+':'+String(Math.round(s%60)).padStart(2,'0')};
+const gmBestText=(game,b)=>b==null?'':game==='match'?'Best '+fmtTime(b):game==='build'?'Best '+b.c+'/'+b.of+' in '+fmtTime(b.t):game==='listen'?'Best '+b.c+'/'+b.of:'Best '+b;
+function gamesBox(){
+  const pool=gmPool(),av=gmAvail(pool),key=gmKey();
+  if(!(pickAll||(pickSel&&pickSel.size)))return '';
+  return `<p class="subhead">🎮 Games <span style="text-transform:none;letter-spacing:0;font-weight:400">(words you’ve started)</span></p><div class="gmlist">`+
+    GAMES.map(([id,em,name,what])=>{const a=av[id],b=gmBest(id==='match'?'match-read':id,key);
+      return `<button class="gmbtn" data-act="gmStart" data-g="${id}" ${a.n?'':'disabled'}><span class="gmic" aria-hidden="true">${em}</span><span class="gmtxt"><b>${name}</b><span class="fine">${a.n?`${esc(what)} · ${plural(a.n,a.u)}`:esc(a.why)}</span>${a.n&&b!=null?`<span class="gmbest">🏆 ${esc(gmBestText(id,b))}</span>`:''}</span></button>`}).join('')+
+    `</div><button class="linkbtn" data-act="gmRecords">🏆 Your game records</button>`}
+let gm=null, gmTimer=null;
+const pick4=(arr,n)=>shuffle(arr.slice()).slice(0,n);
+async function gmUrls(notes){const urls=new Map();for(const n of notes){if(n.audioKey&&!urls.has(n.id)){try{const b=await get('audio',n.audioKey);if(b)urls.set(n.id,URL.createObjectURL(b))}catch(e){}}}return urls}
+function gmPlay(id){const u=gm&&gm.urls.get(id);if(u){try{player.src=u;player.currentTime=0;player.play().catch(()=>{})}catch(e){}}}
+function gmStop(){clearInterval(gmTimer);gmTimer=null;stopSound();if(gm&&gm.urls)gm.urls.forEach(u=>URL.revokeObjectURL(u))}
+/* choices of the same size as the answer, so length never gives it away */
+function gmChoices(ans,pool,field){const same=pool.filter(n=>n.id!==ans.id&&isShort(n)===isShort(ans));const other=pool.filter(n=>n.id!==ans.id&&isShort(n)!==isShort(ans));
+  const wrong=pick4(same,3);if(wrong.length<3)wrong.push(...pick4(other,3-wrong.length));return shuffle([ans,...wrong])}
+async function gmStart(game){
+  gmStop();const pool=gmPool(),key=gmKey();if(!gmAvail(pool)[game].n)return;
+  const g={game,key,t0:Date.now(),miss:new Set(),done:false,mistakes:0};
+  if(game==='match'){g.mode=gm&&gm.game==='match'?gm.mode:'read';g.items=shuffle(pool.filter(isShort));g.goal=Math.min(15,g.items.length);g.next=0;g.found=0;g.left=[];g.right=[];g.pick=null;
+    for(let i=0;i<5;i++){const n=g.items[g.next++];g.left.push(n);g.right.push(n)}g.left=shuffle(g.left);g.right=shuffle(g.right)}
+  if(game==='listen'){const au=pool.filter(n=>n.audioKey);const sh=au.filter(isShort),lo=au.filter(n=>!isShort(n));const use=[...(sh.length>=4?sh:[]),...(lo.length>=4?lo:[])];
+    g.qs=pick4(use,10);g.pool=au;g.i=0;g.correct=0}
+  if(game==='speed'){g.pool=pool;g.end=Date.now()+60000;g.score=0;g.streak=0;g.correct=0}
+  if(game==='build'){const ss=shuffle(gmSentences(pool)).slice(0,5);g.rounds=[];
+    for(const s of ss){const tk=gmToks(s.ar);if(tk.length<=10)g.rounds.push({...s,tk});else{const h=Math.ceil(tk.length/2);g.rounds.push({...s,tk:tk.slice(0,h),part:'1 of 2'},{...s,tk:tk.slice(h),part:'2 of 2'})}}
+    g.i=0;g.correct=0}
+  g.urls=await gmUrls(game==='match'?g.items:game==='listen'?g.qs:game==='build'?g.rounds.map(r=>r.n):pool);
+  gm=g;if(game==='listen'||game==='speed')gmNewQ();if(game==='build')gmNewRound();
+  view='game';render();window.scrollTo(0,0);
+  gmTimer=setInterval(gmTick,100);
+  if(game==='listen')setTimeout(()=>gmPlay(gm.q.id),250);if(game==='build')setTimeout(()=>gmPlay(gm.r.n.id),250);
+}
+function gmTick(){if(!gm||gm.done)return;const el=document.getElementById('gm-time');
+  if(gm.game==='speed'){const left=gm.end-Date.now();if(left<=0){gmFinish();return}if(el)el.textContent=Math.ceil(left/1000)+' s'}
+  else if(el)el.textContent=fmtTime(Date.now()-gm.t0)}
+function gmNewQ(){const g=gm;g.ans=null;
+  if(g.game==='listen'){g.q=g.qs[g.i];g.kind='a2e'}
+  else{const q=g.pool[Math.floor(Math.random()*g.pool.length)];g.q=q;const r=Math.random();g.kind=q.audioKey&&g.urls.has(q.id)&&r<.34?'a2e':r<.67?'d2e':'e2d'}
+  g.ch=gmChoices(g.q,g.game==='listen'?g.pool:g.pool)}
+function gmNewRound(){const g=gm;g.r=g.rounds[g.i];g.tiles=shuffle(g.r.tk.map((t,k)=>({t,k})));g.placed=[];g.res=null}
+function gmMissAdd(n){if(n)gm.miss.add(n.id)}
+function gmMatchTap(side,k){const g=gm;if(g.flash)return;const n=(side==='l'?g.left:g.right)[k];if(!n)return;
+  if(side==='l'&&g.mode==='listen')gmPlay(n.id);
+  if(!g.pick||g.pick.side===side){g.pick={side,k};render();return}
+  const l=side==='l'?k:g.pick.k,r=side==='r'?k:g.pick.k,ln=g.left[l],rn=g.right[r];g.pick=null;
+  if(ln.id===rn.id){g.found++;g.flash={ok:[l,r]};render();
+    setTimeout(()=>{if(gm!==g)return;g.flash=null;
+      if(g.next<g.goal){const nn=g.items[g.next++];g.left[l]=nn;g.right[r]=nn;const j=Math.floor(Math.random()*g.right.length);[g.right[r],g.right[j]]=[g.right[j],g.right[r]]}
+      else{g.left[l]=null;g.right[r]=null}
+      if(g.found>=g.goal)gmFinish();else render()},280)}
+  else{g.mistakes++;gmMissAdd(ln);g.flash={bad:[l,r]};render();setTimeout(()=>{if(gm!==g)return;g.flash=null;render()},450)}}
+function gmAnswer(id){const g=gm;if(g.ans)return;g.ans=id;const ok=id===g.q.id;
+  if(g.game==='listen'){if(ok)g.correct++;else gmMissAdd(g.q);render();
+    setTimeout(()=>{if(gm!==g)return;g.i++;if(g.i>=g.qs.length)gmFinish();else{gmNewQ();render();gmPlay(g.q.id)}},ok?800:1700);return}
+  /* speed */
+  if(ok){g.streak++;g.correct++;g.score+=g.streak>=5?2:1}else{g.streak=0;g.end-=3000;gmMissAdd(g.q)}
+  render();setTimeout(()=>{if(gm!==g||g.done)return;gmNewQ();render();if(g.kind==='a2e')gmPlay(g.q.id)},ok?250:900)}
+function gmTile(k,from){const g=gm;if(g.res)return;
+  if(from==='pool'){if(!g.placed.includes(k))g.placed.push(k)}else g.placed=g.placed.filter(x=>x!==k);
+  if(g.placed.length===g.tiles.length){const got=g.placed.map(x=>g.tiles[x].t).join(' '),want=g.r.tk.join(' ');g.res=got===want?'ok':'bad';
+    if(g.res==='ok')g.correct++;else gmMissAdd(g.r.n);render();
+    setTimeout(()=>{if(gm!==g)return;g.i++;if(g.i>=g.rounds.length)gmFinish();else{gmNewRound();render();gmPlay(g.r.n.id)}},g.res==='ok'?900:2600);return}
+  render()}
+function gmReveal(){const g=gm;if(g.res)return;g.res='bad';const used=new Set();g.placed=g.r.tk.map(t=>{const j=g.tiles.findIndex((x,k)=>x.t===t&&!used.has(k));used.add(j);return j});gmMissAdd(g.r.n);g.shown=true;render();
+  setTimeout(()=>{if(gm!==g)return;g.shown=false;g.i++;if(g.i>=g.rounds.length)gmFinish();else{gmNewRound();render();gmPlay(g.r.n.id)}},3000)}
+function gmFinish(){const g=gm;if(!g||g.done)return;g.done=true;clearInterval(gmTimer);gmTimer=null;stopSound();
+  const t=Date.now()-g.t0,st=gmStore(),bk=(g.game==='match'?'match-'+g.mode:g.game)+'#'+g.key,old=st.best[bk];let res,better=false,stars=1;
+  if(g.game==='match'){res=t;better=old==null||t<old;stars=g.mistakes<=1?3:g.mistakes<=4?2:1}
+  if(g.game==='listen'){res={c:g.correct,of:g.qs.length};better=old==null||res.c>old.c;const p=res.c/res.of;stars=p>=.9?3:p>=.6?2:1}
+  if(g.game==='speed'){res=g.score;better=old==null||res>old;stars=res>=20?3:res>=10?2:1}
+  if(g.game==='build'){res={c:g.correct,of:g.rounds.length,t};better=old==null||res.c>old.c||(res.c===old.c&&t<old.t);const p=res.c/res.of;stars=p>=.9?3:p>=.6?2:1}
+  g.res2={res,better:better&&old!=null,first:old==null,old,stars,t};
+  if(better)st.best[bk]=res;st.plays.push([Date.now(),g.game]);if(st.plays.length>500)st.plays=st.plays.slice(-500);
+  g.miss.forEach(id=>{st.miss[id]=(st.miss[id]||0)+1});saveMeta();render();window.scrollTo(0,0)}
+function gmQuit(){gmStop();gm=null;go('pick')}
+const gmWord=(n,big)=>`<span class="gmar" dir="auto" ${/[؀-ۿ]/.test(n.word)?'lang="ar"':''}>${esc(gmClean(n.word))}</span>`;
+function gamePage(){const g=gm;if(!g)return '';const G=GAMES.find(x=>x[0]===g.game);
+  let h=`<div class="page gmpage"><div class="top" style="display:flex;justify-content:space-between;align-items:center"><button class="ghost" data-act="gmQuit">‹ ${g.done?'Games':'Stop'}</button><span class="gmtime" id="gm-time">${g.done?'':g.game==='speed'?'60 s':'0.0 s'}</span></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">${G[1]}</span><div><h1>${G[2]}</h1><p>${g.done?'Done':g.game==='match'?`${g.found} of ${g.goal} pairs`:g.game==='listen'?`${g.i+1} of ${g.qs.length}`:g.game==='build'?`${g.i+1} of ${g.rounds.length}${g.r&&g.r.part?' · part '+g.r.part:''}`:`Score ${g.score}${g.streak>=5?' · 🔥 ×2':''}`}</p></div></div>`;
+  if(g.done){const r=g.res2,st='⭐'.repeat(r.stars)+'☆'.repeat(3-r.stars);
+    const main=g.game==='match'?fmtTime(r.res):g.game==='speed'?r.res+' points':r.res.c+' of '+r.res.of+' right';
+    const miss=[...g.miss].map(id=>S.notes.get(id)).filter(Boolean);
+    h+=`<section class="sec gmdone"><div class="gmstars" aria-label="${r.stars} of 3 stars">${st}</div><div class="gmscore">${esc(main)}</div>
+      ${g.game==='match'?`<p class="fine">${plural(g.mistakes,'mistake')}</p>`:''}
+      ${r.better?'<p class="gmnew">🏆 New best!</p>':r.first?'<p class="fine">First round on these words.</p>':`<p class="fine">${esc(gmBestText(g.game,r.old))}</p>`}</section>`;
+    if(miss.length)h+=`<p class="subhead">To practice · ${miss.length}</p><div class="sec">${miss.map(n=>`<div class="gmmiss">${gmWord(n)}<span>${esc(n.meaning)}</span></div>`).join('')}</div><button class="btn" data-act="gmMissPractice">🎯 ${miss.length===1?'Practice this word':'Practice these '+miss.length+' words'}</button>`;
+    return h+`<button class="btn primary focus" data-act="gmStart" data-g="${g.game}">↻ Play again</button><button class="btn" data-act="gmQuit">Other games</button></div>`}
+  if(g.game==='match'){
+    h+=`<div class="seg gmmode"><button class="btn small${g.mode==='read'?' primary':''}" data-act="gmMode" data-m="read" aria-pressed="${g.mode==='read'}">📖 Read</button><button class="btn small${g.mode==='listen'?' primary':''}" data-act="gmMode" data-m="listen" aria-pressed="${g.mode==='listen'}">🔊 Listen</button></div><div class="gmgrid">`;
+    for(let k=0;k<5;k++){for(const side of ['l','r']){const n=(side==='l'?g.left:g.right)[k];
+      const cls=!n?' gone':g.flash&&g.flash.ok&&g.flash.ok[side==='l'?0:1]===k?' ok':g.flash&&g.flash.bad&&g.flash.bad[side==='l'?0:1]===k?' bad':g.pick&&g.pick.side===side&&g.pick.k===k?' sel':'';
+      h+=n?`<button class="gmcell${cls}" data-act="gmMatch" data-s="${side}" data-k="${k}">${side==='l'?(g.mode==='listen'?`<span aria-label="Play">🔊</span>`:gmWord(n)):esc(n.meaning)}</button>`:`<span class="gmcell gone"></span>`}}
+    return h+`</div></div>`}
+  if(g.game==='listen'||g.game==='speed'){const q=g.q,ans=g.ans;
+    h+=`<section class="sec gmq">${g.kind==='a2e'?`<button class="play big" data-act="gmReplay" aria-label="Play again">${PLAY}</button><p class="fine">What does it mean?</p>`:g.kind==='d2e'?`${gmWord(q)}<p class="fine">Pick the meaning</p>`:`<p class="mean">${esc(q.meaning)}</p><p class="fine">Pick the Darija</p>`}</section><div class="gmch">`;
+    h+=g.ch.map(n=>{const cls=!ans?'':n.id===q.id?' ok':n.id===ans?' bad':' dim';return `<button class="gmopt${cls}" data-act="gmPick" data-id="${esc(n.id)}">${g.kind==='e2d'?gmWord(n):`<span class="gmen">${esc(n.meaning)}</span>`}</button>`}).join('');
+    return h+`</div></div>`}
+  if(g.game==='build'){const r=g.r;
+    h+=`<section class="sec gmq"><button class="play" data-act="gmReplay" aria-label="Play again">${PLAY}</button><p class="gmen" style="margin:8px 0 0">${esc(r.en)}</p></section>
+      <div class="gmline${g.res==='ok'?' ok':g.res==='bad'?' bad':''}" dir="${/[\u0600-\u06FF]/.test(r.tk.join(''))?'rtl':'ltr'}">${g.placed.map(k=>`<button class="tile" data-act="gmTileBack" data-k="${k}" dir="auto">${esc(g.tiles[k].t)}</button>`).join('')||'<span class="fine">Tap the words in order</span>'}</div>
+      ${g.res==='bad'?`<p class="gmfix" dir="auto">✓ <span ${/[؀-ۿ]/.test(r.tk.join(''))?'lang="ar"':''}>${esc(r.tk.join(' '))}</span></p>`:''}
+      <div class="gmtiles" dir="${/[\u0600-\u06FF]/.test(r.tk.join(''))?'rtl':'ltr'}">${g.tiles.map((x,k)=>g.placed.includes(k)?'':`<button class="tile" data-act="gmTile" data-k="${k}" dir="auto">${esc(x.t)}</button>`).join('')}</div>
+      ${g.res?'':`<button class="linkbtn" data-act="gmShow">Show me</button>`}`;
+    return h+`</div>`}
+  return h+`</div>`}
+function gmRecPage(){const st=gmStore(),wk=Date.now()-7*864e5,key=gmKey();
+  const top=Object.entries(st.miss).map(([id,c])=>[S.notes.get(id),c]).filter(x=>x[0]).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="pickBack">‹ Focus practice</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">🏆</span><div><h1>Game records</h1><p>${plural(st.plays.filter(p=>p[0]>=wk).length,'round')} this week · ${plural(st.plays.length,'round')} in all</p></div></div>
+    <p class="subhead">Your bests on these decks</p><div class="sec">${[['match-read','🧩 Match pairs · read','match'],['match-listen','🧩 Match pairs · listen','match'],['listen','👂 Listen and pick','listen'],['speed','⚡ Speed round','speed'],['build','🧱 Build the sentence','build']].map(([k,l,g])=>{const b=st.best[k+'#'+key];return `<div class="gmmiss"><span>${l}</span><span>${b==null?'<span class="fine">Not played</span>':esc(gmBestText(g,b).replace(/^Best /,''))}</span></div>`}).join('')}</div>
+    ${top.length?`<p class="subhead">Most missed</p><div class="sec">${top.map(([n,c])=>`<div class="gmmiss">${gmWord(n)}<span>${esc(n.meaning)} <span class="fine">· ${c}×</span></span></div>`).join('')}</div><button class="btn" data-act="gmMostMissed">🎯 Practice these ${plural(top.length,'word')}</button>`:''}</div>`}
 
 /* ---------- session ---------- */
 function playCurrent(){if(celebrating)return;const c=S.cards.find(x=>x.id===sess.queue[0]);const u=c&&sess.urls.get(c.noteId);if(u){player.src=u;player.play().catch(()=>{})}}
@@ -2527,6 +2713,19 @@ app.addEventListener('click',e=>{
   else if(a==='reveal'){if(!sess.shown){sess.shown=true;render();autoplay()}}
   else if(a==='editPicDel'){const n=S.notes.get(editId);if(n){if(editPic&&editPic!=='del'){clearEditPic();if(!n.picKey){const bx=document.getElementById('e-picbox');if(bx)bx.innerHTML=picBox(n);return}}editPic='del';const bx=document.getElementById('e-picbox');if(bx)bx.innerHTML=picBox(n)}}
   else if(a==='meaningAs'){const was=picsOn();S.settings.meaning=el.dataset.v;saveMeta();render();if(was!==picsOn()&&usesClaude()&&!isKid())toast('📋 Copy the Claude instructions again so Claude '+(picsOn()?'makes':'stops making')+' pictures.',3500)}
+  else if(a==='gmStart')gmStart(el.dataset.g);
+  else if(a==='gmQuit')gmQuit();
+  else if(a==='gmMode'){if(gm&&gm.game==='match'&&gm.mode!==el.dataset.m){gm.mode=el.dataset.m;gmStart('match')}}
+  else if(a==='gmMatch')gmMatchTap(el.dataset.s,+el.dataset.k);
+  else if(a==='gmPick')gmAnswer(el.dataset.id);
+  else if(a==='gmReplay'){if(gm)gmPlay(gm.game==='build'?gm.r.n.id:gm.q.id)}
+  else if(a==='gmTile')gmTile(+el.dataset.k,'pool');
+  else if(a==='gmTileBack')gmTile(+el.dataset.k,'line');
+  else if(a==='gmShow')gmReveal();
+  else if(a==='gmMissPractice'){const ids=[...gm.miss];gmStop();gm=null;practiceNotes(ids)}
+  else if(a==='gmRecords')go('gmrec');
+  else if(a==='pickBack')go('pick');
+  else if(a==='gmMostMissed'){const st=gmStore();const ids=Object.entries(st.miss).filter(([id])=>S.notes.has(id)).sort((a,b)=>b[1]-a[1]).slice(0,8).map(x=>x[0]);practiceNotes(ids)}
   else if(a==='statsShow'){statsPeek=!statsPeek;render()}
   else if(a==='statsToggle'){S.settings.stats=S.settings.stats===false?true:false;saveMeta();render();if(statsOn())sendStats()}
   else if(a==='consentOk'){consentOk=true;openNamed(DBP).then(d=>{const t=d.transaction(['meta'],'readwrite');t.objectStore('meta').put(Date.now(),'consent')}).catch(()=>{});render();sendStats()}
