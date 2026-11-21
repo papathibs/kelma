@@ -1,7 +1,9 @@
-const V='kelma-v69';
+const V='kelma-v70';
+/* only clear this site's own old copies: kelma-v… here, kelma-learn-v… on the public site (same web address) */
+const P=V.replace(/\d+$/,'');
 const CORE=['./','index.html','guide.html','instructions.txt','jszip.min.js','opusdec.min.js','lame.min.js','manifest.webmanifest','icon-180.png','icon-192.png','icon-512.png','setup/1-projects.jpg','setup/2-new-project.jpg','setup/3-name.jpg','setup/4-pin.jpg','setup/5-instructions.jpg','setup/6-paste.jpg','setup/starter.zip','setup/h1-menu.jpg','setup/h2-share.jpg','setup/h3-add.jpg','setup/w1-forward.jpg','setup/w2-share.jpg','setup/w3-copy.jpg','setup/x1-group.jpg','setup/x2-export.jpg','setup/x3-allmedia.jpg','setup/x4-clear.jpg','setup/x5-clearall.jpg'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(CORE.map(u=>new Request(u,{cache:'reload'})))));self.skipWaiting()});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V&&k.startsWith(P)&&/^\d+$/.test(k.slice(P.length))).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',e=>{
   const r=e.request;if(r.method!=='GET')return;const u=new URL(r.url);
   if(u.origin===location.origin){

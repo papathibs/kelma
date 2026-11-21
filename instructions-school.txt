@@ -30,7 +30,7 @@ BUILD THE FILE
 - deck.json (UTF-8, valid JSON, Arabic as real characters, not escaped):
   {
     "format": "kelma-deck-1",
-    "deck_id": "<student>-<short-topic>-<yyyymmdd>",   e.g. "cora-instructions-20261022"
+    "deck_id": "<student>-<short-topic>-<yyyymmdd>",   e.g. "sam-instructions-20261022"
     "deck_name": "<short name the student will recognise>",   e.g. "Homework instruction words"
     "cards": [
       {"num": 1, "word": "...", "meaning": "...", "example": "", "example_en": "", "tag": "instruction"}
