@@ -221,6 +221,12 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 .ex{font-family:var(--f-ar);font-size:24px;line-height:1.8;margin:0;max-width:30ch}
 .ex mark.t,.findex mark.t{background:none;color:var(--target);font-weight:700}
 .mean{font-size:26px;font-weight:700;margin:0;line-height:1.3}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.modalbox{background:var(--bg);border-radius:20px;padding:22px 18px;max-width:400px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.modalbox .btn{width:100%;margin-top:8px}.newsem{font-size:48px;margin:0}.beta{font-size:12px;vertical-align:middle;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:2px 8px;text-transform:uppercase;letter-spacing:.05em}
+.aplist{border:1px solid var(--line);border-radius:12px;overflow:hidden;flex:1 0 100%;max-height:60vh;overflow-y:auto;background:var(--bg)}
+.aprow{display:grid;grid-template-columns:1fr auto;gap:6px 8px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line)}
+.aprow:last-child{border-bottom:0}.aprow .apw{font-family:var(--f-ar);font-size:20px;font-weight:700}.aprow .apb{display:flex;gap:6px}
 .gmlist{display:flex;flex-direction:column;gap:8px;margin:6px 0 10px}
 .gmbtn{padding:10px 12px!important}.gmbtn .gmic{font-size:24px}
 .fpbig{display:flex;flex-direction:column;gap:12px;margin:8px 0 14px}
@@ -501,7 +507,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=14, APP_VERSION=72;
+const INSTR=14, APP_VERSION=73;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -2172,7 +2178,23 @@ function shareWeek(){
   if(navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:(curProfile().name||'My')+' · Kelma week of '+weekRange(mondayOf(today0()))}).catch(()=>{});return}
   download({blob:weekBlob,name:'kelma-my-week.png'});status={msg:'✓ Picture saved.'};render();
 }
-const clearEditPic=()=>{if(editPicUrl)URL.revokeObjectURL(editPicUrl);editPic=null;editPicUrl=null};
+/* v73: take the audio of another card in the same deck, or swap the two cards' audio */
+let editSwap=null,editAudioMsg='';
+function audPickOpen(){const n=S.notes.get(editId),box=document.getElementById('e-audpick');if(!n||!box)return;
+  if(box.innerHTML){box.innerHTML='';return}
+  const ns=deckNotes(n.deckId).filter(o=>o.id!==n.id).sort((a,b)=>(+a.num||0)-(+b.num||0));
+  box.innerHTML=`<p class="fine" style="margin:6px 0">▶ to listen. <b>Use this</b> copies its audio here. <b>Swap</b> trades the two cards’ audio.</p>
+    ${ns.length>8?`<input class="search" id="ap-q" type="search" placeholder="Search this deck" autocomplete="off" aria-label="Search this deck" style="margin-bottom:6px">`:''}
+    <div class="aplist">${ns.map(o=>`<div class="aprow" data-name="${esc(normFind(o.word+' '+o.meaning))}"><div><span class="apw" dir="auto">${esc(o.word)}</span><br><span class="fine">${o.num?'#'+esc(o.num)+' · ':''}${esc(o.meaning)}${o.hidden?' · 🙈 hidden':''}</span></div>
+      <div class="apb">${o.audioKey?`<button class="btn small" data-act="apPlay" data-id="${esc(o.id)}" aria-label="Play">▶</button><button class="btn small" data-act="apUse" data-id="${esc(o.id)}">Use this</button>${n.audioKey?`<button class="btn small" data-act="apSwap" data-id="${esc(o.id)}">Swap</button>`:''}`:'<span class="fine">No audio</span>'}</div></div>`).join('')}</div>`}
+async function audPickChoose(oid,swap){const n=S.notes.get(editId),o=S.notes.get(oid);if(!n||!o||!o.audioKey)return;
+  let b=null,mine=null;try{b=await get('audio',o.audioKey);if(swap&&n.audioKey)mine=await get('audio',n.audioKey)}catch(e){}
+  if(!b||(swap&&!mine))return;
+  editAudio=b;editSwap=swap?{id:o.id,blob:mine}:null;
+  editAudioMsg=swap?`✓ Will swap audio with ${o.num?'#'+o.num+' ':''}“${o.meaning}”. Tap Save.`:`✓ Audio from ${o.num?'#'+o.num+' ':''}“${o.meaning}” ready. Tap Save to keep it.`;
+  const st=document.getElementById('e-audstat');if(st){st.textContent=editAudioMsg;st.hidden=false}
+  const box=document.getElementById('e-audpick');if(box)box.innerHTML='';if(st)st.scrollIntoView({block:'center'})}
+const clearEditPic=()=>{editSwap=null;editAudioMsg='';if(editPicUrl)URL.revokeObjectURL(editPicUrl);editPic=null;editPicUrl=null};
 function picBox(n){const cur=editPic==='del'?null:editPic?editPicUrl:picOf(n);
   return `<span class="lbl">🖼️ Picture</span>${cur?`<img class="thumb big" src="${cur}" alt="">`:''}
     ${editPic==='del'?`<span class="fine">Picture will be removed. Tap Save.</span>`:editPic?`<span class="ok">✓ New picture ready. Tap Save to keep it.</span>`:cur?'':`<span class="fine">No picture</span>`}
@@ -2193,9 +2215,11 @@ function cardPage(){
     <span class="lbl2">Topic <span class="fine">(up to 2)</span></span><div class="tagpick">${topts}</div>
     <span class="lbl2">Type <span class="fine">(tap all that fit)</span></span><div class="tagpick">${opts}</div>
     <div class="audiobox"><span class="lbl">🎤 Audio</span>
-      ${editAudio?`<span class="ok">✓ New recording ready. Tap Save to keep it.</span>`:n.audioKey?`<button class="btn small" data-act="editPlay">▶ Play current</button>`:`<span class="fine">No audio yet</span>`}
+      <span id="e-audstat" class="ok"${editAudio?'':' hidden'}>${editAudio?esc(editAudioMsg||'✓ New recording ready. Tap Save to keep it.'):''}</span>
+      ${n.audioKey?`<button class="btn small" data-act="editPlay">▶ Play current</button>`:editAudio?'':`<span class="fine">No audio yet</span>`}
       <label class="btn small" for="e-audio">${n.audioKey||editAudio?'Replace audio':'Add audio'}</label>
-      <input type="file" id="e-audio" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus"></div>
+      <input type="file" id="e-audio" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus">
+      ${deckNotes(n.deckId).some(o=>o.id!==n.id&&o.audioKey)?`<button class="btn small" data-act="audPick">🔀 Audio from another card</button>`:''}<div id="e-audpick" style="flex:1 0 100%"></div></div>
     <div class="audiobox" id="e-picbox">${picBox(n)}</div>
     <button class="btn primary focus" data-act="saveCard">✓ Save changes</button>
     <button class="btn focus" data-act="toggleHide">${n.hidden?'👁️ Show it again':'🙈 Hide this card'}</button>
@@ -2220,10 +2244,13 @@ async function saveCardEdit(){
   nn.edited=true;if(editAudio)nn.audioKey=n.id;
   const pk=n.id+'|pic',oldPk=n.picKey;
   if(editPic==='del'){delete nn.picKey;delete nn.picV;nn.picOff=true}else if(editPic){nn.picKey=pk;nn.picV=Date.now();delete nn.picOff}
+  const sw=editSwap&&S.notes.get(editSwap.id);const on=sw?{...sw,audioKey:sw.id,edited:true}:null;
   try{await write(['notes','audio'],t=>{t.objectStore('notes').put(nn);if(editAudio)t.objectStore('audio').put(editAudio,n.id);
+    if(on){t.objectStore('notes').put(on);if(sw.audioKey&&sw.audioKey!==sw.id)t.objectStore('audio').delete(sw.audioKey);t.objectStore('audio').put(editSwap.blob,sw.id)}
     if(editPic==='del'&&oldPk)t.objectStore('audio').delete(oldPk);else if(editPic&&editPic!=='del'){if(oldPk&&oldPk!==pk)t.objectStore('audio').delete(oldPk);t.objectStore('audio').put(editPic,pk)}})}
   catch(e){status={err:true,msg:'Could not save. Your phone may be out of storage.'};render();return}
-  const hadAudio=!!editAudio;editAudio=null;clearEditPic();await load();
+  const hadAudio=!!editAudio,swapped=on;editAudio=null;clearEditPic();await load();
+  if(hadAudio&&nn.hidden){status={msg:`✓ Saved${swapped?' and swapped':''}. This card is still hidden: tap 👁️ Show it again below to use it.`};render();return}
   if(editFrom==='study'){await backToStudy(hadAudio?nn:null);return}
   if(editFrom==='deck'){backToDeck('✓ Saved. Progress kept.');return}
   if(editFrom==='search'){findKey=normFind(nn.word);editFrom='deck';view=findGroups().has(findKey)?'findcard':'find';status=null;render();window.scrollTo(0,0);toast('✓ Saved. Progress kept.',1800);return}
@@ -2495,8 +2522,17 @@ function render(){
   else if(view==='settings')app.innerHTML=settingsPage();
   else if(view==='who')app.innerHTML=whoPage();
   else if(view==='profile')app.innerHTML=profileFormPage();
-  else app.innerHTML=home();
+  else{app.innerHTML=home();if(newsDue())app.insertAdjacentHTML('beforeend',newsHtml())}
 }
+/* v73: one-time "what's new" card, only for people who were already reviewing before it shipped */
+const NEWS='games1';
+function newsDue(){if(!S.settings||S.settings.seenNews===NEWS)return false;
+  if(!S.allCards.some(c=>c.state&&c.state!=='new')){S.settings.seenNews=NEWS;saveMeta();return false}return true}
+const newsHtml=()=>`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="news-h"><div class="modalbox">
+  <p class="newsem" aria-hidden="true">🎮</p><h2 id="news-h">New: Games <span class="beta">beta</span></h2>
+  <p>Practice your decks with Match pairs, Listen and pick, Speed round and Build the sentence.</p>
+  <p class="fine">Find it in 🎯 Focus practice → Games. It’s still being tested. Try it and say what works and what doesn’t.</p>
+  <button class="btn primary focus" data-act="newsTry">🎮 Try it</button><button class="btn" data-act="newsOk">OK</button></div></div>`;
 function go(v){view=v;status=null;renaming=false;sel=null;deckQ='';selAsk='';selMsg='';undoBuf=null;if(S.pending&&S.pending.kind==='deck')S.pending=null;render();window.scrollTo(0,0)}
 
 /* ---------- v71: games ----------
@@ -2765,6 +2801,10 @@ app.addEventListener('click',e=>{
   else if(a==='gmRecords')go('gmrec');
   else if(a==='pickBack')go('pick');
   else if(a==='gmMostMissed'){const st=gmStore();const ids=Object.entries(st.miss).filter(([id])=>S.notes.has(id)).sort((a,b)=>b[1]-a[1]).slice(0,8).map(x=>x[0]);practiceNotes(ids)}
+  else if(a==='newsOk'||a==='newsTry'){S.settings.seenNews=NEWS;saveMeta();if(a==='newsTry'){pickOpen();pickMode='games';render()}else render()}
+  else if(a==='audPick')audPickOpen();
+  else if(a==='apPlay'){const o=S.notes.get(el.dataset.id);if(o&&o.audioKey){get('audio',o.audioKey).then(b=>{if(b){try{player.src=URL.createObjectURL(b);player.play().catch(()=>{})}catch(e){}}})}}
+  else if(a==='apUse'||a==='apSwap')audPickChoose(el.dataset.id,a==='apSwap');
   else if(a==='statsShow'){statsPeek=!statsPeek;render()}
   else if(a==='statsToggle'){S.settings.stats=S.settings.stats===false?true:false;saveMeta();render();if(statsOn())sendStats()}
   else if(a==='consentOk'){consentOk=true;openNamed(DBP).then(d=>{const t=d.transaction(['meta'],'readwrite');t.objectStore('meta').put(Date.now(),'consent')}).catch(()=>{});render();sendStats()}
@@ -2895,6 +2935,7 @@ app.addEventListener('click',e=>{
 const pickFilter=v=>{const t=v.trim().toLowerCase();document.querySelectorAll('.pick.compact label').forEach(l=>{l.style.display=!t||l.dataset.name.includes(t)?'':'none'})};
 app.addEventListener('input',e=>{
   if(e.target.id==='pick-q'){pickFilter(e.target.value);return}
+  if(e.target.id==='ap-q'){const t=normFind(e.target.value);document.querySelectorAll('.aprow').forEach(r=>{r.style.display=!t||r.dataset.name.includes(t)?'':'none'});return}
   if(e.target.id==='deck-q'){deckQ=e.target.value;const w=document.getElementById('deck-words');if(w)w.innerHTML=deckRows(deckNotes(deckId));return}
   if(e.target.id==='find-q'){findQ=e.target.value;const r=document.getElementById('find-res');if(r)r.innerHTML=findResults();return}
   if(e.target.id==='deck-search'){const q=e.target.value.trim().toLowerCase();let any=false;
@@ -2912,7 +2953,7 @@ app.addEventListener('change',async e=>{
     const keep=['e-word','e-lat','e-mean','e-ex','e-exen'].map(i=>[i,(document.getElementById(i)||{}).value]);const keepT=[...document.querySelectorAll('input[name=e-tags],input[name=e-topics]')].map(x=>[x.name,x.value,x.checked]);
     const type=f.type||(/\.m4a$/i.test(f.name)?'audio/mp4':/\.mp3$/i.test(f.name)?'audio/mpeg':/\.wav$/i.test(f.name)?'audio/wav':'');
     const blob=new Blob([await f.arrayBuffer()],{type});
-    if(!(await testAudio(blob))){status={err:true,msg:'This phone can’t play that file. Try an .m4a or .mp3 recording.'}}else{editAudio=blob;status=null}
+    if(!(await testAudio(blob))){status={err:true,msg:'This phone can’t play that file. Try an .m4a or .mp3 recording.'}}else{editAudio=blob;editSwap=null;editAudioMsg='';status=null}
     render();keep.forEach(([i,v])=>{const el=document.getElementById(i);if(el&&v!=null)el.value=v});keepT.forEach(([nm,k,c])=>{const el=document.querySelector(`input[name=${nm}][value=${k}]`);if(el)el.checked=c});return}
   if(e.target.name==='e-topics'&&e.target.checked){const on=[...document.querySelectorAll('input[name=e-topics]:checked')];if(on.length>2)on.filter(x=>x!==e.target)[0].checked=false}
   const ds=e.target.dataset||{};
