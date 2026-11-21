@@ -222,6 +222,17 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 .ex mark.t,.findex mark.t{background:none;color:var(--target);font-weight:700}
 .mean{font-size:26px;font-weight:700;margin:0;line-height:1.3}
 .gmlist{display:flex;flex-direction:column;gap:8px;margin:6px 0 10px}
+.gmbtn{padding:10px 12px!important}.gmbtn .gmic{font-size:24px}
+.fpbig{display:flex;flex-direction:column;gap:12px;margin:8px 0 14px}
+.fpopt{display:flex;gap:14px;align-items:center;text-align:left;padding:18px 16px;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:19px;cursor:pointer}
+.fpopt b{display:block}.fpem{font-size:36px}
+.pick.compact{gap:0;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface);margin-top:8px}
+.pick.compact label{grid-template-columns:24px 30px 1fr auto;border:0;border-radius:0;border-bottom:1px solid var(--line);padding:8px 12px;gap:10px;background:none}
+.pick.compact label:last-child{border-bottom:0}
+.pick.compact .ic{width:30px;height:30px;border-radius:8px;font-size:16px}
+.pick.compact .meta{font-variant-numeric:tabular-nums}
+.pkdecks{margin:6px 2px 0}.pkn{font-weight:400;opacity:.75;margin-left:2px}.pkmore{margin:12px 0 4px}
+.pksum{font-weight:700;margin:14px 2px 8px;color:var(--muted)}
 .gmbtn{display:flex;gap:12px;align-items:center;text-align:left;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;cursor:pointer}
 .gmbtn:disabled{opacity:.55;cursor:default}
 .gmic{font-size:28px;flex:none}.gmtxt{display:flex;flex-direction:column;gap:2px}.gmbest{font-size:13px;font-weight:700;color:var(--gold)}
@@ -490,7 +501,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=14, APP_VERSION=71;
+const INSTR=14, APP_VERSION=72;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -2328,23 +2339,50 @@ function deletePage(){
       <button class="btn solid-danger" id="del-go" data-act="delete" data-id="${esc(d.id)}" disabled>Delete deck</button>
       <button class="btn" data-act="deck" data-id="${esc(d.id)}">Keep it</button></div></div>`;
 }
-function pickCount(){
-  const ids=pickAll?new Set(S.decks.map(d=>d.id)):(pickSel||new Set());
-  return S.cards.filter(c=>{const n=S.notes.get(c.noteId);return n&&ids.has(n.deckId)&&(!pickTypes.size||tagsOf(n).some(t=>pickTypes.has(t)))}).length;
-}
+/* ---------- v72: Focus practice in steps ----------
+   Step 1: Flashcards or Games. Step 2: decks (All / Last time / Choose) and which words (by stage).
+   Step 3: start. The last choice is remembered. */
+let pickMode=null,pickDeckMode='all',pickStages=new Set(['started','growing']),pickMore=false;
+const pickLast=()=>{const l=S.settings.pickLast;if(!l)return null;const d=(l.decks||[]).filter(id=>S.decks.some(x=>x.id===id));return d.length?{...l,decks:d}:null};
+function pickDeckIds(){if(pickDeckMode==='all')return new Set(S.decks.map(d=>d.id));if(pickDeckMode==='last'){const l=pickLast();return new Set(l?l.decks:[])}return pickSel||new Set()}
+function pickBase(){const ids=pickDeckIds(),by=cardsByNote(),out=[];
+  for(const n of S.notes.values()){if(!ids.has(n.deckId))continue;if(pickTypes.size&&!tagsOf(n).some(t=>pickTypes.has(t)))continue;out.push([n,stageOf(by.get(n.id))||'new'])}return out}
+function pickNoteList(forGames){return pickBase().filter(([n,st])=>pickStages.has(st)&&!(forGames&&st==='new')).map(x=>x[0])}
+const recentDecks=()=>{const u=S.settings.deckUsed||{};return S.decks.slice().sort((a,b)=>(u[b.id]||b.importedAt||0)-(u[a.id]||a.importedAt||0))};
+function pickRemember(){const ids=[...pickDeckIds()];S.settings.pickLast={decks:ids,stages:[...pickStages]};const u=S.settings.deckUsed||(S.settings.deckUsed={});ids.forEach(id=>u[id]=Date.now());saveMeta()}
+function pickOpen(){pickMode=null;pickTypes=new Set();pickMore=false;pickSel=null;const l=pickLast();pickDeckMode=l?'last':'all';pickStages=new Set(l&&l.stages&&l.stages.length?l.stages:['started','growing']);go('pick')}
 function pickPage(){
-  const ds=sortedDecks();
-  if(!pickSel)pickSel=new Set(ds.slice(0,1).map(d=>d.id));
+  const top=(back,label)=>`<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="${back}">‹ ${label}</button></div>`;
+  if(!pickMode)return top('home','Home')+`<div class="dhead"><span class="ic" aria-hidden="true">🎯</span><div><h1>Focus practice</h1><p>Doesn’t change your reviews.</p></div></div>
+    <div class="fpbig"><button class="fpopt" data-act="pmode" data-m="cards"><span class="fpem" aria-hidden="true">🃏</span><span><b>Flashcards</b><span class="fine">Your cards, in any order</span></span></button>
+    <button class="fpopt" data-act="pmode" data-m="games"><span class="fpem" aria-hidden="true">🎮</span><span><b>Games</b><span class="fine">Match · Listen · Speed · Build</span></span></button></div>
+    <button class="linkbtn" data-act="gmRecords">🏆 Game records</button></div>`;
+  const games=pickMode==='games',last=pickLast(),ST=stageSet();
+  if(pickDeckMode==='last'&&!last)pickDeckMode='all';
+  if(pickDeckMode==='choose'&&!pickSel)pickSel=new Set(last?last.decks:[]);
+  const nameOf=id=>(S.decks.find(d=>d.id===id)||{}).name||'';
+  const lastNames=last?last.decks.map(nameOf):[];
+  let h=top('pmodeBack','Focus practice')+`<div class="dhead"><span class="ic" aria-hidden="true">${games?'🎮':'🃏'}</span><div><h1>${games?'Games':'Flashcards'}</h1><p>Pick your words</p></div></div>
+    <p class="subhead">Decks</p><div class="types">
+      <button data-act="pdecks" data-m="all" aria-pressed="${pickDeckMode==='all'}">📚 All decks</button>
+      ${last?`<button data-act="pdecks" data-m="last" aria-pressed="${pickDeckMode==='last'}">↩︎ Last time</button>`:''}
+      <button data-act="pdecks" data-m="choose" aria-pressed="${pickDeckMode==='choose'}">☑️ Choose decks…</button></div>`;
+  if(pickDeckMode==='last')h+=`<p class="fine pkdecks">${esc(lastNames.slice(0,3).join(' · '))}${lastNames.length>3?` + ${lastNames.length-3} more`:''}</p>`;
+  if(pickDeckMode==='choose'){const ds=recentDecks();
+    h+=(ds.length>8?`<input class="search" id="pick-q" type="search" placeholder="Search decks" autocomplete="off" aria-label="Search decks">`:'')+
+      `<div class="pick compact">${ds.map(d=>`<label data-name="${esc(d.name.toLowerCase())}"><input type="checkbox" data-pick="${esc(d.id)}" ${pickSel.has(d.id)?'checked':''}><span class="ic" aria-hidden="true">${esc(deckIcon(d.id))}</span><span class="name">${esc(d.name)}</span><span class="meta">${deckNotes(d.id).length}</span></label>`).join('')}</div>`}
+  const base=pickBase(),cnt=k=>base.filter(x=>x[1]===k).length;
+  const stg=[...(games?[]:[['new','✨','new']]),...['started','growing','well'].map(k=>[k,ST[k][0],ST[k][1]])];
+  h+=`<p class="subhead">Which words</p><div class="types">${stg.map(([k,em,l])=>`<button data-act="pstage" data-k="${k}" aria-pressed="${pickStages.has(k)}">${em} ${esc(l[0].toUpperCase()+l.slice(1))} <span class="pkn">${cnt(k)}</span></button>`).join('')}</div>`;
   const used=Object.keys(TAGS).filter(k=>[...S.notes.values()].some(n=>tagsOf(n).includes(k)));
-  const n=pickCount();
-  return `<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
-    <div class="dhead"><span class="ic" aria-hidden="true">🎯</span><div><h1>Focus practice</h1><p>Doesn’t change your reviews.</p></div></div>
-    <p class="subhead">Decks</p>
-    <div class="pick"><label class="all"><input type="checkbox" data-pickall ${pickAll?'checked':''}><span class="name">📚 All decks</span></label>`+
-    (pickAll?'':ds.map(d=>`<label><input type="checkbox" data-pick="${esc(d.id)}" ${pickSel.has(d.id)?'checked':''}><span class="ic" aria-hidden="true">${esc(deckIcon(d.id))}</span><span><span class="name">${esc(d.name)}</span><br><span class="meta">${plural(deckNotes(d.id).length,'word')}</span></span></label>`).join(''))+`</div>`+
-    (used.length?`<p class="subhead">Only these types <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></p><div class="types">`+used.map(k=>`<button data-act="ptype" data-t="${k}" aria-pressed="${pickTypes.has(k)}">${TAGS[k][0]} ${TAGS[k][1]}</button>`).join('')+`</div>`:'')+
-    `<button class="btn primary focus" data-act="practiceSel" ${n?'':'disabled'}>${n?`🎯 Start practice · ${plural(n,'card')}`:(pickAll||(pickSel&&pickSel.size))?'No cards match these types':'Pick a deck above'}</button>${gamesBox()}</div>`;
-}
+  if(used.length)h+=`<button class="linkbtn pkmore" data-act="pmore" aria-expanded="${pickMore}">${pickMore?'▾':'▸'} More options${pickTypes.size?` · ${pickTypes.size} type${pickTypes.size>1?'s':''}`:''}</button>`+
+    (pickMore?`<p class="fine" style="margin:4px 0">Only these types</p><div class="types">`+used.map(k=>`<button data-act="ptype" data-t="${k}" aria-pressed="${pickTypes.has(k)}">${TAGS[k][0]} ${TAGS[k][1]}</button>`).join('')+`</div>`:'');
+  const ns=pickNoteList(games),dn=pickDeckIds().size;
+  h+=`<p class="pksum">${dn?`${plural(ns.length,'word')} · ${plural(dn,'deck')}`:'Pick a deck above'}</p>`;
+  if(!games){const nc=S.cards.filter(c=>ns.some(n=>n.id===c.noteId)).length;
+    h+=`<button class="btn primary focus" data-act="pstart" ${ns.length?'':'disabled'}>${ns.length?`🃏 Start · ${plural(nc,'card')}`:dn?'No words match':'Pick a deck above'}</button>`}
+  else h+=gamesBox();
+  return h+`</div>`}
 function updatePage(){
   return `<div class="page upd"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
     <div class="dhead"><span class="ic" aria-hidden="true">📋</span><div><h1>Update your Claude instructions</h1><p>1 minute</p></div></div>
@@ -2474,12 +2512,9 @@ const gmToks=t=>gmClean(t).split(/\s+/).filter(x=>x&&!/^[\\\/،,|·—–-]+$/.t
 const isForms=n=>/[\\\/]|،|,/.test(n.word);
 const isShort=n=>gmToks(n.word).length<=3&&nWords(n.meaning)<=4;
 const gmPool=()=>{
-  const ids=pickAll?new Set(S.decks.map(d=>d.id)):(pickSel||new Set()),by=cardsByNote();
   const seenW=new Set(),seenM=new Set(),out=[];
-  for(const n of S.notes.values()){
-    if(!ids.has(n.deckId)||n.hidden||!n.word||!n.meaning)continue;
-    if(pickTypes.size&&!tagsOf(n).some(t=>pickTypes.has(t)))continue;
-    if(!stageOf(by.get(n.id)))continue;
+  for(const n of pickNoteList(true)){
+    if(n.hidden||!n.word||!n.meaning)continue;
     const w=gmClean(n.word),m=gmClean(n.meaning).toLowerCase();if(seenW.has(w)||seenM.has(m))continue;seenW.add(w);seenM.add(m);out.push(n)}
   return out};
 /* sentences to build: long cards, plus example sentences of word cards */
@@ -2492,22 +2527,21 @@ function gmAvail(pool){
   const sh=pool.filter(isShort),lo=pool.filter(n=>!isShort(n)),au=pool.filter(n=>n.audioKey);
   const auSh=au.filter(isShort).length,auLo=au.length-auSh,sen=gmSentences(pool).length;
   return {
-    match:sh.length>=5?{n:sh.length,u:'short word'}:{why:'Needs 5 short words you’ve started.'},
-    listen:(auSh>=4||auLo>=4)?{n:au.length,u:'word'}:{why:'Needs 4 started words with voice notes.'},
-    speed:(sh.length>=4||lo.length>=4)?{n:pool.length,u:'word'}:{why:'Needs 4 words you’ve started.'},
-    build:sen>=1?{n:sen,u:'sentence'}:{why:'Needs sentences or example sentences you’ve started.'}}}
-const gmKey=()=>[...(pickAll?['all']:[...(pickSel||[])].sort()),...[...pickTypes].sort()].join('|');
+    match:sh.length>=5?{n:sh.length,u:'short word'}:{why:'Needs 5 short words.'},
+    listen:(auSh>=4||auLo>=4)?{n:au.length,u:'word'}:{why:'Needs 4 words with voice notes.'},
+    speed:(sh.length>=4||lo.length>=4)?{n:pool.length,u:'word'}:{why:'Needs 4 words.'},
+    build:sen>=1?{n:sen,u:'sentence'}:{why:'Needs sentences or example sentences.'}}}
+const gmKey=()=>[...[...pickDeckIds()].sort(),...[...pickTypes].sort(),...[...pickStages].filter(x=>x!=='new').sort()].join('|');
 const gmStore=()=>{const g=S.settings.games||(S.settings.games={best:{},plays:[],miss:{}});g.best=g.best||{};g.plays=g.plays||[];g.miss=g.miss||{};return g};
 const gmBest=(game,key)=>gmStore().best[game+'#'+key];
 const fmtTime=ms=>{const s=Math.round(ms/100)/10;return s<60?s.toFixed(1)+' s':Math.floor(s/60)+':'+String(Math.round(s%60)).padStart(2,'0')};
 const gmBestText=(game,b)=>b==null?'':game==='match'?'Best '+fmtTime(b):game==='build'?'Best '+b.c+'/'+b.of+' in '+fmtTime(b.t):game==='listen'?'Best '+b.c+'/'+b.of:'Best '+b;
 function gamesBox(){
   const pool=gmPool(),av=gmAvail(pool),key=gmKey();
-  if(!(pickAll||(pickSel&&pickSel.size)))return '';
-  return `<p class="subhead">🎮 Games <span style="text-transform:none;letter-spacing:0;font-weight:400">(words you’ve started)</span></p><div class="gmlist">`+
+  if(!pickDeckIds().size)return '';
+  return `<div class="gmlist">`+
     GAMES.map(([id,em,name,what])=>{const a=av[id],b=gmBest(id==='match'?'match-read':id,key);
-      return `<button class="gmbtn" data-act="gmStart" data-g="${id}" ${a.n?'':'disabled'}><span class="gmic" aria-hidden="true">${em}</span><span class="gmtxt"><b>${name}</b><span class="fine">${a.n?`${esc(what)} · ${plural(a.n,a.u)}`:esc(a.why)}</span>${a.n&&b!=null?`<span class="gmbest">🏆 ${esc(gmBestText(id,b))}</span>`:''}</span></button>`}).join('')+
-    `</div><button class="linkbtn" data-act="gmRecords">🏆 Your game records</button>`}
+      return `<button class="gmbtn" data-act="gmStart" data-g="${id}" ${a.n?'':'disabled'}><span class="gmic" aria-hidden="true">${em}</span><span class="gmtxt"><b>${name}</b><span class="fine">${a.n?plural(a.n,a.u):esc(a.why)}${a.n&&b!=null?` · <span class="gmbest">🏆 ${esc(gmBestText(id,b).replace(/^Best /,''))}</span>`:''}</span></span></button>`}).join('')+`</div>`}
 let gm=null, gmTimer=null;
 const pick4=(arr,n)=>shuffle(arr.slice()).slice(0,n);
 async function gmUrls(notes){const urls=new Map();for(const n of notes){if(n.audioKey&&!urls.has(n.id)){try{const b=await get('audio',n.audioKey);if(b)urls.set(n.id,URL.createObjectURL(b))}catch(e){}}}return urls}
@@ -2686,8 +2720,13 @@ app.addEventListener('click',e=>{
   const el=e.target.closest('[data-act]');if(!el||el.disabled)return;clickEl=el;const a=el.dataset.act,id=el.dataset.id;
   if(a==='study')startSession();
   else if(a==='learnMore'){S.newDone.extra=(S.newDone.extra||0)+10;saveMeta();if(sess)sess.urls.forEach(u=>URL.revokeObjectURL(u));startSession()}
-  else if(a==='pick'){pickSel=null;pickAll=false;pickTypes=new Set();go('pick')}
-  else if(a==='practiceSel'){const ids=pickAll?S.decks.map(d=>d.id):[...(pickSel||[])];if(ids.length&&pickCount())startPractice(ids,[...pickTypes])}
+  else if(a==='pick')pickOpen();
+  else if(a==='pmode'){pickMode=el.dataset.m||null;render();window.scrollTo(0,0)}
+  else if(a==='pmodeBack'){pickMode=null;render();window.scrollTo(0,0)}
+  else if(a==='pdecks'){pickDeckMode=el.dataset.m;if(pickDeckMode==='choose'&&!pickSel){const l=pickLast();pickSel=new Set(l?l.decks:[])}render()}
+  else if(a==='pstage'){const k=el.dataset.k;pickStages.has(k)?pickStages.delete(k):pickStages.add(k);render()}
+  else if(a==='pmore'){pickMore=!pickMore;render()}
+  else if(a==='pstart'){const ns=pickNoteList(false);if(ns.length){pickRemember();practiceNotes(ns.map(n=>n.id))}}
   else if(a==='ptype'){const t=el.dataset.t;pickTypes.has(t)?pickTypes.delete(t):pickTypes.add(t);render()}
   else if(a==='practiceDeck')startPractice([id]);
   else if(a==='practiceAgain'){if(sess.noteIds)practiceNotes(sess.noteIds);else startPractice(sess.deckIds||[],sess.types||[])}
@@ -2713,7 +2752,7 @@ app.addEventListener('click',e=>{
   else if(a==='reveal'){if(!sess.shown){sess.shown=true;render();autoplay()}}
   else if(a==='editPicDel'){const n=S.notes.get(editId);if(n){if(editPic&&editPic!=='del'){clearEditPic();if(!n.picKey){const bx=document.getElementById('e-picbox');if(bx)bx.innerHTML=picBox(n);return}}editPic='del';const bx=document.getElementById('e-picbox');if(bx)bx.innerHTML=picBox(n)}}
   else if(a==='meaningAs'){const was=picsOn();S.settings.meaning=el.dataset.v;saveMeta();render();if(was!==picsOn()&&usesClaude()&&!isKid())toast('📋 Copy the Claude instructions again so Claude '+(picsOn()?'makes':'stops making')+' pictures.',3500)}
-  else if(a==='gmStart')gmStart(el.dataset.g);
+  else if(a==='gmStart'){if(view==='pick')pickRemember();gmStart(el.dataset.g)}
   else if(a==='gmQuit')gmQuit();
   else if(a==='gmMode'){if(gm&&gm.game==='match'&&gm.mode!==el.dataset.m){gm.mode=el.dataset.m;gmStart('match')}}
   else if(a==='gmMatch')gmMatchTap(el.dataset.s,+el.dataset.k);
@@ -2853,7 +2892,9 @@ app.addEventListener('click',e=>{
   else if(a==='removeProfile')removeProfile();
   else if(a==='saveBackup')saveBackup();
 });
+const pickFilter=v=>{const t=v.trim().toLowerCase();document.querySelectorAll('.pick.compact label').forEach(l=>{l.style.display=!t||l.dataset.name.includes(t)?'':'none'})};
 app.addEventListener('input',e=>{
+  if(e.target.id==='pick-q'){pickFilter(e.target.value);return}
   if(e.target.id==='deck-q'){deckQ=e.target.value;const w=document.getElementById('deck-words');if(w)w.innerHTML=deckRows(deckNotes(deckId));return}
   if(e.target.id==='find-q'){findQ=e.target.value;const r=document.getElementById('find-res');if(r)r.innerHTML=findResults();return}
   if(e.target.id==='deck-search'){const q=e.target.value.trim().toLowerCase();let any=false;
@@ -2875,10 +2916,9 @@ app.addEventListener('change',async e=>{
     render();keep.forEach(([i,v])=>{const el=document.getElementById(i);if(el&&v!=null)el.value=v});keepT.forEach(([nm,k,c])=>{const el=document.querySelector(`input[name=${nm}][value=${k}]`);if(el)el.checked=c});return}
   if(e.target.name==='e-topics'&&e.target.checked){const on=[...document.querySelectorAll('input[name=e-topics]:checked')];if(on.length>2)on.filter(x=>x!==e.target)[0].checked=false}
   const ds=e.target.dataset||{};
-  if('pickall' in ds){pickAll=e.target.checked;render();return}
   if(ds.comb){const nm=document.getElementById('combine-name');const keep=nm?nm.value:null;e.target.checked?combineSel.add(ds.comb):combineSel.delete(ds.comb);render();const n2=document.getElementById('combine-name');if(n2&&keep!==null)n2.value=keep;return}
   if(!ds.pick)return;
-  if(!pickSel)pickSel=new Set();e.target.checked?pickSel.add(ds.pick):pickSel.delete(ds.pick);render();
+  if(!pickSel)pickSel=new Set();e.target.checked?pickSel.add(ds.pick):pickSel.delete(ds.pick);const y=window.scrollY,q=document.getElementById('pick-q'),qv=q?q.value:'';render();window.scrollTo(0,y);const q2=document.getElementById('pick-q');if(q2&&qv){q2.value=qv;pickFilter(qv)}
 });
 document.addEventListener('keydown',e=>{
   if(e.target&&(e.target.id==='find-q'||e.target.id==='deck-q')&&e.key==='Enter'){e.target.blur();return}
