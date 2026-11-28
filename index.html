@@ -232,6 +232,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 .recbtn.on{background:var(--again);border-color:var(--again);color:#fff;animation:recpulse 1.2s infinite}
 @keyframes recpulse{50%{opacity:.75}}
 .playing{background:var(--accent-soft)!important;border-color:var(--accent)!important;color:var(--accent)!important;animation:recpulse 1.2s infinite}
+.btn.danger,.linkbtn.danger{color:var(--again)}.btn.danger{border-color:var(--again)}
 .recrow{display:flex;gap:8px}.recrow .btn{flex:1;margin:0}
 .ibxrow{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}.ibxrow:last-child{border-bottom:0}
 .ibxrow input[type=checkbox]{width:22px;height:22px;flex:none}
@@ -2637,7 +2638,7 @@ function addPage(){
     <div id="rec-box" class="recbox">${recHtml('')}</div>
     <button class="btn primary focus" data-act="addSave">${addEdit?'✓ Save changes':'✓ Save'}</button>
     ${!addEdit&&rows.length?`<p class="subhead">Just added · ${rows.length}</p><div class="sec">${rows.map(x=>`<div class="ibxrow"><button class="ibxtxt" data-act="addFix" data-id="${x.id}"><span class="ibxw" dir="auto">${esc(x.word)}</span><span class="fine">${esc(x.meaning)}</span></button><span class="ibxst" aria-label="${x.audio?'Has audio':'Needs audio'}">${x.audio?'🔊':'🎤'}</span><button class="btn small" data-act="addDel" data-id="${x.id}">${addDel===x.id?'Delete?':'✕'}</button></div>`).join('')}</div>`:''}
-    ${addEdit?'':`<p class="fine">Saved phrases wait in your 📥 Inbox until you move them to a deck.</p>`}</div>`}
+    ${addEdit?`<button class="linkbtn danger" data-act="addDelThis" style="margin-top:14px">${addDel===addEdit?'Delete this phrase? Tap again':'🗑 Delete this phrase'}</button>`:`<p class="fine">Saved phrases wait in your 📥 Inbox until you move them to a deck.</p>`}</div>`}
 async function addSave(){
   const v=id=>((document.getElementById(id)||{}).value||'').trim();
   const word=v('ad-w'),meaning=v('ad-e'),note=v('ad-n');
@@ -2656,7 +2657,7 @@ async function addFix(id){const it=S.inbox.find(x=>x.id===id);if(!it)return;recR
   render();window.scrollTo(0,0)}
 async function ibxDelete(id){S.inbox=S.inbox.filter(x=>x.id!==id);addAdded=addAdded.filter(x=>x!==id);try{await write(['audio'],t=>t.objectStore('audio').delete(ibxKey(id)))}catch(e){}await saveInbox()}
 /* --- inbox page --- */
-let ibxSel=new Set(), ibxNewDeck=false, ibxDeck=null;
+let ibxSel=new Set(), ibxNewDeck=false, ibxDeck=null, ibxDelAsk=false;
 function inboxPage(){
   const need=ibxNeed().length,all=S.inbox.slice().sort((a,b)=>b.at-a.at),tgt=ibxDeck||S.settings.inboxTarget;
   const decks=S.decks.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
@@ -2672,6 +2673,7 @@ function inboxPage(){
     <select id="ibx-deck" class="search">${decks.map(d=>`<option value="${esc(d.id)}" ${d.id===tgt?'selected':''}>${esc(d.name)}</option>`).join('')}<option value="__new" ${!decks.length||ibxNewDeck?'selected':''}>➕ New deck…</option></select>
     ${ibxNewDeck||!decks.length?`<input class="search" id="ibx-new" maxlength="60" placeholder="New deck name" autocomplete="off">`:''}
     <button class="btn primary" data-act="ibxMove" ${n?'':'disabled'}>Move ${n?plural(n,'phrase'):''}</button>
+    ${n?`<button class="btn ${ibxDelAsk?'danger':''}" data-act="ibxDel">${ibxDelAsk?`Delete ${plural(n,'phrase')}? Tap again`:`🗑 Delete ${plural(n,'phrase')}`}</button>`:''}
     ${need&&[...ibxSel].some(id=>{const x=S.inbox.find(y=>y.id===id);return x&&!x.audio})?`<p class="fine">Phrases without audio come up as Read it and Say it cards. Hear it cards are added if you record audio later.</p>`:''}</div></div>`;
   return h}
 async function ibxMove(){
@@ -3025,11 +3027,13 @@ app.addEventListener('click',e=>{
   else if(a==='recPlay')recPlay(el);
   else if(a==='recAgain'){recSet(null);recGo()}
   else if(a==='recDrop'){recSet(null);recPaint()}
-  else if(a==='inbox'){ibxSel=new Set();ibxNewDeck=false;ibxDeck=null;status=null;go('inbox')}
+  else if(a==='inbox'){ibxSel=new Set();ibxNewDeck=false;ibxDeck=null;ibxDelAsk=false;status=null;go('inbox')}
   else if(a==='ibxFix'){addFrom='inbox';addAdded=[];addFix(el.dataset.id).then(()=>{view='add';render()})}
   else if(a==='ibxPlay'){const btn=el;btn.classList.add('playing');get('audio',ibxKey(el.dataset.id)).then(b=>{btn.classList.remove('playing');if(b)playOn(btn,URL.createObjectURL(b))})}
-  else if(a==='ibxAll'){ibxSel=ibxSel.size===S.inbox.length?new Set():new Set(S.inbox.map(x=>x.id));const y=window.scrollY;render();window.scrollTo(0,y)}
-  else if(a==='ibxMove')ibxMove();
+  else if(a==='ibxAll'){ibxDelAsk=false;ibxSel=ibxSel.size===S.inbox.length?new Set():new Set(S.inbox.map(x=>x.id));const y=window.scrollY;render();window.scrollTo(0,y)}
+  else if(a==='ibxMove'){ibxDelAsk=false;ibxMove()}
+  else if(a==='ibxDel'){if(!ibxDelAsk){ibxDelAsk=true;const y=window.scrollY;render();window.scrollTo(0,y)}else{const ids=[...ibxSel];ibxDelAsk=false;Promise.all(ids.map(ibxDelete)).then(()=>{ibxSel=new Set();status={msg:`🗑 Deleted ${plural(ids.length,'phrase')}.`};render()})}}
+  else if(a==='addDelThis'){const id=addEdit;if(addDel!==id){addDel=id;const v=x=>((document.getElementById(x)||{}).value||'');const w=v('ad-w'),e=v('ad-e'),nt=v('ad-n');render();const W=document.getElementById('ad-w');if(W)W.value=w;const E=document.getElementById('ad-e');if(E)E.value=e;const N=document.getElementById('ad-n');if(N)N.value=nt}else{addDel=null;addEdit=null;recReset();ibxDelete(id).then(()=>{if(addFrom==='inbox'){view='inbox';status={msg:'🗑 Deleted.'};render()}else{addMsg='Deleted.';render()}})}}
   else if(a==='ibxRec')ibxRecOpen();
   else if(a==='ibxKeep')ibxKeep();
   else if(a==='ibxSkip'){ibxQ.push(ibxQ.shift());recReset();ibxSkips++;if(ibxSkips>=ibxQ.length)ibxQ=[];render()}
@@ -3186,7 +3190,7 @@ app.addEventListener('input',e=>{
 });
 app.addEventListener('change',async e=>{
   if(e.target.id==='ibx-deck'){ibxNewDeck=e.target.value==='__new';ibxDeck=ibxNewDeck?null:e.target.value;const y=window.scrollY;render();window.scrollTo(0,y);const n=document.getElementById('ibx-new');if(n)n.focus();return}
-  if(e.target.dataset&&e.target.dataset.ibx){const id=e.target.dataset.ibx;e.target.checked?ibxSel.add(id):ibxSel.delete(id);const y=window.scrollY;render();window.scrollTo(0,y);return}
+  if(e.target.dataset&&e.target.dataset.ibx){ibxDelAsk=false;const id=e.target.dataset.ibx;e.target.checked?ibxSel.add(id):ibxSel.delete(id);const y=window.scrollY;render();window.scrollTo(0,y);return}
   if(e.target.id==='ask-file'){const f=e.target.files&&e.target.files[0];if(f)askLoad(f);return}
   if(e.target.id==='e-pic'){const f=e.target.files&&e.target.files[0];if(!f)return;const n=S.notes.get(editId);if(!n)return;
     const box=document.getElementById('e-picbox');if(box)box.insertAdjacentHTML('beforeend','<span class="fine" id="pic-wait">Getting it ready…</span>');
