@@ -221,6 +221,24 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 .ex{font-family:var(--f-ar);font-size:24px;line-height:1.8;margin:0;max-width:30ch}
 .ex mark.t,.findex mark.t{background:none;color:var(--target);font-weight:700}
 .mean{font-size:26px;font-weight:700;margin:0;line-height:1.3}
+.addbtn{width:100%;font-size:19px;padding:14px;margin:6px 0 8px;border:2px dashed var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:700}
+.ibxline{display:flex;justify-content:space-between;align-items:center;width:100%;padding:12px 14px;margin:0 0 10px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:700;cursor:pointer}
+.addh{margin:4px 0 10px}.addlbl{display:block;font-weight:700;margin:12px 0 4px;font-size:16px}
+.addbox{width:100%;box-sizing:border-box;font:inherit;font-size:19px;padding:12px 14px;border-radius:14px;border:2px solid var(--line);background:var(--surface);color:var(--ink)}
+.addbox:focus{border-color:var(--accent);outline:none}.addar{font-family:var(--f-ar);font-size:24px}
+.addok{color:var(--grow);font-weight:700;margin:0 0 4px}
+.recbox{margin:14px 0}.recbox.big .recbtn{font-size:22px;padding:22px}
+.recbtn{width:100%;padding:16px;border-radius:999px;border:2px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:19px;font-weight:700;cursor:pointer}
+.recbtn.on{background:var(--again);border-color:var(--again);color:#fff;animation:recpulse 1.2s infinite}
+@keyframes recpulse{50%{opacity:.75}}
+.recrow{display:flex;gap:8px}.recrow .btn{flex:1;margin:0}
+.ibxrow{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}.ibxrow:last-child{border-bottom:0}
+.ibxrow input[type=checkbox]{width:22px;height:22px;flex:none}
+.ibxtxt{flex:1;display:flex;flex-direction:column;text-align:left;background:none;border:0;padding:0;color:var(--ink);font:inherit;cursor:pointer;min-width:0}
+.ibxw{font-family:var(--f-ar);font-size:21px;font-weight:700;line-height:1.4}.ibxst{font-size:18px;opacity:.7}
+.ibxmove{margin:14px 0;display:flex;flex-direction:column;gap:8px}
+.recq{text-align:center;padding:22px 14px}.recw{font-family:var(--f-ar);font-size:34px;font-weight:700;line-height:1.5}
+.cnote{font-size:15px;color:var(--muted);margin:8px 0 0}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
 .modalbox{background:var(--bg);border-radius:20px;padding:22px 18px;max-width:400px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.3)}
 .modalbox .btn{width:100%;margin-top:8px}.newsem{font-size:48px;margin:0}.beta{font-size:12px;vertical-align:middle;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:2px 8px;text-transform:uppercase;letter-spacing:.05em}
@@ -507,7 +525,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 <script>
 (function(){
 const STANDALONE=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-const INSTR=14, APP_VERSION=73;
+const INSTR=14, APP_VERSION=74;
 /* A card can have several tags; n.tag keeps the first one for older code and older Kelma versions. */
 const parseTags=c=>{let t=Array.isArray(c.tags)?c.tags:String(c.tags||c.tag||'').split(/[,/+;\s]+/);t=t.map(x=>String(x).toLowerCase().trim()).filter(x=>TAGS[x]);return [...new Set(t)]};
 /* Automatic tags: only what a pattern makes certain. Everything else stays blank for the person or Claude. */
@@ -571,7 +589,7 @@ async function getAll(s){const d=await openDB();return reqP(d.transaction(s).obj
 async function get(s,k){const d=await openDB();return reqP(d.transaction(s).objectStore(s).get(k))}
 async function write(stores,fn){const d=await openDB();return new Promise((res,rej)=>{const t=d.transaction(stores,'readwrite');fn(t);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)})}
 
-const S={decks:[],notes:new Map(),cards:[],settings:{newPerDay:15},newDone:{day:'',count:0},ok:true,pending:null,log:{},instrVer:null,instrAck:0,instrText:'',lastBackup:0};
+const S={inbox:[],decks:[],notes:new Map(),cards:[],settings:{newPerDay:15},newDone:{day:'',count:0},ok:true,pending:null,log:{},instrVer:null,instrAck:0,instrText:'',lastBackup:0};
 let statsPeek=false, consentOk=true, editPic=null, editPicUrl=null, editFrom='deck', weekImg=null, weekBlob=null, editId=null, editAudio=null, editDel=false, combineSel=new Set(), stageTip='', status=null, view='home', sess=null, deckId=null, pickSel=null, pickAll=false, pickTypes=new Set(), renaming=false;
 
 async function load(){
@@ -584,6 +602,7 @@ async function load(){
    if(add.length){try{await write(['cards'],t=>{const st=t.objectStore('cards');add.forEach(c=>st.put(c))});S.allCards.push(...add)}catch(e){}}}
   S.cards=S.allCards.filter(c=>{const n=S.notes.get(c.noteId);return !(n&&n.hidden)});
   S.settings=(await get('meta','settings'))||{newPerDay:15};
+  try{S.inbox=(await get('meta','inbox'))||[]}catch(e){S.inbox=[]}
   /* v46: cards from before topics existed get Kelma's guess once, from the English. The rest wait for Tag cards. */
   if(!S.settings.topicsGuessed){const up=[];S.notes.forEach(n=>{if(!topicsOf(n).length){const tp=autoTopics(n);if(tp.length){n.topics=tp;up.push(n)}}});
     try{if(up.length)await write(['notes'],t=>{const st=t.objectStore('notes');up.forEach(n=>st.put(n))});S.settings.topicsGuessed=true;await write(['meta'],t=>t.objectStore('meta').put(S.settings,'settings'))}catch(e){}}
@@ -668,7 +687,9 @@ const saveCard=c=>write(['cards'],t=>t.objectStore('cards').put(c)).catch(()=>{s
 const isDue=c=>(c.state==='review'||c.state==='learning')&&c.due<today0()+DAY;
 const BACKLOG=100;
 const backlogged=()=>!isKid()&&S.cards.filter(isDue).length>BACKLOG;
-const newLeft=()=>backlogged()?0:Math.max(0,S.settings.newPerDay+(S.newDone.extra||0)-S.newDone.count);
+/* v74: behind on reviews → new words slow to a third (at least 3), they don't stop */
+const newCap=()=>{const base=S.settings.newPerDay+(S.newDone.extra||0);return backlogged()?Math.min(base,Math.max(3,Math.ceil(base/3))):base};
+const newLeft=()=>Math.max(0,newCap()-S.newDone.count);
 /* Kid profiles: a hard cap on cards answered per day (reviews + new). Overdue cards just wait for another day. */
 const capLeft=()=>Math.max(0,(S.settings.cap||15)+(S.newDone.capExtra||0)-(S.newDone.done||0));
 function nextIv(c,g){
@@ -766,7 +787,7 @@ async function importFile(file){
     {const _pt=parseTags(c);if(!_pt.length){const _at=autoTags({word:c.word,meaning:c.meaning});if(_at.length){c.tags=_at}}}
     let _tp=parseTopics(c.topics);if(!_tp.length)_tp=autoTopics({meaning:c.meaning});
     const _tg=parseTags(c);if(!_tg.includes('tools')&&isTool(c.meaning))_tg.push('tools');
-    notes.push({id,deckId:deck.deck_id,order:Number(num)||i+1,num:String(num),word:c.word,...(c.latin&&String(c.latin).trim()?{latin:String(c.latin).trim()}:{}),meaning:c.meaning,example:c.example||'',example_en:c.example_en||'',tag:_tg[0]||'',tags:_tg,topics:_tp,audioKey,...(picKey?{picKey,picV}:{})});
+    notes.push({id,deckId:deck.deck_id,order:Number(num)||i+1,num:String(num),word:c.word,...(c.latin&&String(c.latin).trim()?{latin:String(c.latin).trim()}:{}),meaning:c.meaning,...(c.note&&String(c.note).trim()?{note:String(c.note).trim()}:{}),example:c.example||'',example_en:c.example_en||'',tag:_tg[0]||'',tags:_tg,topics:_tp,audioKey,...(picKey?{picKey,picV}:{})});
   }
   const noAudio=!notes.some(n=>n.audioKey)&&!deck.cards.some(c=>c.audio), starter=deck.deck_id===STARTER;
   const kinds=noAudio?['recognition','production']:TYPES;
@@ -775,7 +796,7 @@ async function importFile(file){
     if(!(n.tags||[]).length&&tagsOf(old).length){n.tags=tagsOf(old).slice();n.tag=n.tags[0]}
     if(topicsOf(old).length&&(old.topicsSet||!n.topics.length))n.topics=topicsOf(old).slice();
     if(old.topicsSet)n.topicsSet=true;
-    if(old.edited){['word','meaning','example','example_en','tag','tags','topics','audioKey'].forEach(k=>n[k]=old[k]);n.edited=true;for(let i=audio.length-1;i>=0;i--)if(audio[i][0]===n.id)audio.splice(i,1)}
+    if(old.edited){['word','meaning','example','example_en','tag','tags','topics','audioKey'].forEach(k=>n[k]=old[k]);if(old.note)n.note=old.note;else delete n.note;n.edited=true;for(let i=audio.length-1;i>=0;i--)if(audio[i][0]===n.id)audio.splice(i,1)}
     /* a picture the person added or removed themselves stays as they left it */
     if(old.edited&&(old.picKey||old.picOff)){delete n.picKey;delete n.picV;if(old.picKey){n.picKey=old.picKey;n.picV=old.picV}if(old.picOff)n.picOff=true;for(let i=pics.length-1;i>=0;i--)if(pics[i][0]===n.id+'|pic')pics.splice(i,1)}
     else if(old.picKey&&!n.picKey)picDel.push(old.picKey)}
@@ -801,6 +822,8 @@ async function restore(zip,bk){
   let data;try{data=JSON.parse(await bk.async('string'))}catch(e){status={err:true,msg:'backup.json is damaged.'};render();return}
   const audio=[];
   for(const n of data.notes||[]){if(!n.audioPath)continue;const f=zip.file(n.audioPath);if(f){const buf=await f.async('arraybuffer');audio.push([n.audioKey,await cleanBlob(buf,n.audioType||'audio/mpeg')])}}
+  const ibx=[];for(const x of data.inbox||[]){const o={...x};delete o.audioPath;delete o.audioType;if(x.audioPath){const f=zip.file(x.audioPath);if(f)audio.push([ibxKey(x.id),await cleanBlob(await f.async('arraybuffer'),x.audioType||'audio/mp4')]);else o.audio=false}ibx.push(o)}
+  if(ibx.length){const have=new Set((S.inbox||[]).map(x=>x.id));S.inbox=[...(S.inbox||[]),...ibx.filter(x=>!have.has(x.id))];await saveInbox()}
   for(const n of data.notes||[]){if(!n.picPath||!n.picKey)continue;const f=zip.file(n.picPath);if(f)audio.push([n.picKey,new Blob([await f.async('arraybuffer')],{type:n.picType||picType(n.picPath)})])}
   try{await write(['decks','notes','cards','audio','meta','revlog'],t=>{(data.revlog||[]).forEach(r=>{if(r&&r.t&&r.card)t.objectStore('revlog').put(r,r.t+'|'+r.card)});(data.decks||[]).forEach(d=>t.objectStore('decks').put(d));(data.notes||[]).forEach(n=>{const c={...n};delete c.audioPath;delete c.audioType;delete c.picPath;delete c.picType;t.objectStore('notes').put(c)});(data.cards||[]).forEach(c=>t.objectStore('cards').put(c));audio.forEach(([k,b])=>t.objectStore('audio').put(b,k));if(data.settings)t.objectStore('meta').put(data.settings,'settings');if(data.log){const m={...S.log};Object.entries(data.log).forEach(([k,v])=>{const c=m[k];m[k]={n:Math.max(c?c.n:0,v.n||0),cleared:!!((c&&c.cleared)||v.cleared)}});t.objectStore('meta').put(m,'log')}})}
   catch(e){status={err:true,msg:'Could not restore the backup on this device.'};render();return}
@@ -812,8 +835,9 @@ async function backup(){
   const zip=new JSZip(),notes=[];
   for(const n of S.notes.values()){const o={...n};if(n.audioKey){const b=await get('audio',n.audioKey);if(b){o.audioPath='audio/'+encodeURIComponent(n.audioKey).replace(/%/g,'_')+'.bin';o.audioType=b.type;zip.file(o.audioPath,b)}}
     if(n.picKey){const b=await get('audio',n.picKey);if(b){o.picPath='pictures/'+encodeURIComponent(n.picKey).replace(/%/g,'_')+'.'+picExt(b.type||'');o.picType=b.type;zip.file(o.picPath,b)}}notes.push(o)}
+  const inbox=[];for(const x of S.inbox||[]){const o={...x};if(x.audio){try{const b=await get('audio',ibxKey(x.id));if(b){o.audioPath='inbox/'+x.id+'.bin';o.audioType=b.type;zip.file(o.audioPath,b)}}catch(e){}}inbox.push(o)}
   let revlog=[];try{revlog=await getAll('revlog')}catch(e){}
-  zip.file('backup.json',JSON.stringify({format:'kelma-backup-1',exportedAt:new Date().toISOString(),decks:S.decks,notes,cards:S.allCards||S.cards,settings:S.settings,log:S.log,revlog}));
+  zip.file('backup.json',JSON.stringify({format:'kelma-backup-1',exportedAt:new Date().toISOString(),decks:S.decks,notes,cards:S.allCards||S.cards,settings:S.settings,log:S.log,revlog,inbox}));
   const blob=await zip.generateAsync({type:'blob'});
   const who=PROFILES.length>1?curProfile().name.replace(/[^\p{L}\p{N}]+/gu,'-').slice(0,20)+'-':'';
   S.pending={blob,name:'kelma-backup-'+who+dayKey()+'.zip',kind:'backup'};
@@ -823,7 +847,7 @@ async function shareDeck(id){
   if(!window.JSZip)return;const d=S.decks.find(x=>x.id===id);if(!d)return;
   status={msg:'Getting the deck ready…'};render();
   const zip=new JSZip(),cards=[];const extOf=t=>/mp4|m4a|aac/.test(t)?'m4a':/wav/.test(t)?'wav':/ogg/.test(t)?'ogg':'mp3';
-  for(const n of deckNotes(id).filter(n=>!n.hidden)){const c={num:Number(n.num)||n.order,word:n.word,...(n.latin?{latin:n.latin}:{}),meaning:n.meaning,example:n.example||'',example_en:n.example_en||'',tag:tagsOf(n)[0]||'',tags:tagsOf(n),topics:topicsOf(n)};
+  for(const n of deckNotes(id).filter(n=>!n.hidden)){const c={num:Number(n.num)||n.order,word:n.word,...(n.latin?{latin:n.latin}:{}),meaning:n.meaning,...(n.note?{note:n.note}:{}),example:n.example||'',example_en:n.example_en||'',tag:tagsOf(n)[0]||'',tags:tagsOf(n),topics:topicsOf(n)};
     if(n.audioKey){const b=await get('audio',n.audioKey);if(b){c.audio='audio/'+String(c.num).padStart(2,'0')+'.'+extOf(b.type||'');zip.file(c.audio,b)}}
     if(n.picKey){const b=await get('audio',n.picKey);if(b){c.picture='pictures/'+String(c.num).padStart(2,'0')+'.'+picExt(b.type||'');zip.file(c.picture,b)}}
     cards.push(c)}
@@ -968,7 +992,10 @@ function waBuild(msgs){
   const n={};msgs.forEach(m=>{if(m.kind==='audio')n[m.who]=(n[m.who]||0)+1});
   const helper=(Object.entries(n).sort((a,b)=>b[1]-a[1])[0]||[])[0]||null;
   const cards=[],skipped=[];
-  if(!helper)return {helper,cards,skipped,omitted:msgs.some(m=>m.kind==='omitted')};
+  if(!helper){const om=msgs.some(m=>m.kind==='omitted');if(om)return {helper,cards,skipped,omitted:true,inbox:[]};
+    /* v74: a chat with no voice notes at all: its phrases go to the Inbox */
+    const t={};msgs.forEach(m=>{if(m.kind==='text')t[m.who]=(t[m.who]||0)+1});const w=(Object.entries(t).sort((a,b)=>b[1]-a[1])[0]||[])[0];
+    return {helper:w||null,cards,skipped,omitted:false,textOnly:true,inbox:w?waPairs(msgs.filter(m=>m.who===w&&m.kind==='text').map(m=>m.text.replace(/\s*\n\s*/g,' ').trim())):[]}}
   let buf=[];
   const short=s=>{s=String(s).replace(/\s+/g,' ');return s.length>60?s.slice(0,57)+'…':s};
   for(const m of msgs){
@@ -988,7 +1015,7 @@ function waBuild(msgs){
     }
     else if(m.kind==='other')skipped.push({why:'Not a voice note (photo or file)',what:short(m.file)});
   }
-  if(buf.length)skipped.push({why:'No voice note after it',what:short(buf.join(' / '))});
+  const inbox=waPairs(buf);if(buf.length&&!inbox.length)skipped.push({why:'No voice note after it',what:short(buf.join(' / '))});
   /* duplicates: repeated inside this chat, or already in a deck on this profile */
   const have=new Map();[...S.notes.values()].forEach(x=>{const k=normAr(x.word);if(k&&!have.has(k))have.set(k,x)});
   const seen=new Set();
@@ -996,8 +1023,13 @@ function waBuild(msgs){
     if(seen.has(k)){c.rep=true;c.on=false;return}seen.add(k);
     const old=have.get(k);if(old){c.dupOf=old.id;c.dupDeck=(S.decks.find(d=>d.id===old.deckId)||{}).name||'';c.dupMeaning=old.meaning;c.act='skip';c.on=false}
     else c.on=true});
-  return {helper,cards,skipped,omitted:false};
+  return {helper,cards,skipped,omitted:false,inbox};
 }
+/* v74: typed phrases with no voice note: Darija, then its English (and an extra English line becomes the note) */
+function waPairs(texts){const script=(S.settings&&S.settings.script)||'ar',out=[];let cur=null;
+  if(script==='lat'){for(let i=0;i<texts.length;i+=2)out.push({word:texts[i],meaning:texts[i+1]||''});return out.filter(x=>x.word)}
+  for(const t of texts){if(AR_RE.test(t)){cur={word:t,meaning:''};out.push(cur)}else if(cur&&!cur.meaning)cur.meaning=t;else if(cur&&!cur.note)cur.note=t}
+  return out}
 /* v67: spot cards that probably came out in the wrong order, so they can be fixed before import */
 const nWords=t=>String(t||'').trim().split(/\s+/).filter(Boolean).length;
 function waCheck(c){
@@ -1024,12 +1056,13 @@ const audioType=name=>{const e=(name.split('.').pop()||'').toLowerCase();return 
 async function waOpen(zip,chat){
   let text;try{text=await chat.async('string')}catch(e){status={err:true,msg:'Could not read the chat inside this zip.'};render();return}
   const r=waBuild(waParse(text));
-  if(!r.helper){status={err:true,msg:r.omitted?'This chat was exported without the voice notes. In WhatsApp, export it again and choose Attach Media.':'No voice notes found in this chat. Is this the right lesson chat?'};render();return}
+  if(!r.helper||(r.textOnly&&!(r.inbox||[]).length)){status={err:true,msg:r.omitted?'This chat was exported without the voice notes. In WhatsApp, export it again and choose Attach Media.':'No voice notes found in this chat. Is this the right lesson chat?'};render();return}
   r.cards.forEach(c=>{c.f=waFile(zip,c.file);if(!c.f){c.noFile=true;c.on=false}});
   /* can this phone play WhatsApp voice notes? */
   let audioOk=null;const first=r.cards.find(c=>c.f);
   if(first){try{audioOk=await waCanPlay(await waBlob(first))}catch(e){audioOk=false}}
   const last=r.cards.length?r.cards[r.cards.length-1].date:'';
+  (r.inbox||[]).forEach(x=>x.on=true);
   waImp={zip,...r,audioOk,name:'Lesson'+(last?' · '+last:'')};waEdit=-1;
   status=null;view='waprev';render();window.scrollTo(0,0);
 }
@@ -1046,7 +1079,7 @@ function waPage(){
   const row=(c,body)=>waEdit===cs.indexOf(c)?waEditForm(c,waEdit):`<div class="warow">${body}<button class="btn small" data-act="waEdit" data-i="${cs.indexOf(c)}" aria-label="Edit">✏️</button>${c.lat?`<button class="btn small" data-act="waSwap" data-i="${cs.indexOf(c)}" aria-label="Swap Darija and English">⇄</button>`:''}${c.f?`<button class="btn small" data-act="waPlay" data-i="${cs.indexOf(c)}" aria-label="Play">▶</button>`:''}</div>`;
   const line=c=>`<span class="watxt"><span lang="ar" dir="auto" class="waar">${esc(c.word)}</span>${c.latin?` <span class="fine">(${esc(c.latin)})</span>`:''} <span class="waen">— ${esc(c.meaning)}</span>${c.example?`<br><span class="fine" lang="ar" dir="auto">${esc(c.example)}</span>`:''}${c.example_en?`<br><span class="fine">${esc(c.example_en)}</span>`:''}${c.extra&&!c.ok?`<br><span class="fine">⚠️ ${c.extra} extra message${c.extra===1?'':'s'} left out</span>`:''}${waCheck(c).filter(t=>!t.startsWith('Extra')).map(t=>`<span class="waflag">⚠️ ${esc(t)}</span>`).join('')}</span>`;
   let h=`<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="waCancel">‹ Cancel</button></div>
-    <div class="dhead"><span class="ic" aria-hidden="true">💬</span><div><h1>From WhatsApp</h1><p>Voice notes from ${esc(waImp.helper)}</p></div></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">💬</span><div><h1>From WhatsApp</h1><p>${waImp.textOnly?'Phrases from':'Voice notes from'} ${esc(waImp.helper)}</p></div></div>
     ${statusBox()}`;
   if(waImp.audioOk===false)h+=`<div class="warn"><p><b>⚠️ This phone can’t play these voice notes.</b> The cards would import without working audio. Try exporting the chat again, with media.</p></div>`;
   h+=`<label class="subhead" for="wa-name">Deck name</label><input class="search" id="wa-name" maxlength="60" value="${esc(waImp.name)}">`;
@@ -1055,14 +1088,16 @@ function waPage(){
   fresh.forEach(c=>{c.flagged=chk.includes(c)});
   if(chk.length)h+=`<p class="subhead">⚠️ Check these · ${chk.length}</p><p class="fine">These may have come out in the wrong order. Tap ✏️ to fix, then ✓ Save.</p>`+chk.map(tog).join('');
   const okc=fresh.filter(c=>!chk.includes(c));
-  h+=chk.length?(okc.length?`<p class="subhead">✓ Other new words · ${okc.filter(c=>c.on).length} of ${okc.length}</p>`:''):`<p class="subhead">✓ New words · ${fresh.filter(c=>c.on).length} of ${fresh.length}</p>`;
-  h+=okc.length?okc.map(tog).join(''):fresh.length?'':'<p class="fine">No new words in this chat.</p>';
+  if(!(waImp.textOnly||(!cs.length&&(waImp.inbox||[]).length)))h+=chk.length?(okc.length?`<p class="subhead">✓ Other new words · ${okc.filter(c=>c.on).length} of ${okc.length}</p>`:''):`<p class="subhead">✓ New words · ${fresh.filter(c=>c.on).length} of ${fresh.length}</p>`;
+  if(!(waImp.textOnly||(!cs.length&&(waImp.inbox||[]).length)))h+=okc.length?okc.map(tog).join(''):fresh.length?'':'<p class="fine">No new words in this chat.</p>';
   if(dups.length)h+=`<p class="subhead">🔁 Already in your decks · ${dups.length}</p>`+dups.map(c=>row(c,`<div class="watxt">${line(c)}<span class="fine wadup">In “${esc(c.dupDeck)}”${c.dupMeaning&&c.dupMeaning!==c.meaning?` as “${esc(c.dupMeaning)}”`:''}</span><span class="wachoice"><button class="btn small" data-act="waDup" data-v="skip" data-i="${cs.indexOf(c)}" aria-pressed="${c.act==='skip'}">Skip</button><button class="btn small" data-act="waDup" data-v="audio" data-i="${cs.indexOf(c)}" aria-pressed="${c.act==='audio'}">Use new audio</button><button class="btn small" data-act="waDup" data-v="add" data-i="${cs.indexOf(c)}" aria-pressed="${c.act==='add'}">Add as new</button></span></div>`)).join('');
   if(reps.length)h+=`<p class="subhead">♊ Twice in this chat · kept once</p>`+reps.map(c=>row(c,line(c))).join('');
   const sk=[...waImp.skipped,...nof.map(c=>({why:'Voice note missing from the zip',what:c.word}))];
   if(sk.length)h+=`<details><summary class="subhead">⚠️ Couldn’t import · ${sk.length}</summary>`+sk.map(s=>`<p class="fine"><b>${esc(s.why)}:</b> <span dir="auto">${esc(s.what)}</span></p>`).join('')+`</details>`;
-  const any=nOn+nRep;
-  h+=`<button class="btn primary focus" data-act="waImport" ${any&&waEdit<0?'':'disabled'}>${any?`✓ Import${nOn?' '+plural(nOn,'word'):''}${nRep?(nOn?' + ':' ')+nRep+' new audio':''}`:'Nothing to import'}</button>`;
+  const ib=waImp.inbox||[],nIb=ib.filter(x=>x.on).length;
+  if(ib.length)h+=`<p class="subhead">📥 No voice note · ${nIb} of ${ib.length} to your Inbox</p><p class="fine">Record their audio later in the Inbox.</p>`+ib.map((x,i)=>`<div class="warow"><button class="watog" data-act="waIbx" data-i="${i}" aria-pressed="${x.on}">${x.on?'☑️':'⬜️'}</button><span class="watxt"><span dir="auto" class="waar">${esc(x.word)}</span> <span class="waen">— ${esc(x.meaning||'(no English)')}</span>${x.note?`<br><span class="fine">📝 ${esc(x.note)}</span>`:''}</span></div>`).join('');
+  const any=nOn+nRep+nIb;
+  h+=`<button class="btn primary focus" data-act="waImport" ${any&&waEdit<0?'':'disabled'}>${any?`✓ ${nOn||nRep?'Import':''}${nOn?' '+plural(nOn,'word'):''}${nRep?(nOn?' + ':' ')+nRep+' new audio':''}${nIb?(nOn||nRep?' + ':'Add ')+nIb+' to Inbox':''}`:'Nothing to import'}</button>`;
   if(cs.some(c=>c.lat))h+=`<p class="fine">Tap ⇄ if Darija and English came out the wrong way round.</p>`;
   h+=`<p class="fine">Types (verb, noun…) aren’t added here, except 🧰 Power tools. You can set them on any card later.</p></div>`;
   return h;
@@ -1075,7 +1110,9 @@ async function waImport(){
   let replaced=0;
   if(reps.length){const blobs=[];for(const c of reps){const old=S.notes.get(c.dupOf);if(!old)continue;blobs.push([old,await waBlob(c)])}
     try{await write(['notes','audio'],t=>{blobs.forEach(([n,b])=>{const k=n.audioKey||n.id;t.objectStore('audio').put(b,k);if(!n.audioKey)t.objectStore('notes').put({...n,audioKey:k})})});replaced=blobs.length}catch(e){}}
-  waImp=null;view='home';
+  const ibAdd=((waImp&&waImp.inbox)||[]).filter(x=>x.on&&x.word);waImp=null;view='home';
+  if(ibAdd.length){ibAdd.forEach((x,i)=>S.inbox.push({id:Date.now().toString(36)+i+Math.random().toString(36).slice(2,5),at:Date.now()+i,word:x.word,meaning:x.meaning||'',...(x.note?{note:x.note}:{}),audio:false}));await saveInbox()}
+  if(!fresh.length&&ibAdd.length&&!replaced){view='inbox';ibxSel=new Set();status={msg:`✓ ${plural(ibAdd.length,'phrase')} added to your Inbox. Record their audio here, then move them to a deck.`};render();return}
   if(!fresh.length){await load();view='home';status={msg:replaced?`✓ ${replaced} card${replaced===1?'':'s'} got the new audio. 🧹 Now clear your lesson chat in WhatsApp.`:'Nothing imported.'};render();return}
   const out=new JSZip(),cards=[],d=new Date(),ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   const rnd=Array.from({length:4},()=>'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random()*26)]).join('');
@@ -1655,6 +1692,7 @@ function home(){
     return h;
   }
   if(!su)h+=alertBanner();
+  h+=`<button class="btn addbtn" data-act="addOpen">➕ Add a phrase</button>`+(S.inbox.length?`<button class="ibxline" data-act="inbox"><span>📥 Inbox · ${S.inbox.length}${ibxNeed().length?` · 🎤 ${ibxNeed().length} need audio`:''}</span><span aria-hidden="true">›</span></button>`:'');
   h+=progressPanel();
   if(kid){const more=c.due>0||c.ready>0;
     h+=`<section class="today" aria-label="Today">
@@ -1662,7 +1700,7 @@ function home(){
     </section>`;
   }else h+=`<section class="today" aria-label="Review">
     <div class="line"><span>🔁 <b>${c.due}</b> to review</span><span>✨ <b>${c.newToday}</b> new</span><span class="sp"></span>${info('today','How today works')}</div>
-    ${backlogged()?`<p class="paused">⏸️ New words are paused while you catch up. They come back once reviews are under ${BACKLOG}.</p>`:''}
+    ${backlogged()?`<p class="paused">🐢 Fewer new words (${newCap()} a day) while you catch up. All of them come back once reviews are under ${BACKLOG}.</p>`:''}
     ${total&&dayMet(iso(Date.now()))?`<p class="doneday">✓ Done for today</p><button class="btn keepgo" data-act="study">Keep going (${total} more)</button>`:total?`<button class="btn primary" data-act="study">▶️ Start review</button>`:c.ready?`<button class="btn primary" data-act="learnMore">✓ Reviews done · ＋ Learn ${Math.min(10,c.ready)} more</button>`:`<button class="btn primary" disabled>✓ All reviews done</button>`}
     <div class="fprow"><button class="btn focus" data-act="pick">🎯 Focus practice</button>${info('practice','Focus practice')}</div></section>`;
   if(!kid&&CUR==='main'&&!ownDecks().length&&!(S.setup&&S.setup.lessonTipClosed))h+=`<section class="lessontip"><button class="lt-go" data-act="lesson">📝 <b>Next: add your first lesson</b> <span aria-hidden="true">›</span></button><button class="lt-x" data-act="closeLessonTip" aria-label="Close">✕</button></section>`;
@@ -2212,6 +2250,7 @@ function cardPage(){
     <label for="e-mean">English</label><textarea id="e-mean" rows="2">${esc(n.meaning)}</textarea>
     <label for="e-ex">Example (Darija, optional)</label><textarea id="e-ex" dir="auto" lang="ar" rows="2">${esc(n.example||'')}</textarea>
     <label for="e-exen">Example (English, optional)</label><textarea id="e-exen" rows="2">${esc(n.example_en||'')}</textarea>
+    <label for="e-note">📝 Note (optional)</label><textarea id="e-note" rows="2" placeholder="When people say it, what it really means">${esc(n.note||'')}</textarea>
     <span class="lbl2">Topic <span class="fine">(up to 2)</span></span><div class="tagpick">${topts}</div>
     <span class="lbl2">Type <span class="fine">(tap all that fit)</span></span><div class="tagpick">${opts}</div>
     <div class="audiobox"><span class="lbl">🎤 Audio</span>
@@ -2241,11 +2280,15 @@ async function saveCardEdit(){
   if(!word||!meaning){status={err:true,msg:'Darija and English can’t be empty.'};render();return}
   const nn={...n,word,meaning,example:v('e-ex').trim(),example_en:v('e-exen').trim(),tag:'',tags:[]};{const lt=v('e-lat').trim();if(lt)nn.latin=lt;else delete nn.latin}{const tg=[...document.querySelectorAll('input[name=e-tags]:checked')].map(x=>x.value).filter(k=>TAGS[k]);nn.tags=tg;nn.tag=tg[0]||''}
   {const tp=[...document.querySelectorAll('input[name=e-topics]:checked')].map(x=>x.value).filter(k=>TOPICS[k]).slice(0,2);if(tp.join()!==topicsOf(n).join()){nn.topics=tp;nn.topicsSet=true}}
+  {const nt=v('e-note').trim();if(nt)nn.note=nt;else delete nn.note}
   nn.edited=true;if(editAudio)nn.audioKey=n.id;
   const pk=n.id+'|pic',oldPk=n.picKey;
   if(editPic==='del'){delete nn.picKey;delete nn.picV;nn.picOff=true}else if(editPic){nn.picKey=pk;nn.picV=Date.now();delete nn.picOff}
   const sw=editSwap&&S.notes.get(editSwap.id);const on=sw?{...sw,audioKey:sw.id,edited:true}:null;
-  try{await write(['notes','audio'],t=>{t.objectStore('notes').put(nn);if(editAudio)t.objectStore('audio').put(editAudio,n.id);
+  const haveC=new Set((S.allCards||S.cards).map(c=>c.id)),addC=[];
+  for(const x of [editAudio?nn:null,on].filter(Boolean)){const cid=x.id+':listening';if(!haveC.has(cid))addC.push({id:cid,noteId:x.id,type:'listening',state:'new',interval:0,ease:2.5,due:0,reps:0,lapses:0})}
+  const dk=addC.length&&S.decks.find(d=>d.id===n.deckId&&d.noAudio);
+  try{await write(['notes','audio','cards','decks'],t=>{t.objectStore('notes').put(nn);if(editAudio)t.objectStore('audio').put(editAudio,n.id);addC.forEach(c=>t.objectStore('cards').put(c));if(dk){const r={...dk};delete r.noAudio;t.objectStore('decks').put(r)}
     if(on){t.objectStore('notes').put(on);if(sw.audioKey&&sw.audioKey!==sw.id)t.objectStore('audio').delete(sw.audioKey);t.objectStore('audio').put(editSwap.blob,sw.id)}
     if(editPic==='del'&&oldPk)t.objectStore('audio').delete(oldPk);else if(editPic&&editPic!=='del'){if(oldPk&&oldPk!==pk)t.objectStore('audio').delete(oldPk);t.objectStore('audio').put(editPic,pk)}})}
   catch(e){status={err:true,msg:'Could not save. Your phone may be out of storage.'};render();return}
@@ -2430,7 +2473,7 @@ function cardHtml(c,n,shown){
   const pu=picUrl(n),st=pu&&picMode()==='pic'?stageOf(S.cards.filter(x=>x.noteId===n.id)):'';
   const hideEn=!!pu&&picMode()==='pic'&&(st==='growing'||st==='well')&&!sess.enShown;
   const mean=(pu?`<img class="cardpic" src="${pu}" alt="">`:'')+(hideEn?`<button class="showen" data-act="showEn">Show English</button>`:`<p class="mean">${esc(n.meaning)}</p>`);
-  const exen=n.example_en&&!hideEn?`<p class="exen">${exHtml(n.example_en)}</p>`:'';
+  const exen=(n.example_en&&!hideEn?`<p class="exen">${exHtml(n.example_en)}</p>`:'')+(n.note&&!hideEn?`<p class="cnote">📝 ${esc(n.note)}</p>`:'');
   const tg=tagsOf(n).length?`<span class="tagchips">${tagsOf(n).map(t=>`<span class="tagchip">${TAGS[t][0]} ${TAGS[t][1]}</span>`).join('')}</span>`:'';
   let f='',b='';
   if(c.type==='recognition'){f=`<span class="chip">👁️ See it · read it, what does it mean?</span>${word}${ex}`;b=mean+exen+play()}
@@ -2510,6 +2553,10 @@ function render(){
   else if(view==='delete')app.innerHTML=deletePage();
   else if(view==='pick')app.innerHTML=pickPage();
   else if(view==='game')app.innerHTML=gamePage();
+  else if(view==='add')app.innerHTML=addPage();
+  else if(view==='inbox')app.innerHTML=inboxPage();
+  else if(view==='ibxrec')app.innerHTML=ibxRecPage();
+  else if(view==='ibxask')app.innerHTML=ibxAskPage();
   else if(view==='gmrec')app.innerHTML=gmRecPage();
   else if(view==='waprev')app.innerHTML=waImp?waPage():home();
   else if(view==='update')app.innerHTML=updatePage();
@@ -2534,6 +2581,165 @@ const newsHtml=()=>`<div class="modal" role="dialog" aria-modal="true" aria-labe
   <p class="fine">Find it in 🎯 Focus practice → Games. It’s still being tested. Try it and say what works and what doesn’t.</p>
   <button class="btn primary focus" data-act="newsTry">🎮 Try it</button><button class="btn" data-act="newsOk">OK</button></div></div>`;
 function go(v){view=v;status=null;renaming=false;sel=null;deckQ='';selAsk='';selMsg='';undoBuf=null;if(S.pending&&S.pending.kind==='deck')S.pending=null;render();window.scrollTo(0,0)}
+
+/* ---------- v74: capture → Inbox ----------
+   ➕ Add a phrase saves straight to the Inbox (Darija, English, optional note, optional recording).
+   Inbox phrases are never studied. Record missing audio there, ask a friend for it, then move them to a deck. */
+const ibxKey=id=>'ibx|'+id;
+const saveInbox=()=>write(['meta'],t=>t.objectStore('meta').put(S.inbox,'inbox')).catch(()=>{});
+const ibxNeed=()=>S.inbox.filter(x=>!x.audio);
+/* --- recorder: tap to start, tap to stop; play back as often as needed --- */
+const rec={mr:null,stream:null,chunks:[],blob:null,url:null,on:false,t0:0,timer:null,err:''};
+function recReset(){if(rec.on)try{rec.mr.stop()}catch(e){}if(rec.stream)rec.stream.getTracks().forEach(t=>t.stop());clearInterval(rec.timer);if(rec.url)URL.revokeObjectURL(rec.url);Object.assign(rec,{mr:null,stream:null,chunks:[],blob:null,url:null,on:false,t0:0,timer:null,err:''})}
+function recSet(b){if(rec.url)URL.revokeObjectURL(rec.url);rec.blob=b;rec.url=b?URL.createObjectURL(b):null}
+const recMime=()=>window.MediaRecorder&&MediaRecorder.isTypeSupported?['audio/mp4','audio/webm;codecs=opus','audio/webm'].find(t=>MediaRecorder.isTypeSupported(t))||'':'';
+async function recGo(){
+  if(rec.on){try{rec.mr.stop()}catch(e){}return}
+  rec.err='';
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){rec.err='This phone can’t record inside Kelma.';recPaint();return}
+  try{stopSound();rec.stream=await navigator.mediaDevices.getUserMedia({audio:true})}
+  catch(e){rec.err='Kelma can’t use the microphone. Allow it for Kelma in your phone’s settings, then try again.';recPaint();return}
+  const mime=recMime();let mr;try{mr=new MediaRecorder(rec.stream,mime?{mimeType:mime}:undefined)}catch(e){mr=new MediaRecorder(rec.stream)}
+  rec.chunks=[];mr.ondataavailable=e=>{if(e.data&&e.data.size)rec.chunks.push(e.data)};
+  mr.onstop=()=>{rec.on=false;clearInterval(rec.timer);if(rec.stream)rec.stream.getTracks().forEach(t=>t.stop());rec.stream=null;
+    const b=new Blob(rec.chunks,{type:(mr.mimeType||mime||'audio/mp4').split(';')[0]});
+    if(b.size>800){recSet(b);recPaint();recPlay()}else{rec.err='Nothing was recorded. Try again.';recPaint()}};
+  rec.mr=mr;mr.start();rec.on=true;rec.t0=Date.now();
+  rec.timer=setInterval(()=>{const el=document.getElementById('rec-t');const s=Math.floor((Date.now()-rec.t0)/1000);if(el)el.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0');if(s>=60)try{rec.mr.stop()}catch(e){}},250);
+  recPaint()}
+function recPlay(){if(rec.url){try{player.src=rec.url;player.currentTime=0;player.play().catch(()=>{})}catch(e){}}}
+function recHtml(keep){
+  if(rec.on)return `<button class="recbtn on" data-act="recGo" aria-label="Stop recording">⏹ Stop <span id="rec-t">0:00</span></button>`;
+  if(rec.blob)return `<div class="recrow"><button class="btn" data-act="recPlay">▶ Play</button><button class="btn" data-act="recAgain">↻ Again</button>${keep?`<button class="btn primary" data-act="${keep}">✓ Keep</button>`:`<button class="btn" data-act="recDrop" aria-label="Remove recording">✕</button>`}</div>`;
+  return `<button class="recbtn" data-act="recGo">🎤 Record</button>${rec.err?`<p class="fine" style="color:var(--again)">${esc(rec.err)}</p>`:''}`}
+function recPaint(){const b=document.getElementById('rec-box');if(b)b.innerHTML=recHtml(b.dataset.keep||'')}
+/* --- capture screen --- */
+let addFrom='home', ibxSkips=0, addEdit=null, addAdded=[], addDel=null, addNoteOpen=false, addMsg='';
+function addOpen(){addFrom=view==='inbox'?'inbox':'home';recReset();addEdit=null;addAdded=[];addDel=null;addNoteOpen=false;addMsg='';go('add');setTimeout(()=>{const w=document.getElementById('ad-w');if(w)w.focus()},80)}
+function addPage(){
+  const it=addEdit?S.inbox.find(x=>x.id===addEdit):null,showNote=addNoteOpen||!!(it&&it.note);
+  const rows=addAdded.map(id=>S.inbox.find(x=>x.id===id)).filter(Boolean);
+  return `<div class="page addpage"><div class="top" style="display:flex"><button class="ghost" data-act="addDone">‹ ${addEdit?'Back':'Done'}</button></div>
+    <h1 class="addh">${addEdit?'✏️ Fix this phrase':'➕ Add a phrase'}</h1>
+    ${addMsg?`<p class="addok" role="status">${esc(addMsg)}</p>`:''}
+    <label class="addlbl" for="ad-w"><span aria-hidden="true">🇲🇦</span> Darija</label>
+    <textarea id="ad-w" class="addbox addar" dir="auto" rows="2" autocomplete="off" autocorrect="off" spellcheck="false">${esc(it?it.word:'')}</textarea>
+    <label class="addlbl" for="ad-e"><span aria-hidden="true">🇬🇧</span> English</label>
+    <textarea id="ad-e" class="addbox" rows="2" placeholder="Tip: tap the 🎤 on the keyboard to say it">${esc(it?it.meaning:'')}</textarea>
+    ${showNote?`<label class="addlbl" for="ad-n">📝 Note</label><textarea id="ad-n" class="addbox" rows="2" placeholder="When people say it, what it really means">${esc(it&&it.note||'')}</textarea>`:`<button class="linkbtn" data-act="addNote">+ Note</button>`}
+    <div id="rec-box" class="recbox">${recHtml('')}</div>
+    <button class="btn primary focus" data-act="addSave">${addEdit?'✓ Save changes':'✓ Save'}</button>
+    ${!addEdit&&rows.length?`<p class="subhead">Just added · ${rows.length}</p><div class="sec">${rows.map(x=>`<div class="ibxrow"><button class="ibxtxt" data-act="addFix" data-id="${x.id}"><span class="ibxw" dir="auto">${esc(x.word)}</span><span class="fine">${esc(x.meaning)}</span></button><span class="ibxst" aria-label="${x.audio?'Has audio':'Needs audio'}">${x.audio?'🔊':'🎤'}</span><button class="btn small" data-act="addDel" data-id="${x.id}">${addDel===x.id?'Delete?':'✕'}</button></div>`).join('')}</div>`:''}
+    ${addEdit?'':`<p class="fine">Saved phrases wait in your 📥 Inbox until you move them to a deck.</p>`}</div>`}
+async function addSave(){
+  const v=id=>((document.getElementById(id)||{}).value||'').trim();
+  const word=v('ad-w'),meaning=v('ad-e'),note=v('ad-n');
+  if(!word||!meaning){addMsg='';status={err:true,msg:!word?'Add the Darija first.':'Add the English too.'};const p=document.querySelector('.addpage');if(p){const old=p.querySelector('.status');if(old)old.remove();p.querySelector('.addh').insertAdjacentHTML('afterend',statusBox())}status=null;return}
+  if(rec.on)return;
+  let it=addEdit?S.inbox.find(x=>x.id===addEdit):null;
+  if(!it){it={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),at:Date.now(),audio:false};S.inbox.push(it)}
+  Object.assign(it,{word,meaning});if(note)it.note=note;else delete it.note;
+  if(rec.blob){try{await write(['audio'],t=>t.objectStore('audio').put(rec.blob,ibxKey(it.id)));it.audio=true}catch(e){}}
+  await saveInbox();
+  if(addEdit){addEdit=null;recReset();addNoteOpen=false;if(addFrom==='inbox'){addMsg='';view='inbox';status={msg:'✓ Fixed'};render();window.scrollTo(0,0);return}addMsg='✓ Fixed';render();return}
+  addAdded.unshift(it.id);recReset();addNoteOpen=false;addMsg='✓ Saved to Inbox. Next one?';render();
+  const w=document.getElementById('ad-w');if(w)w.focus()}
+async function addFix(id){const it=S.inbox.find(x=>x.id===id);if(!it)return;recReset();addEdit=id;addMsg='';addNoteOpen=false;
+  if(it.audio){try{const b=await get('audio',ibxKey(id));if(b)recSet(b)}catch(e){}}
+  render();window.scrollTo(0,0)}
+async function ibxDelete(id){S.inbox=S.inbox.filter(x=>x.id!==id);addAdded=addAdded.filter(x=>x!==id);try{await write(['audio'],t=>t.objectStore('audio').delete(ibxKey(id)))}catch(e){}await saveInbox()}
+/* --- inbox page --- */
+let ibxSel=new Set(), ibxNewDeck=false;
+function inboxPage(){
+  const need=ibxNeed().length,all=S.inbox.slice().sort((a,b)=>b.at-a.at),tgt=S.settings.inboxTarget;
+  const decks=S.decks.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  let h=`<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="home">‹ Home</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">📥</span><div><h1>Inbox</h1><p>Phrases wait here, not studied, until you move them to a deck.</p></div></div>${statusBox()}
+    <button class="btn" data-act="addOpen">➕ Add a phrase</button>`;
+  if(!all.length)return h+`<p class="fine" style="margin-top:14px">Nothing waiting.</p></div>`;
+  if(need)h+=`<button class="btn primary" data-act="ibxRec">🎤 Record missing audio · ${need}</button><button class="linkbtn" data-act="ibxAsk">📤 Ask a friend to record them</button>`;
+  h+=`<p class="subhead">${plural(all.length,'phrase')}${need?` · ${need} need audio`:''}</p><div class="sec">`+all.map(x=>`<div class="ibxrow"><input type="checkbox" data-ibx="${x.id}" ${ibxSel.has(x.id)?'checked':''} aria-label="Select"><button class="ibxtxt" data-act="ibxFix" data-id="${x.id}"><span class="ibxw" dir="auto">${esc(x.word)}</span><span class="fine">${esc(x.meaning)}${x.note?` · 📝 ${esc(x.note)}`:''}</span></button>${x.audio?`<button class="btn small" data-act="ibxPlay" data-id="${x.id}" aria-label="Play">▶</button>`:`<span class="ibxst" aria-label="Needs audio">🎤</span>`}</div>`).join('')+`</div>`;
+  const n=ibxSel.size;
+  h+=`<div class="ibxmove"><button class="linkbtn" data-act="ibxAll">${n===all.length?'Clear':'Select all'}</button>
+    <label class="fine" for="ibx-deck">Move ${n?plural(n,'phrase'):'selected'} to</label>
+    <select id="ibx-deck" class="search">${decks.map(d=>`<option value="${esc(d.id)}" ${d.id===tgt?'selected':''}>${esc(d.name)}</option>`).join('')}<option value="__new" ${!decks.length||ibxNewDeck?'selected':''}>➕ New deck…</option></select>
+    ${ibxNewDeck||!decks.length?`<input class="search" id="ibx-new" maxlength="60" placeholder="New deck name" autocomplete="off">`:''}
+    <button class="btn primary" data-act="ibxMove" ${n?'':'disabled'}>Move ${n?plural(n,'phrase'):''}</button>
+    ${need&&[...ibxSel].some(id=>{const x=S.inbox.find(y=>y.id===id);return x&&!x.audio})?`<p class="fine">Phrases without audio come up as Read it and Say it cards. Hear it cards are added if you record audio later.</p>`:''}</div></div>`;
+  return h}
+async function ibxMove(){
+  const sel=S.inbox.filter(x=>ibxSel.has(x.id));if(!sel.length)return;
+  const s=document.getElementById('ibx-deck');let did=s?s.value:'';let deck=S.decks.find(d=>d.id===did);
+  if(!deck){const nm=((document.getElementById('ibx-new')||{}).value||'').trim().slice(0,60);
+    if(!nm){status={err:true,msg:'Give the new deck a name.'};render();return}
+    const d=new Date(),rnd=Math.random().toString(36).slice(2,6);
+    deck={id:d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'-my-'+rnd,name:nm,importedAt:Date.now(),own:true}}
+  let max=deckNotes(deck.id).reduce((m,n)=>Math.max(m,Number(n.order)||0),0);
+  const notes=[],cards=[],blobs=[];
+  for(const x of sel){max++;const id=deck.id+'#'+max;
+    let b=null;if(x.audio){try{b=await get('audio',ibxKey(x.id))}catch(e){}}
+    const tg=autoTags({word:x.word,meaning:x.meaning});if(!tg.includes('tools')&&isTool(x.meaning))tg.push('tools');
+    notes.push({id,deckId:deck.id,order:max,num:String(max),word:x.word,meaning:x.meaning,...(x.note?{note:x.note}:{}),example:'',example_en:'',tag:tg[0]||'',tags:tg,topics:autoTopics({meaning:x.meaning}),audioKey:b?id:null,edited:true});
+    if(b)blobs.push([id,b,x.id]);
+    (b?TYPES:['recognition','production']).forEach(t=>cards.push({id:id+':'+t,noteId:id,type:t,state:'new',interval:0,ease:2.5,due:0,reps:0,lapses:0}))}
+  const drec={...deck};if(blobs.length)delete drec.noAudio;
+  try{await write(['decks','notes','cards','audio'],t=>{t.objectStore('decks').put(drec);notes.forEach(n=>t.objectStore('notes').put(n));cards.forEach(c=>t.objectStore('cards').put(c));
+    blobs.forEach(([k,b,old])=>{t.objectStore('audio').put(b,k);t.objectStore('audio').delete(ibxKey(old))})})}
+  catch(e){status={err:true,msg:'Could not move them. Try again.'};render();return}
+  S.inbox=S.inbox.filter(x=>!ibxSel.has(x.id));ibxSel=new Set();ibxNewDeck=false;S.settings.inboxTarget=deck.id;saveMeta();await saveInbox();await load();
+  status={msg:`✓ Moved ${plural(sel.length,'phrase')} to “${deck.name}”. They’re in your reviews now.`};render()}
+/* --- record missing audio, one at a time --- */
+let ibxQ=[],ibxDone=0;
+function ibxRecOpen(){ibxSkips=0;recReset();ibxQ=ibxNeed().sort((a,b)=>a.at-b.at).map(x=>x.id);ibxDone=0;go('ibxrec')}
+function ibxRecPage(){
+  const id=ibxQ[0],x=S.inbox.find(y=>y.id===id);
+  let h=`<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="ibxRecEnd">‹ Inbox</button></div>`;
+  if(!x)return h+`<section class="sec" style="text-align:center;padding:24px"><p style="font-size:40px;margin:0">✓</p><h2>${ibxDone?`${plural(ibxDone,'recording')} saved`:'Nothing left to record'}</h2><button class="btn primary" data-act="ibxRecEnd">Back to Inbox</button></section></div>`;
+  return h+`<p class="fine" style="text-align:center">${ibxDone+1} of ${ibxDone+ibxQ.length}</p>
+    <section class="sec recq"><div class="recw" dir="auto">${esc(x.word)}</div><p class="mean">${esc(x.meaning)}</p>${x.note?`<p class="fine">📝 ${esc(x.note)}</p>`:''}</section>
+    <div id="rec-box" class="recbox big" data-keep="ibxKeep">${recHtml('ibxKeep')}</div>
+    <button class="linkbtn" data-act="ibxSkip">Skip this one</button></div>`}
+async function ibxKeep(){const id=ibxQ[0],x=S.inbox.find(y=>y.id===id);if(!x||!rec.blob)return;
+  try{await write(['audio'],t=>t.objectStore('audio').put(rec.blob,ibxKey(id)));x.audio=true;await saveInbox()}catch(e){status={err:true,msg:'Could not save that recording.'};render();return}
+  ibxQ.shift();ibxDone++;ibxSkips=0;recReset();render()}
+/* --- ask a friend: send the list on WhatsApp, bring their voice notes back --- */
+let askM=null;
+function ibxAskPage(){
+  const need=ibxNeed().sort((a,b)=>a.at-b.at),ask=S.settings.ask;
+  let h=`<div class="page"><div class="top" style="display:flex"><button class="ghost" data-act="ibxBack">‹ Inbox</button></div>
+    <div class="dhead"><span class="ic" aria-hidden="true">📤</span><div><h1>Ask a friend</h1><p>A friend records them on WhatsApp. Kelma adds them here.</p></div></div>${statusBox()}`;
+  if(askM)return h+askMatchHtml()+`</div>`;
+  h+=`<p class="subhead">1 · Send your phrases</p><div class="sec"><p>${need.length?`${plural(need.length,'phrase')} without audio will go in one message, numbered.`:'Every phrase already has audio.'}</p>
+    <button class="btn primary" data-act="askSend" ${need.length?'':'disabled'}>📤 Send in WhatsApp</button></div>
+    <p class="subhead">2 · When they’ve replied</p><div class="sec"><p class="fine">In WhatsApp, open the chat with them, tap their name, then Export Chat → Attach Media. Save it to Files, then choose it here.</p>
+    ${ask?`<label class="btn" for="ask-file">📥 Add their voice notes</label><input type="file" id="ask-file" accept=".zip,application/zip" hidden><p class="fine">Matches the ${plural(ask.ids.length,'phrase')} you sent on ${new Date(ask.at).toLocaleDateString()}.</p>`:`<p class="fine">Send your phrases first.</p>`}</div></div>`;
+  return h}
+function askSend(){const need=ibxNeed().sort((a,b)=>a.at-b.at);if(!need.length)return;
+  const txt='Could you record a voice note for each of these, in this order? One voice note per phrase. Thank you!\n\n'+need.map((x,i)=>`${i+1}. ${x.word} (${x.meaning})`).join('\n');
+  S.settings.ask={at:Date.now(),ids:need.map(x=>x.id)};saveMeta();
+  if(navigator.share)navigator.share({text:txt}).catch(()=>{});else window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank');
+  render()}
+async function askLoad(file){
+  const ask=S.settings.ask;if(!ask||!window.JSZip)return;status={msg:'Reading the chat…'};render();
+  let zip;try{zip=await JSZip.loadAsync(file)}catch(e){status={err:true,msg:'That isn’t a WhatsApp chat export (.zip).'};render();return}
+  const chat=Object.values(zip.files).find(f=>!f.dir&&/\.txt$/i.test(f.name)&&!f.name.startsWith('__MACOSX'));
+  if(!chat){status={err:true,msg:'No chat found in that zip.'};render();return}
+  const msgs=waParse(await chat.async('string')).filter(m=>m.kind==='audio');
+  const items=ask.ids.map(id=>S.inbox.find(x=>x.id===id)).filter(x=>x&&!x.audio);
+  if(!msgs.length){status={err:true,msg:'No voice notes in that chat. Export it again and choose Attach Media.'};render();return}
+  if(!items.length){status={msg:'Those phrases already have audio.'};render();return}
+  const notes=msgs.slice(-items.length);
+  askM={pairs:items.map((x,i)=>({id:x.id,f:notes[i]?waFile(zip,notes[i].file):null,on:true}))};
+  askM.pairs.forEach(p=>{if(!p.f)p.on=false});
+  status=null;render()}
+function askMatchHtml(){
+  return `<p class="subhead">Check each one · ${askM.pairs.filter(p=>p.on).length} to add</p><p class="fine">Their last ${plural(askM.pairs.filter(p=>p.f).length,'voice note')}, in order. ▶ to listen. ⇅ swaps with the next one.</p><div class="sec">`+
+    askM.pairs.map((p,i)=>{const x=S.inbox.find(y=>y.id===p.id);return `<div class="ibxrow"><button class="watog" data-act="askTog" data-i="${i}" aria-pressed="${p.on}" ${p.f?'':'disabled'}>${p.on?'☑️':'⬜️'}</button><span class="ibxtxt"><span class="ibxw" dir="auto">${esc(x?x.word:'')}</span><span class="fine">${i+1}. ${esc(x?x.meaning:'')}</span></span>${p.f?`<button class="btn small" data-act="askPlay" data-i="${i}" aria-label="Play">▶</button>`:'<span class="fine">none</span>'}${i<askM.pairs.length-1?`<button class="btn small" data-act="askSwap" data-i="${i}" aria-label="Swap with next">⇅</button>`:''}</div>`}).join('')+
+    `</div><button class="btn primary focus" data-act="askSave" ${askM.pairs.some(p=>p.on)?'':'disabled'}>✓ Add ${plural(askM.pairs.filter(p=>p.on).length,'recording')}</button><button class="btn" data-act="askCancel">Cancel</button>`}
+async function askBlob(p){const buf=await p.f.async('arraybuffer');return await cleanBlob(buf,audioType(p.f.name))}
+async function askSave(){const on=askM.pairs.filter(p=>p.on&&p.f);status={msg:'Adding…'};render();let n=0;
+  for(const p of on){try{const b=await askBlob(p);await write(['audio'],t=>t.objectStore('audio').put(b,ibxKey(p.id)));const x=S.inbox.find(y=>y.id===p.id);if(x){x.audio=true;n++}}catch(e){}}
+  await saveInbox();askM=null;if(!ibxNeed().length)delete S.settings.ask;saveMeta();status={msg:`✓ ${plural(n,'recording')} added.`};view='inbox';render()}
 
 /* ---------- v71: games ----------
    Four games on the words picked in Focus practice. Only words already started. Games are extra practice:
@@ -2774,6 +2980,7 @@ app.addEventListener('click',e=>{
   else if(a==='waDup'){const c=waImp&&waImp.cards[+el.dataset.i];if(c){c.act=el.dataset.v;waKeepName();render()}}
   else if(a==='waPlay'){e.stopPropagation();waPlay(+el.dataset.i)}
   else if(a==='waImport')waImport();
+  else if(a==='waIbx'){const x=waImp&&waImp.inbox&&waImp.inbox[+el.dataset.i];if(x){waKeepName();x.on=!x.on;const y=window.scrollY;render();window.scrollTo(0,y)}}
   else if(a==='waCancel'){waImp=null;waEdit=-1;status=null;go('home')}
   else if(a==='waEdit'){waKeepName();waEdit=+el.dataset.i;status=null;render();const f=document.getElementById('wa-e-word');if(f)f.closest('.waedit').scrollIntoView({block:'center'})}
   else if(a==='waEditCancel'){waEdit=-1;status=null;render()}
@@ -2801,6 +3008,33 @@ app.addEventListener('click',e=>{
   else if(a==='gmRecords')go('gmrec');
   else if(a==='pickBack')go('pick');
   else if(a==='gmMostMissed'){const st=gmStore();const ids=Object.entries(st.miss).filter(([id])=>S.notes.has(id)).sort((a,b)=>b[1]-a[1]).slice(0,8).map(x=>x[0]);practiceNotes(ids)}
+  else if(a==='addOpen')addOpen();
+  else if(a==='addDone'){if(addEdit){addEdit=null;recReset();addMsg='';render()}else{recReset();go(S.inbox.length&&view==='add'&&addFrom==='inbox'?'inbox':'home')}}
+  else if(a==='addNote'){addNoteOpen=true;const v=id=>((document.getElementById(id)||{}).value||'');const w=v('ad-w'),e=v('ad-e');render();document.getElementById('ad-w').value=w;document.getElementById('ad-e').value=e;const n=document.getElementById('ad-n');if(n)n.focus()}
+  else if(a==='addSave')addSave();
+  else if(a==='addFix')addFix(el.dataset.id);
+  else if(a==='addDel'){const id=el.dataset.id;if(addDel===id){addDel=null;ibxDelete(id).then(()=>{addMsg='Deleted.';render()})}else{addDel=id;const v=x=>((document.getElementById(x)||{}).value||'');const w=v('ad-w'),e=v('ad-e');render();const W=document.getElementById('ad-w');if(W)W.value=w;const E=document.getElementById('ad-e');if(E)E.value=e}}
+  else if(a==='recGo')recGo();
+  else if(a==='recPlay')recPlay();
+  else if(a==='recAgain'){recSet(null);recGo()}
+  else if(a==='recDrop'){recSet(null);recPaint()}
+  else if(a==='inbox'){ibxSel=new Set();ibxNewDeck=false;status=null;go('inbox')}
+  else if(a==='ibxFix'){addFrom='inbox';addAdded=[];addFix(el.dataset.id).then(()=>{view='add';render()})}
+  else if(a==='ibxPlay'){get('audio',ibxKey(el.dataset.id)).then(b=>{if(b){try{player.src=URL.createObjectURL(b);player.play().catch(()=>{})}catch(e){}}})}
+  else if(a==='ibxAll'){ibxSel=ibxSel.size===S.inbox.length?new Set():new Set(S.inbox.map(x=>x.id));const y=window.scrollY;render();window.scrollTo(0,y)}
+  else if(a==='ibxMove')ibxMove();
+  else if(a==='ibxRec')ibxRecOpen();
+  else if(a==='ibxKeep')ibxKeep();
+  else if(a==='ibxSkip'){ibxQ.push(ibxQ.shift());recReset();ibxSkips++;if(ibxSkips>=ibxQ.length)ibxQ=[];render()}
+  else if(a==='ibxRecEnd'){recReset();ibxSkips=0;go('inbox')}
+  else if(a==='ibxAsk'){askM=null;status=null;go('ibxask')}
+  else if(a==='ibxBack'){askM=null;status=null;go('inbox')}
+  else if(a==='askSend')askSend();
+  else if(a==='askTog'){const p=askM&&askM.pairs[+el.dataset.i];if(p&&p.f){p.on=!p.on;render()}}
+  else if(a==='askPlay'){const p=askM&&askM.pairs[+el.dataset.i];if(p&&p.f)askBlob(p).then(b=>{try{player.src=URL.createObjectURL(b);player.play().catch(()=>{})}catch(e){}})}
+  else if(a==='askSwap'){const i=+el.dataset.i,P=askM&&askM.pairs;if(P&&P[i+1]){const t=P[i].f;P[i].f=P[i+1].f;P[i+1].f=t;[P[i],P[i+1]].forEach(p=>{if(!p.f)p.on=false});const y=window.scrollY;render();window.scrollTo(0,y)}}
+  else if(a==='askSave')askSave();
+  else if(a==='askCancel'){askM=null;render()}
   else if(a==='newsOk'||a==='newsTry'){S.settings.seenNews=NEWS;saveMeta();if(a==='newsTry'){pickOpen();pickMode='games';render()}else render()}
   else if(a==='audPick')audPickOpen();
   else if(a==='apPlay'){const o=S.notes.get(el.dataset.id);if(o&&o.audioKey){get('audio',o.audioKey).then(b=>{if(b){try{player.src=URL.createObjectURL(b);player.play().catch(()=>{})}catch(e){}}})}}
@@ -2944,13 +3178,16 @@ app.addEventListener('input',e=>{
   if(e.target.id==='del-confirm'){const b=document.getElementById('del-go');if(b)b.disabled=e.target.value.trim().toUpperCase()!=='DELETE'}
 });
 app.addEventListener('change',async e=>{
+  if(e.target.id==='ibx-deck'){ibxNewDeck=e.target.value==='__new';const y=window.scrollY;render();window.scrollTo(0,y);const n=document.getElementById('ibx-new');if(n)n.focus();return}
+  if(e.target.dataset&&e.target.dataset.ibx){const id=e.target.dataset.ibx;e.target.checked?ibxSel.add(id):ibxSel.delete(id);const y=window.scrollY;render();window.scrollTo(0,y);return}
+  if(e.target.id==='ask-file'){const f=e.target.files&&e.target.files[0];if(f)askLoad(f);return}
   if(e.target.id==='e-pic'){const f=e.target.files&&e.target.files[0];if(!f)return;const n=S.notes.get(editId);if(!n)return;
     const box=document.getElementById('e-picbox');if(box)box.insertAdjacentHTML('beforeend','<span class="fine" id="pic-wait">Getting it ready…</span>');
     const b=await prepPic(f,f.name);
     if(!b){const w=document.getElementById('pic-wait');if(w)w.textContent='⚠️ Couldn’t open that picture. Try a photo or a .jpg / .png.';return}
     clearEditPic();editPic=b;editPicUrl=URL.createObjectURL(b);const bx=document.getElementById('e-picbox');if(bx)bx.innerHTML=picBox(n);return}
   if(e.target.id==='e-audio'){const f=e.target.files&&e.target.files[0];if(!f)return;
-    const keep=['e-word','e-lat','e-mean','e-ex','e-exen'].map(i=>[i,(document.getElementById(i)||{}).value]);const keepT=[...document.querySelectorAll('input[name=e-tags],input[name=e-topics]')].map(x=>[x.name,x.value,x.checked]);
+    const keep=['e-word','e-lat','e-mean','e-ex','e-exen','e-note'].map(i=>[i,(document.getElementById(i)||{}).value]);const keepT=[...document.querySelectorAll('input[name=e-tags],input[name=e-topics]')].map(x=>[x.name,x.value,x.checked]);
     const type=f.type||(/\.m4a$/i.test(f.name)?'audio/mp4':/\.mp3$/i.test(f.name)?'audio/mpeg':/\.wav$/i.test(f.name)?'audio/wav':'');
     const blob=new Blob([await f.arrayBuffer()],{type});
     if(!(await testAudio(blob))){status={err:true,msg:'This phone can’t play that file. Try an .m4a or .mp3 recording.'}}else{editAudio=blob;editSwap=null;editAudioMsg='';status=null}
